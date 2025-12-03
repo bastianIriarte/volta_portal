@@ -1,0 +1,2 @@
+import React from "react"; import { Card } from "../../components/ui/Card";
+export default function ReportsView() { return (<Card title="Reportes"><p>Próximamente: gráficos por curso/año y estado de firmas.</p></Card>); }
