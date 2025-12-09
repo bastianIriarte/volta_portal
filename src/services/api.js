@@ -3,31 +3,34 @@ import { encrypt, decrypt } from "../utils/encryption";
 
 // ✅ Flag desde Vite (.env)
 const ENCRYPTION_ENABLED = import.meta.env.VITE_API_ENCRYPTION_ENABLED === "true";
-const DEBUG =import.meta.env.VITE_API_ENCRYPTION_LOG === "true";
+const DEBUG = import.meta.env.VITE_API_ENCRYPTION_LOG === "true";
+
+// ✅ Key para localStorage
+const TOKEN_KEY = "auth_token";
 
 export const returnResponse = (success, message, status, data = null) => {
   return { success, message, status, data };
 };
 
-// función para leer cookies (ej. XSRF)
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-}
+// ✅ Funciones para manejar el token
+export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const setToken = (token) => localStorage.setItem(TOKEN_KEY, token);
+export const removeToken = () => localStorage.removeItem(TOKEN_KEY);
 
 // ✅ Crear instancia axios
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
-  withCredentials: true,
   headers: { "X-Requested-With": "XMLHttpRequest" },
 });
 
 // ✅ Interceptor de request
 api.interceptors.request.use(
   async (config) => {
-    const token = getCookie("XSRF-TOKEN");
-    if (token) config.headers["X-XSRF-TOKEN"] = decodeURIComponent(token);
+    // Agregar token de autenticación si existe
+    const token = getToken();
+    if (token) {
+      config.headers["Authorization"] = `Bearer ${token}`;
+    }
 
     if (ENCRYPTION_ENABLED && config.data) {
       if (DEBUG) console.log("[REQUEST] Body original:", config.data);

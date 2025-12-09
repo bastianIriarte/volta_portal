@@ -117,18 +117,18 @@ export default function Login() {
           {/* Logo */}
           <div className="text-center mb-5 border-b-2 border-gray-100">
             <img
-              src="/logo_portal.png"
+              src="/volta_logo.png"
               alt="Logo"
               className="h-[90px] w-[200px] object-contain mx-auto mb-4"
             />
           </div>
 
-          {/* <h1 className="text-lg md:text-2xl font-bold text-[var(--brand-primary)] text-center">
+           <h1 className="text-lg md:text-2xl font-bold text-[var(--brand-primary)] text-center">
             SUCURSAL VIRTUAL
-          </h1> */}
-          {/* <p className="text-sm text-black/60 text-center mb-6">
+          </h1> 
+          <p className="text-sm text-black/60 text-center mb-6">
             Ingresa tus credenciales para acceder a tu cuenta
-          </p> */}
+          </p> 
 
           {errors.form && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -152,7 +152,7 @@ export default function Login() {
                   aria-describedby={showRutErr ? "err-rut" : undefined}
                   className={showRutErr ? "border-red-400 focus:ring-red-200 pr-10" : "pr-10"}
                 />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <div className="absolute inset-y-0 right-0 top-4 pr-3 flex items-center pointer-events-none">
                   <Key className="h-4 w-4 text-gray-400" />
                 </div>
               </div>
@@ -181,7 +181,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center hover:opacity-70 transition-opacity"
+                  className="absolute inset-y-0 right-0 top-4 pr-3 flex items-center hover:opacity-70 transition-opacity"
                   tabIndex={-1}
                 >
                   {showPassword ? (
@@ -234,7 +234,7 @@ export default function Login() {
                 to="/primera-vez"
                 className="text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-600)] transition-colors"
               >
-                ¿Primera vez? Activa tu cuenta
+                ¿Primera vez? Registrate aquí
               </Link>
             </div>
           </div>

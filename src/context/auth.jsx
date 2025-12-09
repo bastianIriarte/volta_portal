@@ -1,6 +1,7 @@
 // File: src/context/auth.js
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { login as apiLogin, logout as apiLogout, getUser } from "../services/authService";
+import { getToken, removeToken } from "../services/api";
 import { handleSnackbar } from "../utils/messageHelpers";
 
 const AuthCtx = createContext(null);
@@ -9,15 +10,24 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Cargar usuario al montar (si la cookie existe)
+  // Cargar usuario al montar (si existe token en localStorage)
   useEffect(() => {
     (async () => {
       try {
+        const token = getToken();
+        if (!token) {
+          setSession(null);
+          setLoading(false);
+          return;
+        }
+
         const response = await getUser();
-        if (!response.success) throw new Error(res.message)
+        if (!response.success) throw new Error(response.message);
         const user = response.data;
-        setSession({ user }); // el backend devuelve usuario autenticado
+        setSession({ user });
       } catch {
+        // Token inválido o expirado, limpiarlo
+        removeToken();
         setSession(null);
       } finally {
         setLoading(false);
@@ -27,11 +37,10 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
-      const res = await apiLogin(email, password); // pide cookie al backend
+      const res = await apiLogin(email, password);
       if (res.success) {
-        const response = await getUser();
-        if (!response.success) throw new Error(res.message)
-        const user = response.data;
+        // El login ahora devuelve el usuario completo
+        const user = res.data?.user || res.data;
         setSession({ user });
         return true;
       } else {

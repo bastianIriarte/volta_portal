@@ -13,7 +13,7 @@ export const WelcomeBanner = () => {
                 Dashboard
               </h2>
               <p className="text-gray-600 mt-1">
-                Portal de clientes y proveedores
+                Bienvenido <b>Super Usuario</b>
               </p>
             </div>
           </div>

@@ -184,9 +184,9 @@ export default function NavBar({
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <img
-            src="/logo_portal.png"
+            src="/volta_logo.png"
             alt="Logo"
-            className="h-[70px] object-contain hidden sm:block mt-1"
+            className="h-[30px] object-contain hidden sm:block mt-1"
           />
         
           {/* Hamburguesa solo móvil */}
@@ -256,9 +256,9 @@ export default function NavBar({
               <div className="flex items-center gap-2 mx-auto">
 
                 <img
-                  src="/logo_portal.png"
+                  src="/volta_logo.png"
                   alt="Logo"
-                  className="h-[80px] object-contain"
+                  className="h-[30px] object-contain"
                 />
               </div>
               <button

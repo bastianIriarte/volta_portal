@@ -1,7 +1,7 @@
 export default function FooterNoLogin() {
     return (
         <div className="text-center mt-6 text-xs text-blue-800 font-semibold">
-            <p>© 2025 Portal Cliente y Proveedores | Todos los derechos reservados</p>
+            <p>© 2025 Sucursal Virtual VOLTA | Todos los derechos reservados</p>
             <div className="flex justify-center gap-1.5 text-center mt-1">
                 <span>Design by</span>
                 <a
