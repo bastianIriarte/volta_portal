@@ -121,15 +121,6 @@ export default function CertificateBuilderView() {
   if (templateId) {
     return (
       <div className="h-full">
-        <div className="bg-white border-b border-gray-200 px-4 py-3">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Volver a Plantillas
-          </button>
-        </div>
         <CertificateBuilder
           templateId={parseInt(templateId)}
           onClose={handleBack}

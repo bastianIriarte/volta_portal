@@ -20,6 +20,7 @@ import {
   PenTool,
   Minus,
   Square,
+  Box,
   FileText,
   Building,
   Users,
@@ -107,13 +108,20 @@ function StylePanel({ field, onUpdate, onClose }) {
   };
 
   const fontSizes = [
-    { label: "XS", value: "10px" },
-    { label: "S", value: "12px" },
-    { label: "M", value: "14px" },
-    { label: "L", value: "16px" },
-    { label: "XL", value: "20px" },
-    { label: "2XL", value: "24px" },
-    { label: "3XL", value: "32px" },
+    { label: "8", value: "8px" },
+    { label: "9", value: "9px" },
+    { label: "10", value: "10px" },
+    { label: "11", value: "11px" },
+    { label: "12", value: "12px" },
+    { label: "14", value: "14px" },
+    { label: "16", value: "16px" },
+    { label: "18", value: "18px" },
+    { label: "20", value: "20px" },
+    { label: "24", value: "24px" },
+    { label: "28", value: "28px" },
+    { label: "32", value: "32px" },
+    { label: "36", value: "36px" },
+    { label: "48", value: "48px" },
   ];
 
   const columnOptions = [
@@ -138,7 +146,7 @@ function StylePanel({ field, onUpdate, onClose }) {
       {field.field_type !== "image" && field.field_type !== "signature" && (
         <div className="mb-3">
           <label className="text-xs text-gray-500 mb-1 block">Tamaño</label>
-          <div className="flex gap-1 flex-wrap">
+          <div className="flex gap-1 flex-wrap mb-2">
             {fontSizes.map((size) => (
               <button
                 key={size.value}
@@ -152,6 +160,17 @@ function StylePanel({ field, onUpdate, onClose }) {
                 {size.label}
               </button>
             ))}
+          </div>
+          <div className="flex gap-1 items-center">
+            <input
+              type="number"
+              min="6"
+              max="120"
+              value={parseInt(styles.fontSize) || 14}
+              onChange={(e) => handleStyleChange("fontSize", `${e.target.value}px`)}
+              className="w-16 px-2 py-1 border border-gray-300 rounded text-xs text-center"
+            />
+            <span className="text-xs text-gray-500">px (personalizado)</span>
           </div>
         </div>
       )}
@@ -298,32 +317,32 @@ function StylePanel({ field, onUpdate, onClose }) {
       {/* Espaciado */}
       <div className="mb-2">
         <label className="text-xs text-gray-500 mb-1 block">Espaciado (padding)</label>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-1 items-center">
           <input
-            type="range"
+            type="number"
             min="0"
-            max="32"
+            max="100"
             value={parseInt(styles.padding) || 0}
             onChange={(e) => handleStyleChange("padding", `${e.target.value}px`)}
-            className="flex-1"
+            className="w-16 px-2 py-1 border border-gray-300 rounded text-xs text-center"
           />
-          <span className="text-xs text-gray-500 w-8">{parseInt(styles.padding) || 0}px</span>
+          <span className="text-xs text-gray-500">px</span>
         </div>
       </div>
 
       {/* Margen inferior */}
       <div>
         <label className="text-xs text-gray-500 mb-1 block">Margen inferior</label>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-1 items-center">
           <input
-            type="range"
+            type="number"
             min="0"
-            max="32"
+            max="100"
             value={parseInt(styles.marginBottom) || 8}
             onChange={(e) => handleStyleChange("marginBottom", `${e.target.value}px`)}
-            className="flex-1"
+            className="w-16 px-2 py-1 border border-gray-300 rounded text-xs text-center"
           />
-          <span className="text-xs text-gray-500 w-8">{parseInt(styles.marginBottom) || 8}px</span>
+          <span className="text-xs text-gray-500">px</span>
         </div>
       </div>
     </div>
@@ -345,6 +364,23 @@ function FieldConfigPanel({ field, config, onSave, onClose }) {
   const [marginLinked, setMarginLinked] = useState(true);
   const [paddingUnit, setPaddingUnit] = useState("px");
   const [marginUnit, setMarginUnit] = useState("px");
+
+  const fontSizes = [
+    { label: "8", value: "8px" },
+    { label: "9", value: "9px" },
+    { label: "10", value: "10px" },
+    { label: "11", value: "11px" },
+    { label: "12", value: "12px" },
+    { label: "14", value: "14px" },
+    { label: "16", value: "16px" },
+    { label: "18", value: "18px" },
+    { label: "20", value: "20px" },
+    { label: "24", value: "24px" },
+    { label: "28", value: "28px" },
+    { label: "32", value: "32px" },
+    { label: "36", value: "36px" },
+    { label: "48", value: "48px" },
+  ];
 
   // Helper para extraer valor numérico de una propiedad de estilo
   const getSpacingValue = (value, defaultVal = 0) => {
@@ -754,15 +790,6 @@ function FieldConfigPanel({ field, config, onSave, onClose }) {
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Placeholder</label>
-                <input
-                  type="text"
-                  value={editedField.placeholder || ""}
-                  onChange={(e) => handleChange("placeholder", e.target.value)}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-                />
-              </div>
               <div className="flex items-center gap-3 pt-1">
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
@@ -888,20 +915,31 @@ function FieldConfigPanel({ field, config, onSave, onClose }) {
               {field.field_type !== "image" && field.field_type !== "signature" && (
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Tamaño fuente</label>
-                  <div className="flex gap-1 flex-wrap">
-                    {["10px", "12px", "14px", "16px", "18px", "20px", "24px"].map((size) => (
+                  <div className="flex gap-1 flex-wrap mb-2">
+                    {fontSizes.map((size) => (
                       <button
-                        key={size}
-                        onClick={() => handleStyleChange("fontSize", size)}
+                        key={size.value}
+                        onClick={() => handleStyleChange("fontSize", size.value)}
                         className={`px-1.5 py-1 text-xs rounded ${
-                          editedField.styles?.fontSize === size
+                          editedField.styles?.fontSize === size.value
                             ? "bg-sky-100 text-sky-700 border border-sky-300"
                             : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                         }`}
                       >
-                        {parseInt(size)}
+                        {size.label}
                       </button>
                     ))}
+                  </div>
+                  <div className="flex gap-1 items-center">
+                    <input
+                      type="number"
+                      min="6"
+                      max="120"
+                      value={parseInt(editedField.styles?.fontSize) || 14}
+                      onChange={(e) => handleStyleChange("fontSize", `${e.target.value}px`)}
+                      className="w-16 px-2 py-1 border border-gray-300 rounded text-xs text-center"
+                    />
+                    <span className="text-xs text-gray-500">px (personalizado)</span>
                   </div>
                 </div>
               )}
@@ -999,30 +1037,88 @@ function FieldConfigPanel({ field, config, onSave, onClose }) {
               )}
 
               {/* Ancho del campo */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Ancho campo</label>
-                <div className="flex gap-1 flex-wrap">
-                  {[
-                    { value: "100%", label: "100%" },
-                    { value: "75%", label: "75%" },
-                    { value: "50%", label: "50%" },
-                    { value: "33.33%", label: "33%" },
-                    { value: "25%", label: "25%" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => handleStyleChange("width", opt.value)}
-                      className={`px-2 py-1 text-xs rounded ${
-                        editedField.styles?.width === opt.value || (!editedField.styles?.width && opt.value === "100%")
-                          ? "bg-sky-100 text-sky-700 border border-sky-300"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+              {field.field_type !== "spacer" && field.field_type !== "divider" && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Ancho campo</label>
+                  <div className="flex gap-1 flex-wrap">
+                    {[
+                      { value: "100%", label: "100%" },
+                      { value: "75%", label: "75%" },
+                      { value: "50%", label: "50%" },
+                      { value: "33.33%", label: "33%" },
+                      { value: "25%", label: "25%" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => handleStyleChange("width", opt.value)}
+                        className={`px-2 py-1 text-xs rounded ${
+                          editedField.styles?.width === opt.value || (!editedField.styles?.width && opt.value === "100%")
+                            ? "bg-sky-100 text-sky-700 border border-sky-300"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Altura del espacio (solo para spacer) */}
+              {field.field_type === "spacer" && (
+                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                  <label className="block text-xs font-medium text-gray-700 mb-2">Altura del espacio</label>
+                  <p className="text-[10px] text-gray-500 mb-2">Controla qué tan grande es el espacio vertical</p>
+
+                  {/* Botones de altura rápida */}
+                  <div className="flex gap-1 flex-wrap mb-2">
+                    {[
+                      { value: "20px", label: "Pequeño (20px)" },
+                      { value: "40px", label: "Mediano (40px)" },
+                      { value: "60px", label: "Grande (60px)" },
+                      { value: "100px", label: "Muy grande (100px)" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => handleStyleChange("spacerHeight", opt.value)}
+                        className={`px-2 py-1 text-[10px] rounded ${
+                          editedField.styles?.spacerHeight === opt.value
+                            ? "bg-sky-100 text-sky-700 border border-sky-300 font-medium"
+                            : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-300"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Input personalizado */}
+                  <div className="flex gap-2 items-center">
+                    <label className="text-[10px] text-gray-600">Personalizado:</label>
+                    <input
+                      type="number"
+                      value={parseInt(editedField.styles?.spacerHeight || "20") || 20}
+                      onChange={(e) => handleStyleChange("spacerHeight", `${e.target.value}px`)}
+                      className="w-16 px-2 py-1 text-xs border border-gray-300 rounded"
+                      min="1"
+                      max="500"
+                    />
+                    <span className="text-[10px] text-gray-500">px</span>
+                  </div>
+
+                  {/* Preview visual */}
+                  <div className="mt-3 p-2 bg-white rounded border border-gray-200">
+                    <p className="text-[9px] text-gray-500 mb-1">Vista previa:</p>
+                    <div
+                      className="bg-gray-200 border border-dashed border-gray-400 rounded"
+                      style={{ height: editedField.styles?.spacerHeight || "20px" }}
+                    />
+                    <p className="text-[9px] text-gray-500 mt-1 text-center">
+                      {editedField.styles?.spacerHeight || "20px"} de altura
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Espaciado - Padding (estilo Elementor) */}
               <div>
@@ -1457,7 +1553,7 @@ export default function CertificateBuilder({ templateId, onClose }) {
   const [showFieldConfig, setShowFieldConfig] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
-  const [scale, setScale] = useState(0.75);
+  const [scale, setScale] = useState(0.9);
   const [stylePanel, setStylePanel] = useState({ show: false, fieldId: null });
 
   // Estado para confirmación de eliminación
@@ -1772,6 +1868,59 @@ export default function CertificateBuilder({ templateId, onClose }) {
         )}
 
         <div className="flex-1 overflow-y-auto p-2 space-y-2">
+          {/* Elementos de Layout (Divisor, Espacio, etc.) */}
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <button
+              onClick={() => toggleCategory("layout_elements")}
+              className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-50 hover:bg-gray-100 text-left"
+            >
+              <div className="flex items-center gap-1.5">
+                <Box className="h-3.5 w-3.5 text-gray-500" />
+                <span className="text-xs font-medium text-gray-700">Elementos de Layout</span>
+                <span className="text-xs text-gray-400 bg-gray-200 px-1 rounded">2</span>
+              </div>
+              {expandedCategories["layout_elements"] ? <ChevronDown className="h-3.5 w-3.5 text-gray-400" /> : <ChevronRight className="h-3.5 w-3.5 text-gray-400" />}
+            </button>
+            {expandedCategories["layout_elements"] && (
+              <div className="p-1.5 space-y-1">
+                {/* Divisor */}
+                <div
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, {
+                    field_key: `divider_${Date.now()}`,
+                    field_label: "Divisor",
+                    field_type: "divider",
+                    section: null,
+                    styles: {},
+                  }, true)}
+                  className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded cursor-move hover:border-sky-400 hover:bg-sky-50 group"
+                >
+                  <GripVertical className="h-3 w-3 text-gray-300 group-hover:text-sky-400" />
+                  <Minus className="h-3 w-3 text-gray-500 group-hover:text-sky-600" />
+                  <span className="text-xs text-gray-700 truncate">Divisor</span>
+                </div>
+
+                {/* Espacio */}
+                <div
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, {
+                    field_key: `spacer_${Date.now()}`,
+                    field_label: "Espacio",
+                    field_type: "spacer",
+                    section: null,
+                    styles: { spacerHeight: "40px" },
+                  }, true)}
+                  className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded cursor-move hover:border-sky-400 hover:bg-sky-50 group"
+                >
+                  <GripVertical className="h-3 w-3 text-gray-300 group-hover:text-sky-400" />
+                  <Square className="h-3 w-3 text-gray-500 group-hover:text-sky-600" />
+                  <span className="text-xs text-gray-700 truncate">Espacio</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Campos predefinidos por categoría */}
           {Object.entries(groupedPredefinedFields()).map(([category, categoryFields]) => {
             const catInfo = config?.field_categories?.[category] || { label: category, icon: "FileText" };
             const CatIcon = getIcon(catInfo.icon);
@@ -2125,10 +2274,15 @@ function CertificateSection({
         return <hr className="border-t-2 border-gray-300 my-2" />;
 
       case "spacer":
-        return <div className="h-8" />;
+        return (
+          <div
+            className="bg-gray-100 border border-dashed border-gray-300 rounded"
+            style={{ height: field.styles?.spacerHeight || "20px" }}
+          />
+        );
 
       default:
-        return <span>{value || field.default_value || field.placeholder || field.field_label}</span>;
+        return <span>{value || field.default_value || field.field_label}</span>;
     }
   };
 
@@ -2155,28 +2309,28 @@ function CertificateSection({
       )}
 
       <div className={`px-8 pt-4 ${fields.length === 0 ? "opacity-0" : ""}`} style={{ minHeight: isMain ? "400px" : "80px" }}>
-        <div className="flex flex-wrap">
-          {fields.map((field, index) => {
-            const isHovered = hoveredField === field.id;
-            const fieldStyles = {
-              display: field.styles?.display || "inline-block",
-              width: field.styles?.width || "100%",
-              verticalAlign: "top",
-              ...field.styles,
-            };
+        {fields.map((field, index) => {
+          const isHovered = hoveredField === field.id;
 
-            return (
-              <div
-                key={field.id}
-                draggable
-                onDragStart={(e) => handleFieldDragStart(e, index)}
-                onDragOver={(e) => handleFieldDragOver(e, index)}
-                onDragEnd={handleFieldDragEnd}
-                onMouseEnter={() => setHoveredField(field.id)}
-                onMouseLeave={() => setHoveredField(null)}
-                className={`relative group ${draggedIndex === index ? "opacity-50" : ""}`}
-                style={fieldStyles}
-              >
+          const fieldStyles = {
+            width: field.styles?.width || "100%",
+            display: "inline-block",
+            verticalAlign: "top",
+            ...field.styles,
+          };
+
+          return (
+            <div
+              key={field.id}
+              draggable
+              onDragStart={(e) => handleFieldDragStart(e, index)}
+              onDragOver={(e) => handleFieldDragOver(e, index)}
+              onDragEnd={handleFieldDragEnd}
+              onMouseEnter={() => setHoveredField(field.id)}
+              onMouseLeave={() => setHoveredField(null)}
+              className={`relative group ${draggedIndex === index ? "opacity-50" : ""}`}
+              style={fieldStyles}
+            >
                 {/* Controles */}
                 {isHovered && (
                   <div className="absolute -top-3 right-0 flex gap-0.5 z-20 bg-white rounded-lg shadow-lg border border-gray-200 p-0.5">
@@ -2256,8 +2410,7 @@ function CertificateSection({
                 </div>
               </div>
             );
-          })}
-        </div>
+        })}
       </div>
     </div>
   );

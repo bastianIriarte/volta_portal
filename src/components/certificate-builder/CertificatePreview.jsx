@@ -71,7 +71,7 @@ export default function CertificatePreview({ template, fields, data }) {
         {field.field_label && styles.showLabel === true && (
           <span style={{ color: styles.labelColor || "#6b7280" }}>{field.field_label}: </span>
         )}
-        <span>{value || field.placeholder || "—"}</span>
+        <span>{value || field.default_value || field.field_label}</span>
       </div>
     );
   };
@@ -132,6 +132,18 @@ export default function CertificatePreview({ template, fields, data }) {
   };
 
   const renderTableField = (field) => {
+    // Si el backend envió el HTML completo de la tabla, usarlo directamente
+    const tableHtml = getValue(field.data_source || "table_html");
+    if (tableHtml) {
+      return (
+        <div
+          className="py-4 certificate-table"
+          dangerouslySetInnerHTML={{ __html: tableHtml }}
+        />
+      );
+    }
+
+    // Si no hay HTML del backend, usar la configuración de columnas (para preview en builder)
     const tableData = data?.details || [];
     const columns = field.table_columns || [
       { key: "fecha", label: "Fecha", width: "15%" },
