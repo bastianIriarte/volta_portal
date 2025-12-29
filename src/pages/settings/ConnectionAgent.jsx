@@ -7,8 +7,11 @@ import {
   CheckCircle,
   Loader2,
   Info,
-  Eye,
-  EyeOff,
+  Network,
+  Database,
+  Shield,
+  RefreshCw,
+  XCircle,
 } from "lucide-react";
 import { handleSnackbar } from "../../utils/messageHelpers";
 import { getConfigurations, storeOrUpdate } from "../../services/configurationService";
@@ -22,44 +25,44 @@ export default function ConnectionAgent() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingInit, setLoadingInit] = useState(true);
 
-  // Estado de validación
+  // Estado de validacion
   const [touched, setTouched] = useState(false);
   const [errors, setErrors] = useState([]);
 
-  // Estado para mostrar/ocultar contraseña
-  const [showPassword, setShowPassword] = useState(false);
-
-  // Formulario con los campos requeridos
+  // Formulario - solo necesitamos endpoint y status
   const [formData, setFormData] = useState({
     status: 0,
     endpoint: '',
-    driver: 'sqlsrv',
-    host: '',
-    port: '',
-    database: '',
-    username: '',
-    password: '',
   });
+
+  // Datos obtenidos del agente (solo lectura)
+  const [agentInfo, setAgentInfo] = useState(null);
 
   // Cargar configuraciones existentes
   useEffect(() => {
     async function fetchConfig() {
       try {
         const res = await getConfigurations(code);
-        if (res.success) {
+        if (res.success && res.data) {
           setFormData({
             status: res.data.status ? 1 : 0,
             endpoint: res.data.endpoint || "",
-            driver: res.data.driver || "sqlsrv",
-            host: res.data.host || "",
-            port: res.data.port || "",
-            database: res.data.database || "",
-            username: res.data.username || "",
-            password: res.data.password || "",
           });
+
+          // Info del agente obtenida
+          if (res.data.query_mode || res.data.database_connected !== undefined || res.data.health) {
+            setAgentInfo({
+              auth_enabled: res.data.auth_enabled,
+              query_mode: res.data.query_mode,
+              endpoints: res.data.endpoints,
+              health: res.data.health,
+              database_connected: res.data.database_connected,
+              database_info: res.data.database_info,
+            });
+          }
         }
       } catch (e) {
-        handleSnackbar("Error al cargar configuración: " + e.message, "error");
+        handleSnackbar("Error al cargar configuracion: " + e.message, "error");
       } finally {
         setLoadingInit(false);
       }
@@ -67,7 +70,7 @@ export default function ConnectionAgent() {
     fetchConfig();
   }, []);
 
-  // Función de validación de URL
+  // Funcion de validacion de URL
   const isValidUrl = (string) => {
     try {
       const url = new URL(string);
@@ -77,41 +80,14 @@ export default function ConnectionAgent() {
     }
   };
 
-  // Función de validación
+  // Funcion de validacion
   const validateForm = () => {
     const newErrors = [];
+
     if (!formData.endpoint.trim()) {
-      newErrors.push("Endpoint es requerido");
+      newErrors.push("La URL del agente es requerida");
     } else if (!isValidUrl(formData.endpoint)) {
-      newErrors.push("Endpoint inválido");
-    }
-
-    if (!formData.driver) {
-      newErrors.push("Driver es requerido");
-    }
-
-    if (!formData.host.trim()) {
-      newErrors.push("Host es requerido");
-    }
-
-    if (!formData.port.trim()) {
-      newErrors.push("Puerto es requerido");
-    } else if (isNaN(formData.port) || formData.port < 1 || formData.port > 65535) {
-      newErrors.push("Puerto debe ser un número válido entre 1 y 65535");
-    }
-
-    if (!formData.database.trim()) {
-      newErrors.push("Base de datos es requerida");
-    }
-
-    if (!formData.username.trim()) {
-      newErrors.push("Usuario es requerido");
-    }
-
-    if (!formData.password.trim()) {
-      newErrors.push("Contraseña es requerida");
-    } else if (formData.password.length < 4) {
-      newErrors.push("Contraseña debe tener al menos 4 caracteres");
+      newErrors.push("La URL del agente debe ser valida (http:// o https://)");
     }
 
     setErrors(newErrors);
@@ -125,33 +101,38 @@ export default function ConnectionAgent() {
       return;
     }
 
-    // Preparar datos para envío
+    // Preparar datos para envio
     const cleanData = {
       status: formData.status,
       endpoint: formData.endpoint.trim(),
-      driver: formData.driver,
-      host: formData.host.trim(),
-      port: formData.port.trim(),
-      database: formData.database.trim(),
-      username: formData.username.trim(),
-      password: formData.password.trim(),
     };
 
     setIsLoading(true);
     try {
       const res = await storeOrUpdate(code, cleanData);
       if (res.success) {
-        handleSnackbar(res.message, "success");
+        handleSnackbar(res.message || "Configuracion guardada correctamente", "success");
         setErrors([]);
         setTouched(false);
+
+        // Recargar para obtener la info del agente
+        const configRes = await getConfigurations(code);
+        if (configRes.success && configRes.data) {
+          setAgentInfo({
+            auth_enabled: configRes.data.auth_enabled,
+            query_mode: configRes.data.query_mode,
+            endpoints: configRes.data.endpoints,
+            health: configRes.data.health,
+            database_connected: configRes.data.database_connected,
+            database_info: configRes.data.database_info,
+          });
+        }
       } else {
-        // Mostrar error de la API en el alert de validación
-        setErrors([res.message || "Error al guardar la configuración"]);
+        setErrors([res.message || "Error al guardar la configuracion"]);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err) {
-      // Mostrar error de excepción en el alert de validación
-      setErrors(["Error de conexión: " + err.message]);
+      setErrors(["Error de conexion: " + err.message]);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setIsLoading(false);
@@ -172,7 +153,7 @@ export default function ConnectionAgent() {
       <div className="flex items-center justify-center min-h-96">
         <div className="text-center">
           <Loader2 size={48} className="animate-spin text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Cargando configuración...</p>
+          <p className="text-gray-600">Cargando configuracion...</p>
         </div>
       </div>
     );
@@ -189,9 +170,9 @@ export default function ConnectionAgent() {
         >
           <ArrowLeft size={24} />
         </button>
-        <div>
-          <h2 className="text-2xl font-bold text-black">Configuración Agent</h2>
-          <p className="text-gray-600">Configuración de conexión al agente de base de datos</p>
+        <div className="flex-1">
+          <h2 className="text-2xl font-bold text-black">Conexion Agent</h2>
+          <p className="text-gray-600">Configuracion de conexion al agente InsideOne</p>
         </div>
         {isLoading && (
           <Loader2 size={20} className="animate-spin text-gray-400" />
@@ -204,7 +185,7 @@ export default function ConnectionAgent() {
           <div className="flex items-start gap-3">
             <AlertCircle size={20} className="text-red-600 mt-0.5" />
             <div className="flex-1">
-              <h4 className="font-semibold text-red-900 mb-2">Errores de validación:</h4>
+              <h4 className="font-semibold text-red-900 mb-2">Errores de validacion:</h4>
               <ul className="space-y-1">
                 {errors.map((error, idx) => (
                   <li key={idx} className="text-sm text-red-800">• {error}</li>
@@ -215,29 +196,120 @@ export default function ConnectionAgent() {
         </div>
       )}
 
-      {/* Formulario */}
+      {/* Estado del Agente (si ya esta configurado) */}
+      {agentInfo && (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Network size={18} className="text-green-600" />
+              Estado del Agente
+            </h3>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Health Status */}
+              {agentInfo.health && (
+                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <CheckCircle size={20} className="text-green-600" />
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-medium">Health</p>
+                    <p className="text-sm font-medium text-green-700">
+                      {agentInfo.health.status || "OK"} - {agentInfo.health.message || "Agente disponible"}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Autenticacion */}
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <Shield size={20} className={agentInfo.auth_enabled ? "text-green-600" : "text-gray-400"} />
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-medium">Autenticacion</p>
+                  <p className="text-sm font-medium">
+                    {agentInfo.auth_enabled ? "Habilitada (API Key)" : "Deshabilitada"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Modo de Query */}
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <RefreshCw size={20} className="text-blue-600" />
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-medium">Modo Query</p>
+                  <p className="text-sm font-medium">{agentInfo.query_mode || "No disponible"}</p>
+                </div>
+              </div>
+
+              {/* Estado BD */}
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <Database size={20} className={agentInfo.database_connected ? "text-green-600" : "text-red-500"} />
+                <div>
+                  <p className="text-xs text-gray-500 uppercase font-medium">Base de Datos</p>
+                  <p className="text-sm font-medium flex items-center gap-1">
+                    {agentInfo.database_connected ? (
+                      <>
+                        <CheckCircle size={14} className="text-green-600" />
+                        Conectada
+                      </>
+                    ) : (
+                      <>
+                        <XCircle size={14} className="text-red-500" />
+                        No conectada
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Info de BD */}
+              {agentInfo.database_info && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <Info size={20} className="text-gray-600" />
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-medium">Driver / BD</p>
+                    <p className="text-sm font-medium">
+                      {agentInfo.database_info.driver} - {agentInfo.database_info.name}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Endpoints disponibles */}
+            {agentInfo.endpoints && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-xs text-gray-500 uppercase font-medium mb-2">Endpoints Disponibles</p>
+                <div className="flex flex-wrap gap-2">
+                  {agentInfo.endpoints.encrypted?.enabled && (
+                    <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
+                      Encrypted: {agentInfo.endpoints.encrypted.url}
+                    </span>
+                  )}
+                  {agentInfo.endpoints.plain?.enabled && (
+                    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+                      Plain: {agentInfo.endpoints.plain.url}
+                    </span>
+                  )}
+                  {agentInfo.endpoints.dbTest?.enabled && (
+                    <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                      DB Test: {agentInfo.endpoints.dbTest.url}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Formulario de Configuracion */}
       <div className="bg-white rounded-lg border border-gray-100 shadow-sm">
         <div className="px-6 py-5">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex items-start gap-3">
-              <Info size={16} className="text-blue-600 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-blue-900 mb-1">Información Importante</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Asegúrese de que el agente esté instalado y posea un puerto abierto en el firewall</li>
-                  <li>• Configure el driver según su base de datos: SQL Server o SAP HANA</li>
-                  <li>• Puertos comunes: SQL Server (1433), SAP HANA (30015)</li>
-                  <li>• Las credenciales deben tener permisos suficientes en la base de datos</li>
-                  <li>• Mantenga estas credenciales seguras y no las comparta</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div className="grid gap-6 my-5">
-            {/* Estado integración */}
+          <div className="grid gap-6">
+            {/* Estado integracion */}
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-2">
-                ESTADO DE INTEGRACIÓN
+                ESTADO DE INTEGRACION
                 {formData.status === 1 && <CheckCircle size={14} className="inline text-green-500 ml-2" />}
               </label>
               <select
@@ -250,13 +322,16 @@ export default function ConnectionAgent() {
                 <option value={1}>Habilitado</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                Habilita o deshabilita la conexión al agente
+                Habilita o deshabilita la conexion al agente
               </p>
             </div>
+          </div>
+
+          <div className="grid gap-6 my-5">
             {/* Endpoint */}
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-2">
-                ENDPOINT DE AGENTE *
+                URL DEL AGENTE *
                 {formData.endpoint.trim() && isValidUrl(formData.endpoint) &&
                   <CheckCircle size={14} className="inline text-green-500 ml-2" />
                 }
@@ -265,172 +340,31 @@ export default function ConnectionAgent() {
                 type="url"
                 value={formData.endpoint}
                 onChange={(e) => updateFormField('endpoint', e.target.value)}
-                className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none font-mono ${touched && (!formData.endpoint.trim() || !isValidUrl(formData.endpoint))
-                  ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                placeholder="https://agent.example.com/api"
-                disabled={isLoading}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                URL del endpoint del agente de conexión
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6 my-5">
-            {/* Driver */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">
-                DRIVER *
-                <CheckCircle size={14} className="inline text-green-500 ml-2" />
-              </label>
-              <select
-                value={formData.driver}
-                onChange={(e) => updateFormField('driver', e.target.value)}
-                className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                disabled={isLoading}
-              >
-                <option value="sqlsrv">SQL Server (sqlsrv)</option>
-                <option value="hana">SAP HANA (hana)</option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Tipo de driver de base de datos a utilizar
-              </p>
-            </div>
-            {/* Host */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">
-                HOST *
-                {formData.host.trim() &&
-                  <CheckCircle size={14} className="inline text-green-500 ml-2" />
-                }
-              </label>
-              <input
-                type="text"
-                value={formData.host}
-                onChange={(e) => updateFormField('host', e.target.value)}
-                className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none ${touched && !formData.host.trim()
-                  ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                placeholder="localhost"
-                disabled={isLoading}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Dirección del servidor de base de datos
-              </p>
-            </div>
-            {/* Port */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">
-                PUERTO *
-                {formData.port.trim() && !isNaN(formData.port) &&
-                  <CheckCircle size={14} className="inline text-green-500 ml-2" />
-                }
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="65535"
-                value={formData.port}
-                onChange={(e) => updateFormField('port', e.target.value)}
-                className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none ${touched && (!formData.port.trim() || isNaN(formData.port))
-                  ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                placeholder="1433"
-                disabled={isLoading}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Puerto de conexión (1433 para SQL Server, 30015 para HANA)
-              </p>
-            </div>
-            {/* Database */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">
-                BASE DE DATOS *
-                {formData.database.trim() &&
-                  <CheckCircle size={14} className="inline text-green-500 ml-2" />
-                }
-              </label>
-              <input
-                type="text"
-                value={formData.database}
-                onChange={(e) => updateFormField('database', e.target.value)}
-                className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none ${touched && !formData.database.trim()
-                  ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                placeholder="SBODemoUS"
-                disabled={isLoading}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Nombre de la base de datos
-              </p>
-            </div>
-          </div>
-
-
-
-
-
-
-          <div className="grid grid-cols-2 gap-6 my-5">
-            {/* Username */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">
-                USUARIO *
-                {formData.username.trim() &&
-                  <CheckCircle size={14} className="inline text-green-500 ml-2" />
-                }
-              </label>
-              <input
-                type="text"
-                value={formData.username}
-                onChange={(e) => updateFormField('username', e.target.value)}
-                className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none ${touched && !formData.username.trim()
-                  ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                placeholder="sa"
-                disabled={isLoading}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Usuario de la base de datos
-              </p>
-            </div>
-            {/* Password */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">
-                CONTRASEÑA *
-                {formData.password.trim() && formData.password.length >= 4 &&
-                  <CheckCircle size={14} className="inline text-green-500 ml-2" />
-                }
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={(e) => updateFormField('password', e.target.value)}
-                  className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none ${touched && (!formData.password.trim() || formData.password.length < 4)
+                className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none font-mono ${
+                  touched && (!formData.endpoint.trim() || !isValidUrl(formData.endpoint))
                     ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                  placeholder="••••••••"
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded transition-colors"
-                  disabled={isLoading}
-                  title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                >
-                  {showPassword ? (
-                    <EyeOff size={18} className="text-gray-500" />
-                  ) : (
-                    <Eye size={18} className="text-gray-500" />
-                  )}
-                </button>
-              </div>
+                }`}
+                placeholder="http://localhost:5000"
+                disabled={isLoading}
+              />
               <p className="text-xs text-gray-500 mt-1">
-                Contraseña de la base de datos
+                URL donde esta ejecutandose el agente InsideOne
               </p>
+            </div>
+          </div>
+
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <Info size={16} className="text-green-600 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-green-900 mb-1">Como funciona</h4>
+                <ul className="text-sm text-green-800 space-y-1">
+                  <li>• Solo necesitas ingresar la URL del agente</li>
+                  <li>• Al guardar, se conectara automaticamente al agente para obtener su configuracion</li>
+                  <li>• La API Key (si aplica) se obtiene y almacena automaticamente</li>
+                  <li>• El modo de query disponible se detecta del agente</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -452,16 +386,16 @@ export default function ConnectionAgent() {
           {isLoading ? (
             <>
               <Loader2 size={16} className="animate-spin" />
-              Guardando...
+              Conectando con Agente...
             </>
           ) : (
             <>
               <Save size={16} />
-              Guardar Configuración
+              Guardar y Conectar
             </>
           )}
         </Button>
       </div>
-    </div >
+    </div>
   );
 }

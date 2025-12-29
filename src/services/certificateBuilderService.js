@@ -232,3 +232,23 @@ export const generateCertificatePdf = async (templateId, data, download = false)
     return returnResponse(false, error.message || "Error al generar el PDF", 500, null);
   }
 };
+
+/**
+ * Obtiene el historial de cambios de una plantilla de certificado
+ * @param {number} templateId - ID de la plantilla
+ * @param {number} limit - Límite de registros a obtener
+ */
+export const getTemplateLogs = async (templateId, limit = 50) => {
+  try {
+    const response = await api.get(`/api/certificate-templates/${templateId}/logs?limit=${limit}`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};

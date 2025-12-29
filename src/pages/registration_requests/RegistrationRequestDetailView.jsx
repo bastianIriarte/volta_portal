@@ -4,91 +4,19 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   ClipboardList, ArrowLeft, Save, Building2, User,
   CheckCircle, XCircle, Clock, Check, X, AlertTriangle,
-  FileText, BarChart3, Shield, ToggleLeft, ToggleRight,
-  CheckSquare, Square, Eye, FileBarChart, Receipt, Truck
+  FileText, BarChart3, Loader2,
+  CheckSquare, Square
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
+import { getRegistrationRequestById, approveRequest, rejectRequest, saveUserPermissions, getUserPermissions } from "../../services/registrationRequestService";
+import { getCertificateTemplates } from "../../services/companyService";
+import { handleSnackbar } from "../../utils/messageHelpers";
 
-// Datos dummy para solicitudes
-const dummyRequests = [
-  {
-    id: 1,
-    company_rut: "76.123.456-7",
-    company_name: "Constructora Los Andes SpA",
-    sap_code: "SAP001",
-    requester_name: "Juan Perez",
-    requester_email: "jperez@losandes.cl",
-    requester_rut: "12.345.678-9",
-    position: "Gerente Comercial",
-    phone: "+56 9 8765 4321",
-    request_status: "pending",
-    created_at: "2024-12-01 10:30"
-  },
-  {
-    id: 2,
-    company_rut: "76.987.654-3",
-    company_name: "Servicios Integrales del Norte Ltda",
-    sap_code: "SAP002",
-    requester_name: "Maria Garcia",
-    requester_email: "mgarcia@sinorte.cl",
-    requester_rut: "15.678.901-2",
-    position: "Administradora",
-    phone: "+56 9 1234 5678",
-    request_status: "approved",
-    created_at: "2024-11-28 14:15",
-    approved_at: "2024-11-29 09:00",
-    approved_by: "Admin Sistema"
-  },
-  {
-    id: 3,
-    company_rut: "77.111.222-K",
-    company_name: "Transportes del Sur SA",
-    sap_code: "SAP003",
-    requester_name: "Pedro Rodriguez",
-    requester_email: "prodriguez@transur.cl",
-    requester_rut: "18.234.567-8",
-    position: "Encargado Logistica",
-    phone: "+56 9 5555 4444",
-    request_status: "rejected",
-    rejection_reason: "El solicitante no esta autorizado por la empresa",
-    created_at: "2024-11-25 16:45",
-    rejected_at: "2024-11-26 11:30",
-    rejected_by: "Admin Sistema"
-  },
-  {
-    id: 4,
-    company_rut: "76.555.444-1",
-    company_name: "Minera Central SpA",
-    sap_code: "SAP004",
-    requester_name: "Ana Martinez",
-    requester_email: "amartinez@mineracentral.cl",
-    requester_rut: "16.789.012-3",
-    position: "Jefe de Compras",
-    phone: "+56 9 7777 8888",
-    request_status: "pending",
-    created_at: "2024-12-02 08:00"
-  },
+// Documentos fijos disponibles
+const fixedDocuments = [
+  { id: "doc_reporte_onsite", code: "reporte_onsite", name: "Reporte OnSite", description: "Acceso al reporte OnSite de la empresa" },
+  { id: "doc_recoleccion", code: "recoleccion", name: "Recoleccion", description: "Acceso a documentos de recoleccion" },
 ];
-
-// Permisos disponibles para reportes y funcionalidades
-const availablePermissions = {
-  reports: [
-    { id: "report_oc", name: "Ordenes de Compra", description: "Ver y descargar ordenes de compra", icon: Receipt },
-    { id: "report_facturas", name: "Estado de Facturas", description: "Consultar estado de facturas", icon: FileBarChart },
-    { id: "report_pagos", name: "Reporte de Pagos", description: "Ver historial de pagos", icon: BarChart3 },
-    { id: "report_despachos", name: "Guias de Despacho", description: "Ver guias de despacho", icon: Truck },
-    { id: "report_contratos", name: "Contratos", description: "Acceso a contratos vigentes", icon: FileText },
-  ],
-  functionalities: [
-    { id: "func_documents", name: "Documentos SharePoint", description: "Acceso a documentos compartidos", icon: FileText },
-    { id: "func_certificates", name: "Gestion de Certificados", description: "Subir y gestionar certificados", icon: Shield },
-    { id: "func_profile", name: "Editar Perfil", description: "Modificar datos de usuario", icon: User },
-  ]
-};
-
-// Permisos por defecto al aprobar
-const defaultPermissions = ["report_oc", "report_facturas", "func_documents", "func_profile"];
 
 const statusConfig = {
   pending: { label: "Pendiente", color: "bg-yellow-100 text-yellow-800", icon: Clock, bgColor: "bg-yellow-50", borderColor: "border-yellow-200" },
@@ -99,24 +27,79 @@ const statusConfig = {
 export default function RegistrationRequestDetailView() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const requestId = parseInt(id);
 
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
   const [request, setRequest] = useState(null);
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectModal, setShowRejectModal] = useState(false);
 
+  // Reportes desde la base de datos (certificate templates)
+  const [reports, setReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+
   useEffect(() => {
-    const foundRequest = dummyRequests.find(r => r.id === requestId);
-    if (foundRequest) {
-      setRequest(foundRequest);
-      // Si ya esta aprobada, cargar permisos guardados (dummy)
-      if (foundRequest.request_status === "approved") {
-        setSelectedPermissions(defaultPermissions);
+    loadRequest();
+    loadReports();
+  }, [id]);
+
+  const loadRequest = async () => {
+    setLoading(true);
+    try {
+      const response = await getRegistrationRequestById(id);
+      if (response.success) {
+        setRequest(response.data);
+        // Si la solicitud esta aprobada, cargar permisos existentes
+        if (response.data.request_status === "approved") {
+          loadExistingPermissions();
+        }
+      } else {
+        handleSnackbar(response.message || "Error al cargar solicitud", "error");
+        navigate("/dashboard/solicitudes");
       }
+    } catch (error) {
+      console.error("Error loading request:", error);
+      handleSnackbar("Error al cargar solicitud", "error");
+      navigate("/dashboard/solicitudes");
+    } finally {
+      setLoading(false);
     }
-  }, [requestId]);
+  };
+
+  const loadExistingPermissions = async () => {
+    try {
+      const response = await getUserPermissions(id);
+      if (response.success && response.data) {
+        setSelectedPermissions(response.data);
+      }
+    } catch (error) {
+      console.error("Error loading permissions:", error);
+    }
+  };
+
+  const loadReports = async () => {
+    setLoadingReports(true);
+    try {
+      const response = await getCertificateTemplates();
+      if (response.success && response.data) {
+        // Transformar los certificate templates a formato de reportes
+        const reportsData = response.data.map(cert => ({
+          id: `report_${cert.id}`,
+          certificateId: cert.id,
+          code: cert.code,
+          name: cert.name,
+          description: cert.description || `Acceso a ${cert.name}`,
+        }));
+        setReports(reportsData);
+      }
+    } catch (error) {
+      console.error("Error loading reports:", error);
+    } finally {
+      setLoadingReports(false);
+    }
+  };
 
   const handleTogglePermission = (permId) => {
     setSelectedPermissions(prev =>
@@ -127,7 +110,7 @@ export default function RegistrationRequestDetailView() {
   };
 
   const handleSelectAllReports = () => {
-    const reportIds = availablePermissions.reports.map(r => r.id);
+    const reportIds = reports.map(r => r.id);
     const allSelected = reportIds.every(id => selectedPermissions.includes(id));
 
     if (allSelected) {
@@ -137,48 +120,89 @@ export default function RegistrationRequestDetailView() {
     }
   };
 
-  const handleSelectAllFunctionalities = () => {
-    const funcIds = availablePermissions.functionalities.map(f => f.id);
-    const allSelected = funcIds.every(id => selectedPermissions.includes(id));
+  const handleSelectAllDocuments = () => {
+    const docIds = fixedDocuments.map(d => d.id);
+    const allSelected = docIds.every(id => selectedPermissions.includes(id));
 
     if (allSelected) {
-      setSelectedPermissions(prev => prev.filter(p => !funcIds.includes(p)));
+      setSelectedPermissions(prev => prev.filter(p => !docIds.includes(p)));
     } else {
-      setSelectedPermissions(prev => [...new Set([...prev, ...funcIds])]);
+      setSelectedPermissions(prev => [...new Set([...prev, ...docIds])]);
     }
   };
 
-  const handleApprove = () => {
-    // Simular aprobacion
-    setRequest(prev => ({
-      ...prev,
-      request_status: "approved",
-      approved_at: new Date().toLocaleString(),
-      approved_by: "Admin Sistema"
-    }));
-    alert("Solicitud aprobada. Ahora puede asignar permisos en la pestaña 'Permisos'.");
-    setActiveTab("permissions");
+  const handleApprove = async () => {
+    setProcessing(true);
+    try {
+      const response = await approveRequest(id);
+      if (response.success) {
+        handleSnackbar("Solicitud aprobada. Ahora puede asignar permisos.", "success");
+        setRequest(response.data);
+        // Seleccionar todos los reportes y documentos por defecto
+        const allReportIds = reports.map(r => r.id);
+        const allDocIds = fixedDocuments.map(d => d.id);
+        setSelectedPermissions([...allReportIds, ...allDocIds]);
+        setActiveTab("permissions");
+      } else {
+        handleSnackbar(response.message || "Error al aprobar solicitud", "error");
+      }
+    } catch (error) {
+      console.error("Error approving request:", error);
+      handleSnackbar("Error al aprobar solicitud", "error");
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!rejectionReason.trim()) {
-      alert("Debe ingresar un motivo de rechazo");
+      handleSnackbar("Debe ingresar un motivo de rechazo", "error");
       return;
     }
-    setRequest(prev => ({
-      ...prev,
-      request_status: "rejected",
-      rejection_reason: rejectionReason,
-      rejected_at: new Date().toLocaleString(),
-      rejected_by: "Admin Sistema"
-    }));
-    setShowRejectModal(false);
-    alert("Solicitud rechazada");
+
+    setProcessing(true);
+    try {
+      const response = await rejectRequest(id, rejectionReason);
+      if (response.success) {
+        handleSnackbar("Solicitud rechazada", "success");
+        setRequest(response.data);
+        setShowRejectModal(false);
+        setRejectionReason("");
+      } else {
+        handleSnackbar(response.message || "Error al rechazar solicitud", "error");
+      }
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      handleSnackbar("Error al rechazar solicitud", "error");
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const handleSavePermissions = () => {
-    alert(`Permisos actualizados: ${selectedPermissions.length} permisos asignados`);
+  const handleSavePermissions = async () => {
+    setProcessing(true);
+    try {
+      const response = await saveUserPermissions(id, selectedPermissions);
+      if (response.success) {
+        handleSnackbar(`Permisos actualizados: ${selectedPermissions.length} permisos asignados`, "success");
+      } else {
+        handleSnackbar(response.message || "Error al guardar permisos", "error");
+      }
+    } catch (error) {
+      console.error("Error saving permissions:", error);
+      handleSnackbar("Error al guardar permisos", "error");
+    } finally {
+      setProcessing(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-600" />
+      </div>
+    );
+  }
 
   if (!request) {
     return (
@@ -188,11 +212,14 @@ export default function RegistrationRequestDetailView() {
     );
   }
 
-  const status = statusConfig[request.request_status];
+  const status = statusConfig[request.request_status] || statusConfig.pending;
   const StatusIcon = status.icon;
 
   const reportsCount = selectedPermissions.filter(p => p.startsWith("report_")).length;
-  const funcsCount = selectedPermissions.filter(p => p.startsWith("func_")).length;
+  const docsCount = selectedPermissions.filter(p => p.startsWith("doc_")).length;
+
+  // Combinar reportes y documentos para mostrar permisos asignados
+  const allPermissions = [...reports, ...fixedDocuments];
 
   return (
     <div className="space-y-6 fade-in-up">
@@ -225,7 +252,7 @@ export default function RegistrationRequestDetailView() {
           <nav className="flex -mb-px px-6">
             {[
               { id: "info", label: "Informacion", icon: Building2 },
-              { id: "permissions", label: `Permisos (${selectedPermissions.length})`, icon: Shield, disabled: request.request_status === "rejected" },
+              { id: "permissions", label: `Permisos (${selectedPermissions.length})`, icon: BarChart3, disabled: request.request_status === "rejected" },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -260,11 +287,11 @@ export default function RegistrationRequestDetailView() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase">Razon Social</label>
-                    <p className="mt-1 text-sm font-medium text-gray-900">{request.company_name}</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">{request.company_name || "-"}</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase">RUT Empresa</label>
-                    <p className="mt-1 text-sm font-medium text-gray-900">{request.company_rut}</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">{request.company_rut_formatted || request.company_rut}</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase">Codigo SAP</label>
@@ -282,15 +309,15 @@ export default function RegistrationRequestDetailView() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase">Nombre Completo</label>
-                    <p className="mt-1 text-sm font-medium text-gray-900">{request.requester_name}</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">{request.name}</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase">RUT</label>
-                    <p className="mt-1 text-sm font-medium text-gray-900">{request.requester_rut}</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">{request.rut_formatted || request.rut}</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase">Email</label>
-                    <p className="mt-1 text-sm font-medium text-gray-900">{request.requester_email}</p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">{request.email}</p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase">Telefono</label>
@@ -312,7 +339,6 @@ export default function RegistrationRequestDetailView() {
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-lg font-semibold text-gray-900">Gestion de Solicitud</h3>
 
-
                   {/* Acciones */}
                   <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex-1 bg-green-50 border border-green-200 rounded-lg p-4">
@@ -326,9 +352,10 @@ export default function RegistrationRequestDetailView() {
                           <Button
                             className="mt-3"
                             onClick={handleApprove}
-                            icon={Check}
+                            icon={processing ? Loader2 : Check}
+                            disabled={processing}
                           >
-                            Aprobar y Crear Usuario
+                            {processing ? "Procesando..." : "Aprobar y Crear Usuario"}
                           </Button>
                         </div>
                       </div>
@@ -347,6 +374,7 @@ export default function RegistrationRequestDetailView() {
                             variant="danger"
                             onClick={() => setShowRejectModal(true)}
                             icon={X}
+                            disabled={processing}
                           >
                             Rechazar Solicitud
                           </Button>
@@ -366,14 +394,13 @@ export default function RegistrationRequestDetailView() {
                       {request.request_status === "approved" && (
                         <>
                           <p className="text-sm text-gray-600 mt-1">
-                            Aprobada el {request.approved_at} por {request.approved_by}
+                            Aprobada el {request.approved_at} por {request.approved_by_name || "Sistema"}
                           </p>
                           <div className="mt-3">
                             <p className="text-sm font-medium text-gray-700">Permisos asignados:</p>
                             <div className="flex flex-wrap gap-2 mt-2">
                               {selectedPermissions.map(permId => {
-                                const perm = [...availablePermissions.reports, ...availablePermissions.functionalities]
-                                  .find(p => p.id === permId);
+                                const perm = allPermissions.find(p => p.id === permId);
                                 return perm ? (
                                   <span
                                     key={permId}
@@ -390,7 +417,7 @@ export default function RegistrationRequestDetailView() {
                       {request.request_status === "rejected" && (
                         <>
                           <p className="text-sm text-gray-600 mt-1">
-                            Rechazada el {request.rejected_at} por {request.rejected_by}
+                            Rechazada el {request.rejected_at} por {request.rejected_by_name || "Sistema"}
                           </p>
                           {request.rejection_reason && (
                             <p className="text-sm text-red-700 mt-2">
@@ -417,7 +444,7 @@ export default function RegistrationRequestDetailView() {
                       Selecciona los permisos antes de aprobar
                     </p>
                     <p className="text-sm text-amber-700 mt-1">
-                      Una vez aprobada la solicitud, el usuario tendra acceso a los reportes y funcionalidades seleccionadas.
+                      Una vez aprobada la solicitud, el usuario tendra acceso a los reportes y documentos seleccionados.
                     </p>
                   </div>
                 </div>
@@ -428,19 +455,80 @@ export default function RegistrationRequestDetailView() {
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-gray-600" />
-                    Reportes ({reportsCount}/{availablePermissions.reports.length})
+                    Reportes ({reportsCount}/{reports.length})
                   </h3>
-                  <Button size="sm" variant="secondary" onClick={handleSelectAllReports}>
-                    {availablePermissions.reports.every(r => selectedPermissions.includes(r.id))
+                  <Button size="sm" variant="secondary" onClick={handleSelectAllReports} disabled={loadingReports}>
+                    {reports.every(r => selectedPermissions.includes(r.id))
+                      ? "Quitar todos"
+                      : "Seleccionar todos"
+                    }
+                  </Button>
+                </div>
+                {loadingReports ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  </div>
+                ) : reports.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {reports.map((perm) => {
+                      const isSelected = selectedPermissions.includes(perm.id);
+                      return (
+                        <div
+                          key={perm.id}
+                          onClick={() => handleTogglePermission(perm.id)}
+                          className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
+                            isSelected
+                              ? "bg-cyan-50 border-cyan-300"
+                              : "bg-white border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex-shrink-0">
+                            {isSelected
+                              ? <CheckSquare className="w-5 h-5 text-cyan-600" />
+                              : <Square className="w-5 h-5 text-gray-400" />
+                            }
+                          </div>
+                          <div className={`p-2 rounded-lg ${isSelected ? "bg-cyan-100" : "bg-gray-100"}`}>
+                            <BarChart3 className={`w-4 h-4 ${isSelected ? "text-cyan-600" : "text-gray-500"}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium ${isSelected ? "text-gray-900" : "text-gray-700"}`}>
+                              {perm.name}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">{perm.description}</p>
+                            {perm.code && (
+                              <span className="text-xs font-mono text-gray-400">{perm.code}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                    <BarChart3 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500">No hay reportes disponibles</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Documentos */}
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-gray-600" />
+                    Documentos ({docsCount}/{fixedDocuments.length})
+                  </h3>
+                  <Button size="sm" variant="secondary" onClick={handleSelectAllDocuments}>
+                    {fixedDocuments.every(d => selectedPermissions.includes(d.id))
                       ? "Quitar todos"
                       : "Seleccionar todos"
                     }
                   </Button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {availablePermissions.reports.map((perm) => {
+                  {fixedDocuments.map((perm) => {
                     const isSelected = selectedPermissions.includes(perm.id);
-                    const PermIcon = perm.icon;
                     return (
                       <div
                         key={perm.id}
@@ -458,56 +546,7 @@ export default function RegistrationRequestDetailView() {
                           }
                         </div>
                         <div className={`p-2 rounded-lg ${isSelected ? "bg-cyan-100" : "bg-gray-100"}`}>
-                          <PermIcon className={`w-4 h-4 ${isSelected ? "text-cyan-600" : "text-gray-500"}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${isSelected ? "text-gray-900" : "text-gray-700"}`}>
-                            {perm.name}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">{perm.description}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Funcionalidades */}
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-gray-600" />
-                    Funcionalidades ({funcsCount}/{availablePermissions.functionalities.length})
-                  </h3>
-                  <Button size="sm" variant="secondary" onClick={handleSelectAllFunctionalities}>
-                    {availablePermissions.functionalities.every(f => selectedPermissions.includes(f.id))
-                      ? "Quitar todas"
-                      : "Seleccionar todas"
-                    }
-                  </Button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {availablePermissions.functionalities.map((perm) => {
-                    const isSelected = selectedPermissions.includes(perm.id);
-                    const PermIcon = perm.icon;
-                    return (
-                      <div
-                        key={perm.id}
-                        onClick={() => handleTogglePermission(perm.id)}
-                        className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
-                          isSelected
-                            ? "bg-cyan-50 border-cyan-300"
-                            : "bg-white border-gray-200 hover:border-gray-300"
-                        }`}
-                      >
-                        <div className="flex-shrink-0">
-                          {isSelected
-                            ? <CheckSquare className="w-5 h-5 text-cyan-600" />
-                            : <Square className="w-5 h-5 text-gray-400" />
-                          }
-                        </div>
-                        <div className={`p-2 rounded-lg ${isSelected ? "bg-cyan-100" : "bg-gray-100"}`}>
-                          <PermIcon className={`w-4 h-4 ${isSelected ? "text-cyan-600" : "text-gray-500"}`} />
+                          <FileText className={`w-4 h-4 ${isSelected ? "text-cyan-600" : "text-gray-500"}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium ${isSelected ? "text-gray-900" : "text-gray-700"}`}>
@@ -524,14 +563,17 @@ export default function RegistrationRequestDetailView() {
               {/* Boton guardar (solo si ya esta aprobada) */}
               {request.request_status === "approved" && (
                 <div className="flex justify-end pt-4 border-t">
-                  <Button onClick={handleSavePermissions} icon={Save}>
-                    Guardar Permisos
+                  <Button
+                    onClick={handleSavePermissions}
+                    icon={processing ? Loader2 : Save}
+                    disabled={processing}
+                  >
+                    {processing ? "Guardando..." : "Guardar Permisos"}
                   </Button>
                 </div>
               )}
             </div>
           )}
-
         </div>
       </div>
 
@@ -547,7 +589,7 @@ export default function RegistrationRequestDetailView() {
             </div>
             <div className="p-6 space-y-4">
               <p className="text-sm text-gray-600">
-                Estas a punto de rechazar la solicitud de <strong>{request.requester_name}</strong> de la empresa <strong>{request.company_name}</strong>.
+                Estas a punto de rechazar la solicitud de <strong>{request.name}</strong> de la empresa <strong>{request.company_name}</strong>.
               </p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -566,11 +608,16 @@ export default function RegistrationRequestDetailView() {
               <Button variant="secondary" onClick={() => {
                 setShowRejectModal(false);
                 setRejectionReason("");
-              }}>
+              }} disabled={processing}>
                 Cancelar
               </Button>
-              <Button variant="danger" onClick={handleReject} icon={X}>
-                Confirmar Rechazo
+              <Button
+                variant="danger"
+                onClick={handleReject}
+                icon={processing ? Loader2 : X}
+                disabled={processing}
+              >
+                {processing ? "Procesando..." : "Confirmar Rechazo"}
               </Button>
             </div>
           </div>

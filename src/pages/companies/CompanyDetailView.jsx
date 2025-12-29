@@ -3,98 +3,23 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Building2, FileText, Award, Save, ArrowLeft,
-  CheckCircle, AlertCircle, CheckSquare, Square,
-  ToggleLeft, ToggleRight, Link2, Plus, Trash2, ExternalLink
+  CheckCircle, CheckSquare, Square,
+  ToggleLeft, ToggleRight, Link2, ExternalLink, Loader2,
+  Eye, EyeOff, X
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
-
-// Datos dummy para empresas
-const dummyCompanies = [
-  {
-    id: 1,
-    rut: "76.123.456-7",
-    business_name: "Constructora Los Andes SpA",
-    sap_code: "SAP001",
-    email: "contacto@losandes.cl",
-    phone: "+56 9 8765 4321",
-    status: true,
-    created_at: "2024-01-15"
-  },
-  {
-    id: 2,
-    rut: "76.987.654-3",
-    business_name: "Servicios Integrales del Norte Ltda",
-    sap_code: "SAP002",
-    email: "info@sinorte.cl",
-    phone: "+56 9 1234 5678",
-    status: true,
-    created_at: "2024-02-20"
-  },
-  {
-    id: 3,
-    rut: "77.111.222-K",
-    business_name: "Transportes del Sur SA",
-    sap_code: "SAP003",
-    email: "gerencia@transur.cl",
-    phone: "+56 9 5555 4444",
-    status: false,
-    created_at: "2024-03-10"
-  },
-  {
-    id: 4,
-    rut: "76.555.444-1",
-    business_name: "Minera Central SpA",
-    sap_code: "SAP004",
-    email: "operaciones@mineracentral.cl",
-    phone: "+56 9 7777 8888",
-    status: true,
-    created_at: "2024-04-05"
-  },
-];
-
-// Datos dummy para accesos a documentos SharePoint (company_documents)
-const dummyCompanyDocuments = {
-  1: [
-    { id: 1, name: "Ordenes de Compra 2024", url: "https://voltacl.sharepoint.com/sites/Proveedores/OC2024", status: true },
-    { id: 2, name: "Contratos Vigentes", url: "https://voltacl.sharepoint.com/sites/Proveedores/Contratos", status: true },
-    { id: 3, name: "Guias de Despacho", url: "https://voltacl.sharepoint.com/sites/Proveedores/Guias", status: true },
-    { id: 4, name: "Facturas Pendientes", url: "https://voltacl.sharepoint.com/sites/Proveedores/Facturas", status: false },
-    { id: 5, name: "Documentos Legales", url: "https://voltacl.sharepoint.com/sites/Proveedores/Legal", status: true },
-  ],
-  2: [
-    { id: 6, name: "Ordenes de Compra 2024", url: "https://voltacl.sharepoint.com/sites/Proveedores/OC2024", status: true },
-    { id: 7, name: "Contratos Vigentes", url: "https://voltacl.sharepoint.com/sites/Proveedores/Contratos", status: true },
-  ],
-  3: [
-    { id: 8, name: "Ordenes de Compra 2024", url: "https://voltacl.sharepoint.com/sites/Proveedores/OC2024", status: false },
-  ],
-  4: [
-    { id: 9, name: "Ordenes de Compra 2024", url: "https://voltacl.sharepoint.com/sites/Proveedores/OC2024", status: true },
-    { id: 10, name: "Contratos Vigentes", url: "https://voltacl.sharepoint.com/sites/Proveedores/Contratos", status: true },
-    { id: 11, name: "Guias de Despacho", url: "https://voltacl.sharepoint.com/sites/Proveedores/Guias", status: true },
-    { id: 12, name: "Facturas Pendientes", url: "https://voltacl.sharepoint.com/sites/Proveedores/Facturas", status: true },
-  ],
-};
-
-// Templates de certificados disponibles (para asignar)
-const certificateTemplates = [
-  { id: 1, code: "F30", name: "Certificado de Cumplimiento Tributario", category: "tributario", is_mandatory: true },
-  { id: 2, code: "CAL", name: "Certificado de Antecedentes Laborales", category: "laboral", is_mandatory: true },
-  { id: 3, code: "PRC", name: "Poliza de Responsabilidad Civil", category: "seguros", is_mandatory: true },
-  { id: 4, code: "CRC", name: "Certificado Registro de Contratistas", category: "laboral", is_mandatory: false },
-  { id: 5, code: "ISO9001", name: "Certificado ISO 9001", category: "calidad", is_mandatory: false },
-  { id: 6, code: "ISO14001", name: "Certificado ISO 14001", category: "calidad", is_mandatory: false },
-  { id: 7, code: "OHSAS", name: "Certificado OHSAS 18001", category: "seguridad", is_mandatory: false },
-];
-
-// Certificados asignados por empresa (company_certificates)
-const dummyCompanyCertificates = {
-  1: [1, 2, 3],
-  2: [1, 2, 3, 4, 5],
-  3: [1],
-  4: [1, 2, 3, 4, 5, 6, 7],
-};
+import {
+  getCompanyById,
+  updateCompany,
+  getFixedDocuments,
+  updateFixedDocument,
+  getCompanyCertificates,
+  getCertificateTemplates,
+  assignCertificateToCompany,
+  revokeCompanyCertificate,
+} from "../../services/companyService";
+import { handleSnackbar } from "../../utils/messageHelpers";
 
 const categoryColors = {
   tributario: "bg-cyan-100 text-cyan-800",
@@ -109,96 +34,245 @@ export default function CompanyDetailView() {
   const navigate = useNavigate();
   const companyId = parseInt(id);
 
+  // Estados principales
   const [activeTab, setActiveTab] = useState("info");
   const [company, setCompany] = useState(null);
-  const [formData, setFormData] = useState({});
-  const [companyDocuments, setCompanyDocuments] = useState([]);
-  const [assignedCertificates, setAssignedCertificates] = useState({});
-  const [showAddDocument, setShowAddDocument] = useState(false);
-  const [newDocument, setNewDocument] = useState({ name: "", url: "", status: true });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
+  // Form data
+  const [formData, setFormData] = useState({});
+
+  // Documentos fijos
+  const [companyDocuments, setCompanyDocuments] = useState([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [editingDoc, setEditingDoc] = useState(null); // ID del documento que se está editando
+  const [savingDoc, setSavingDoc] = useState(null); // ID del documento que se está guardando
+  const [previewDoc, setPreviewDoc] = useState(null); // ID del documento con preview abierto
+  const [previewLoading, setPreviewLoading] = useState(false); // Estado de carga del iframe
+
+  // Certificados
+  const [certificateTemplates, setCertificateTemplates] = useState([]);
+  const [companyCertificates, setCompanyCertificates] = useState([]);
+  const [assignedCertificates, setAssignedCertificates] = useState({});
+  const [loadingCertificates, setLoadingCertificates] = useState(false);
+  const [togglingCertificate, setTogglingCertificate] = useState(null); // ID del certificado en proceso
+
+  // Cargar datos iniciales
   useEffect(() => {
-    // Cargar empresa
-    const foundCompany = dummyCompanies.find(c => c.id === companyId);
-    if (foundCompany) {
-      setCompany(foundCompany);
-      setFormData({ ...foundCompany });
-      // Cargar documentos SharePoint
-      setCompanyDocuments(dummyCompanyDocuments[companyId] || []);
-      // Cargar certificados asignados
-      setAssignedCertificates(
-        certificateTemplates.reduce((acc, template) => {
-          acc[template.id] = (dummyCompanyCertificates[companyId] || []).includes(template.id);
-          return acc;
-        }, {})
-      );
-    }
+    loadCompany();
   }, [companyId]);
 
-  // Handlers para documentos SharePoint
-  const handleToggleDocumentStatus = (docId) => {
-    setCompanyDocuments(prev =>
-      prev.map(doc =>
-        doc.id === docId ? { ...doc, status: !doc.status } : doc
-      )
-    );
-  };
+  // Cargar datos del tab activo
+  useEffect(() => {
+    if (company) {
+      if (activeTab === "documents" && companyDocuments.length === 0) {
+        loadDocuments();
+      }
+      if (activeTab === "certificates" && certificateTemplates.length === 0) {
+        loadCertificates();
+      }
+    }
+  }, [activeTab, company]);
 
-  const handleAddDocument = () => {
-    if (newDocument.name && newDocument.url) {
-      const newId = Math.max(...companyDocuments.map(d => d.id), 0) + 1;
-      setCompanyDocuments(prev => [...prev, { ...newDocument, id: newId }]);
-      setNewDocument({ name: "", url: "", status: true });
-      setShowAddDocument(false);
+  const loadCompany = async () => {
+    setLoading(true);
+    try {
+      const response = await getCompanyById(companyId);
+      if (response.success && response.data) {
+        setCompany(response.data);
+        setFormData({ ...response.data });
+      } else {
+        handleSnackbar("Empresa no encontrada", "error");
+        navigate("/dashboard/empresas");
+      }
+    } catch (error) {
+      handleSnackbar("Error al cargar empresa", "error");
+      navigate("/dashboard/empresas");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteDocument = (docId) => {
-    setCompanyDocuments(prev => prev.filter(doc => doc.id !== docId));
-  };
-
-  // Handlers para certificados
-  const handleToggleCertificate = (templateId) => {
-    setAssignedCertificates(prev => ({
-      ...prev,
-      [templateId]: !prev[templateId]
-    }));
-  };
-
-  const handleSelectAll = () => {
-    const allSelected = certificateTemplates.every(t => assignedCertificates[t.id]);
-    const newState = {};
-    certificateTemplates.forEach(t => {
-      newState[t.id] = !allSelected;
-    });
-    setAssignedCertificates(newState);
-  };
-
-  const handleSelectMandatory = () => {
-    const newState = { ...assignedCertificates };
-    certificateTemplates.forEach(t => {
-      if (t.is_mandatory) {
-        newState[t.id] = true;
+  const loadDocuments = async () => {
+    setLoadingDocuments(true);
+    try {
+      const response = await getFixedDocuments(companyId);
+      if (response.success) {
+        setCompanyDocuments(response.data || []);
       }
-    });
-    setAssignedCertificates(newState);
+    } catch (error) {
+      console.error("Error loading documents:", error);
+    } finally {
+      setLoadingDocuments(false);
+    }
   };
 
+  const loadCertificates = async () => {
+    setLoadingCertificates(true);
+    try {
+      // Cargar plantillas disponibles
+      const templatesResponse = await getCertificateTemplates();
+      if (templatesResponse.success) {
+        setCertificateTemplates(templatesResponse.data || []);
+      }
+
+      // Cargar certificados asignados a la empresa
+      const assignedResponse = await getCompanyCertificates(companyId);
+      if (assignedResponse.success) {
+        setCompanyCertificates(assignedResponse.data || []);
+
+        // Crear mapa de certificados asignados (solo los que NO están revocados/expirados)
+        const assignedMap = {};
+        (assignedResponse.data || []).forEach(cert => {
+          const isActive = !['revoked', 'expired'].includes(cert.assignment_status);
+          assignedMap[cert.certificate_id] = isActive;
+        });
+        setAssignedCertificates(assignedMap);
+      }
+    } catch (error) {
+      console.error("Error loading certificates:", error);
+    } finally {
+      setLoadingCertificates(false);
+    }
+  };
+
+  // Handlers de formulario
   const handleFormChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSaveCompany = () => {
-    alert("Guardando cambios de la empresa...");
+  const handleSaveCompany = async () => {
+    setSaving(true);
+    try {
+      const response = await updateCompany(companyId, formData);
+      if (response.success) {
+        handleSnackbar("Empresa actualizada correctamente", "success");
+        setCompany({ ...company, ...formData });
+      } else {
+        handleSnackbar(response.message || "Error al actualizar empresa", "error");
+      }
+    } catch (error) {
+      handleSnackbar("Error al actualizar empresa", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSaveDocuments = () => {
-    alert("Guardando configuracion de accesos SharePoint...");
+  // Handlers de documentos fijos
+  const handleDocumentChange = (docId, field, value) => {
+    setCompanyDocuments(prev =>
+      prev.map(d => d.id === docId ? { ...d, [field]: value } : d)
+    );
+    setEditingDoc(docId);
   };
 
-  const handleSaveCertificates = () => {
-    alert("Guardando asignacion de certificados...");
+  const handleSaveDocument = async (doc) => {
+    setSavingDoc(doc.id);
+    try {
+      const response = await updateFixedDocument(doc.id, {
+        file_path: doc.file_path,
+        status: doc.status,
+      });
+      if (response.success) {
+        handleSnackbar("Documento actualizado", "success");
+        setEditingDoc(null);
+      } else {
+        handleSnackbar(response.message || "Error al actualizar", "error");
+      }
+    } catch (error) {
+      handleSnackbar("Error al actualizar documento", "error");
+    } finally {
+      setSavingDoc(null);
+    }
   };
+
+  const handleToggleDocumentStatus = async (doc) => {
+    setSavingDoc(doc.id);
+    try {
+      const response = await updateFixedDocument(doc.id, {
+        file_path: doc.file_path,
+        status: !doc.status,
+      });
+      if (response.success) {
+        setCompanyDocuments(prev =>
+          prev.map(d => d.id === doc.id ? { ...d, status: !d.status } : d)
+        );
+        handleSnackbar("Estado actualizado", "success");
+      } else {
+        handleSnackbar(response.message || "Error al actualizar estado", "error");
+      }
+    } catch (error) {
+      handleSnackbar("Error al actualizar estado", "error");
+    } finally {
+      setSavingDoc(null);
+    }
+  };
+
+  const handleTogglePreview = (docId) => {
+    if (previewDoc === docId) {
+      setPreviewDoc(null);
+      setPreviewLoading(false);
+    } else {
+      setPreviewDoc(docId);
+      setPreviewLoading(true);
+    }
+  };
+
+  const handleIframeLoad = () => {
+    setPreviewLoading(false);
+  };
+
+  // Handlers de certificados
+  const handleToggleCertificate = async (templateId) => {
+    // Prevenir clicks rápidos
+    if (togglingCertificate === templateId) return;
+
+    setTogglingCertificate(templateId);
+    const isCurrentlyAssigned = assignedCertificates[templateId];
+
+    try {
+      if (isCurrentlyAssigned) {
+        // Buscar el company_certificate_id para revocar
+        const companyCert = companyCertificates.find(c => c.certificate_id === templateId && !['revoked', 'expired'].includes(c.assignment_status));
+        if (companyCert) {
+          const response = await revokeCompanyCertificate(companyCert.id);
+          if (response.success) {
+            setAssignedCertificates(prev => ({ ...prev, [templateId]: false }));
+            handleSnackbar("Certificado revocado", "success");
+            await loadCertificates();
+          }
+        }
+      } else {
+        // Asignar certificado
+        const response = await assignCertificateToCompany({
+          company_id: companyId,
+          certificate_id: templateId,
+        });
+        if (response.success) {
+          setAssignedCertificates(prev => ({ ...prev, [templateId]: true }));
+          handleSnackbar("Certificado asignado", "success");
+          await loadCertificates();
+        }
+      }
+    } catch (error) {
+      handleSnackbar(error.response?.data?.error || "Error al modificar certificado", "error");
+    } finally {
+      setTogglingCertificate(null);
+    }
+  };
+
+  // Calculos
+  const assignedCount = Object.values(assignedCertificates).filter(Boolean).length;
+  const activeDocsCount = companyDocuments.filter(d => d.status).length;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
 
   if (!company) {
     return (
@@ -207,9 +281,6 @@ export default function CompanyDetailView() {
       </div>
     );
   }
-
-  const assignedCount = Object.values(assignedCertificates).filter(Boolean).length;
-  const activeDocsCount = companyDocuments.filter(d => d.status).length;
 
   return (
     <div className="space-y-6 fade-in-up">
@@ -227,7 +298,7 @@ export default function CompanyDetailView() {
               <Building2 className="w-7 h-7" />
               {company.business_name}
             </h1>
-            <p className="text-gray-500 mt-1">{company.rut} | {company.sap_code}</p>
+            <p className="text-gray-500 mt-1">{company.rut_formatted || company.rut} | {company.sap_code || 'Sin codigo SAP'}</p>
           </div>
         </div>
         <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
@@ -243,8 +314,8 @@ export default function CompanyDetailView() {
           <nav className="flex -mb-px px-6">
             {[
               { id: "info", label: "Informacion", icon: Building2 },
-              { id: "documents", label: `Documentos (${activeDocsCount}/${companyDocuments.length})`, icon: FileText },
               { id: "certificates", label: `Certificados (${assignedCount})`, icon: Award },
+              { id: "documents", label: `Documentos (${activeDocsCount}/${companyDocuments.length})`, icon: FileText },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -267,17 +338,16 @@ export default function CompanyDetailView() {
           {/* TAB: Informacion */}
           {activeTab === "info" && (
             <div className="space-y-6">
-              <h3 className="text-lg font-semibold text-gray-900">Editar Informacion de la Empresa</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Informacion de la Empresa</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">RUT</label>
                   <Input
-                    value={formData.rut || ""}
+                    value={formData.rut_formatted || formData.rut || ""}
                     onChange={(e) => handleFormChange("rut", e.target.value)}
                     disabled
                   />
-                  <p className="text-xs text-gray-500 mt-1">El RUT no puede ser modificado</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Codigo SAP</label>
@@ -286,13 +356,13 @@ export default function CompanyDetailView() {
                     onChange={(e) => handleFormChange("sap_code", e.target.value)}
                     disabled
                   />
-                  <p className="text-xs text-gray-500 mt-1">El codigo SAP se asigna automaticamente</p>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Razon Social</label>
                   <Input
                     value={formData.business_name || ""}
                     onChange={(e) => handleFormChange("business_name", e.target.value)}
+                    disabled
                   />
                 </div>
                 <div>
@@ -301,6 +371,7 @@ export default function CompanyDetailView() {
                     type="email"
                     value={formData.email || ""}
                     onChange={(e) => handleFormChange("email", e.target.value)}
+                    disabled
                   />
                 </div>
                 <div>
@@ -308,6 +379,7 @@ export default function CompanyDetailView() {
                   <Input
                     value={formData.phone || ""}
                     onChange={(e) => handleFormChange("phone", e.target.value)}
+                    disabled
                   />
                 </div>
                 <div>
@@ -343,155 +415,170 @@ export default function CompanyDetailView() {
               </div>
 
               <div className="flex justify-end pt-4 border-t">
-                <Button onClick={handleSaveCompany} icon={Save}>
-                  Guardar Cambios
+                <Button onClick={handleSaveCompany} icon={Save} disabled={saving}>
+                  {saving ? "Guardando..." : "Guardar Cambios"}
                 </Button>
               </div>
             </div>
           )}
 
-          {/* TAB: Documentos (Accesos SharePoint) */}
+          {/* TAB: Documentos Fijos */}
           {activeTab === "documents" && (
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Accesos a Documentos</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Configura los accesos a carpetas de SharePoint u otro sistema para esta empresa.
-                    Los accesos activos estaran disponibles para los usuarios de la empresa que tengan el permiso de visualización.
-                  </p>
-                </div>
-                <Button size="sm" icon={Plus} onClick={() => setShowAddDocument(true)}>
-                  Agregar Acceso
-                </Button>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Accesos a Documentos</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Configura los enlaces a documentos de SharePoint para esta empresa.
+                </p>
               </div>
 
-              {/* Formulario para agregar nuevo acceso */}
-              {showAddDocument && (
-                <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Link2 className="w-4 h-4" />
-                    Nuevo Acceso a Documento
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Nombre del Acceso</label>
-                      <Input
-                        placeholder="Ej: Ordenes de Compra"
-                        value={newDocument.name}
-                        onChange={(e) => setNewDocument(prev => ({ ...prev, name: e.target.value }))}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">URL de documento</label>
-                      <Input
-                        placeholder="https://voltacl.sharepoint.com/sites/..."
-                        value={newDocument.url}
-                        onChange={(e) => setNewDocument(prev => ({ ...prev, url: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 mt-4">
-                    <Button size="sm" variant="secondary" onClick={() => {
-                      setShowAddDocument(false);
-                      setNewDocument({ name: "", url: "", status: true });
-                    }}>
-                      Cancelar
-                    </Button>
-                    <Button size="sm" onClick={handleAddDocument}>
-                      Agregar
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Lista de accesos */}
-              {companyDocuments.length > 0 ? (
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">URL SharePoint</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {companyDocuments.map((doc) => (
-                        <tr key={doc.id} className={`hover:bg-gray-50 ${!doc.status ? 'opacity-60' : ''}`}>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <FileText className={`w-4 h-4 ${doc.status ? 'text-cyan-500' : 'text-gray-400'}`} />
-                              <span className="text-sm font-medium text-gray-900">{doc.name}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <a
-                              href={doc.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-cyan-600 hover:text-cyan-800 flex items-center gap-1 max-w-md truncate"
-                            >
-                              <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                              <span className="truncate">{doc.url}</span>
-                            </a>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => handleToggleDocumentStatus(doc.id)}
-                              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                                doc.status
-                                  ? "bg-green-100 text-green-700 hover:bg-green-200"
-                                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                              }`}
-                            >
-                              {doc.status ? (
-                                <>
-                                  <ToggleRight className="w-4 h-4" />
-                                  Activo
-                                </>
-                              ) : (
-                                <>
-                                  <ToggleLeft className="w-4 h-4" />
-                                  Inactivo
-                                </>
-                              )}
-                            </button>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => handleDeleteDocument(doc.id)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors"
-                              title="Eliminar acceso"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {/* Lista de documentos fijos */}
+              {loadingDocuments ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                 </div>
               ) : (
-                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                  <Link2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 font-medium">No hay accesos configurados</p>
-                  <p className="text-sm text-gray-400 mt-1">Agrega accesos a carpetas de SharePoint para esta empresa</p>
-                  <Button className="mt-4" size="sm" icon={Plus} onClick={() => setShowAddDocument(true)}>
-                    Agregar primer acceso
-                  </Button>
-                </div>
-              )}
+                <div className="space-y-4">
+                  {companyDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className={`border rounded-lg p-4 ${doc.status ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-200 opacity-70'}`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${doc.status ? 'bg-cyan-100' : 'bg-gray-200'}`}>
+                            <FileText className={`w-5 h-5 ${doc.status ? 'text-cyan-600' : 'text-gray-500'}`} />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">{doc.name}</h4>
+                            <p className="text-xs text-gray-500 mt-0.5">{doc.description}</p>
+                            <span className="text-xs font-mono text-gray-400">{doc.code}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleToggleDocumentStatus(doc)}
+                          disabled={savingDoc === doc.id || !doc.file_path}
+                          title={!doc.file_path ? "Ingrese una URL válida para activar/desactivar" : (doc.status ? "Desactivar documento" : "Activar documento")}
+                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                            !doc.file_path
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              : doc.status
+                                ? "bg-green-100 text-green-700 hover:bg-green-200"
+                                : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                          } ${savingDoc === doc.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {savingDoc === doc.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : doc.status ? (
+                            <>
+                              <ToggleRight className="w-4 h-4" />
+                              Activo
+                            </>
+                          ) : (
+                            <>
+                              <ToggleLeft className="w-4 h-4" />
+                              Inactivo
+                            </>
+                          )}
+                        </button>
+                      </div>
 
-              {companyDocuments.length > 0 && (
-                <div className="flex justify-between items-center pt-4 border-t">
-                  <p className="text-sm text-gray-500">
-                    <span className="font-medium text-green-600">{activeDocsCount}</span> accesos activos de <span className="font-medium">{companyDocuments.length}</span> configurados
-                  </p>
-                  <Button onClick={handleSaveDocuments} icon={Save}>
-                    Guardar Cambios
-                  </Button>
+                      <div className="mt-4">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          URL del documento
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="https://voltacl.sharepoint.com/sites/..."
+                            value={doc.file_path || ""}
+                            onChange={(e) => handleDocumentChange(doc.id, 'file_path', e.target.value)}
+                            className="flex-1 px-4 py-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                          />
+                          {doc.file_path && (
+                            <>
+                              <button
+                                onClick={() => handleTogglePreview(doc.id)}
+                                className={`p-2 rounded-lg transition-colors ${
+                                  previewDoc === doc.id
+                                    ? 'text-cyan-800 bg-cyan-100'
+                                    : 'text-gray-500 hover:text-cyan-600 hover:bg-cyan-50'
+                                }`}
+                                title={previewDoc === doc.id ? "Cerrar preview" : "Ver preview"}
+                              >
+                                {previewDoc === doc.id ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                              </button>
+                              <a
+                                href={doc.file_path}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 rounded-lg transition-colors"
+                                title="Abrir en nueva pestaña"
+                              >
+                                <ExternalLink className="w-5 h-5" />
+                              </a>
+                            </>
+                          )}
+                          {editingDoc === doc.id && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveDocument(doc)}
+                              disabled={savingDoc === doc.id || !doc.file_path?.trim()}
+                              icon={savingDoc === doc.id ? Loader2 : Save}
+                              title={!doc.file_path?.trim() ? "Ingrese una URL válida" : "Guardar cambios"}
+                            >
+                              Guardar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Preview iframe */}
+                      {previewDoc === doc.id && doc.file_path && (
+                        <div className="mt-4 relative">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-gray-500">Vista previa</span>
+                            <button
+                              onClick={() => setPreviewDoc(null)}
+                              className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+                              title="Cerrar preview"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          {/* Contenedor con overflow hidden para ocultar footer de Power BI */}
+                          <div
+                            className="relative border border-gray-200 rounded-lg overflow-hidden bg-white"
+                            style={{ height: '500px' }}
+                          >
+                            {/* Loader */}
+                            {previewLoading && (
+                              <div className="absolute inset-0 bg-white flex flex-col items-center justify-center z-10">
+                                <div className="w-10 h-10 border-4 border-gray-200 border-t-cyan-500 rounded-full animate-spin"></div>
+                                <p className="mt-3 text-sm text-gray-500">Cargando documento...</p>
+                              </div>
+                            )}
+                            {/* iframe más alto que el contenedor para ocultar el footer */}
+                            <iframe
+                              src={doc.file_path}
+                              title={doc.name}
+                              className="w-full border-0"
+                              style={{ height: 'calc(100% + 56px)' }}
+                              onLoad={handleIframeLoad}
+                              allowFullScreen
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {companyDocuments.length === 0 && (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                      <Link2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500 font-medium">Cargando documentos...</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -507,87 +594,79 @@ export default function CompanyDetailView() {
                     Selecciona los certificados que debe presentar esta empresa.
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  {/* <Button size="sm" variant="secondary" onClick={handleSelectMandatory}>
-                    Obligatorios
-                  </Button> */}
-                  <Button size="sm" variant="secondary" onClick={handleSelectAll}>
-                    {certificateTemplates.every(t => assignedCertificates[t.id]) ? 'Quitar todos' : 'Asignar todos'}
-                  </Button>
+              </div>
+
+              {loadingCertificates ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                 </div>
-              </div>
-
-              <div className="border rounded-lg overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">
-                        <button
-                          onClick={handleSelectAll}
-                          className="p-1 hover:bg-gray-200 rounded"
-                        >
-                          {certificateTemplates.every(t => assignedCertificates[t.id])
-                            ? <CheckSquare className="w-4 h-4 text-cyan-600" />
-                            : <Square className="w-4 h-4 text-gray-400" />
-                          }
-                        </button>
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Codigo</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Certificado</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Obligatorio</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {certificateTemplates.map((template) => (
-                      <tr
-                        key={template.id}
-                        className={`hover:bg-gray-50 cursor-pointer ${assignedCertificates[template.id] ? 'bg-cyan-50' : ''}`}
-                        onClick={() => handleToggleCertificate(template.id)}
-                      >
-                        <td className="px-4 py-3">
-                          <button className="p-1">
-                            {assignedCertificates[template.id]
-                              ? <CheckSquare className="w-5 h-5 text-cyan-600" />
-                              : <Square className="w-5 h-5 text-gray-400" />
-                            }
-                          </button>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="font-mono text-sm bg-gray-100 px-2 py-0.5 rounded">{template.code}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm font-medium text-gray-900">{template.name}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${categoryColors[template.category] || 'bg-gray-100 text-gray-800'}`}>
-                            {template.category}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {template.is_mandatory ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              <AlertCircle className="w-3 h-3" />
-                              Si
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-400">No</span>
-                          )}
-                        </td>
+              ) : certificateTemplates.length > 0 ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12"></th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Codigo</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Certificado</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {certificateTemplates.map((template) => (
+                        <tr
+                          key={template.id}
+                          className={`hover:bg-gray-50 ${togglingCertificate === template.id ? 'opacity-50 pointer-events-none' : 'cursor-pointer'} ${assignedCertificates[template.id] ? 'bg-cyan-50' : ''}`}
+                          onClick={() => handleToggleCertificate(template.id)}
+                        >
+                          <td className="px-4 py-3">
+                            <button className="p-1" disabled={togglingCertificate === template.id}>
+                              {togglingCertificate === template.id
+                                ? <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                                : assignedCertificates[template.id]
+                                  ? <CheckSquare className="w-5 h-5 text-cyan-600" />
+                                  : <Square className="w-5 h-5 text-gray-400" />
+                              }
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-mono text-sm bg-gray-100 px-2 py-0.5 rounded">{template.code}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-sm font-medium text-gray-900">{template.name}</p>
+                            {template.description && (
+                              <p className="text-xs text-gray-500 mt-0.5">{template.description}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {assignedCertificates[template.id] ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <CheckCircle className="w-3 h-3" />
+                                Asignado
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">No asignado</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                  <Award className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">No hay plantillas de certificados disponibles</p>
+                  <p className="text-sm text-gray-400 mt-1">Crea plantillas de certificados primero</p>
+                </div>
+              )}
 
-              <div className="flex justify-between items-center pt-4 border-t">
-                <p className="text-sm text-gray-500">
-                  <span className="font-medium text-cyan-600">{assignedCount}</span> de <span className="font-medium">{certificateTemplates.length}</span> certificados asignados
-                </p>
-                <Button onClick={handleSaveCertificates} icon={Save}>
-                  Guardar Cambios
-                </Button>
-              </div>
+              {certificateTemplates.length > 0 && (
+                <div className="flex justify-between items-center pt-4 border-t">
+                  <p className="text-sm text-gray-500">
+                    <span className="font-medium text-cyan-600">{assignedCount}</span> de <span className="font-medium">{certificateTemplates.length}</span> certificados asignados
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

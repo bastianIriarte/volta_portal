@@ -119,7 +119,7 @@ export default function Login() {
             <img
               src="/volta_logo.png"
               alt="Logo"
-              className="h-[90px] w-[200px] object-contain mx-auto mb-4"
+              className="h-[40px] w-[150px] object-contain mx-auto mb-4"
             />
           </div>
 

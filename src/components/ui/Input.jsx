@@ -36,7 +36,7 @@ export const Input = forwardRef(function Input(
   if (!error && helper) describedBy.push(`${id}-help`);
 
   const base =
-    "w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[12px]";
+    "w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px]";
   const elegant = "bg-white/70 backdrop-blur-sm";
   const ok = "border-emerald-300 focus:ring-2 focus:ring-emerald-200";
   const bad = "border-red-300 focus:ring-2 focus:ring-red-200";
@@ -46,8 +46,8 @@ export const Input = forwardRef(function Input(
     base,
     variant === "elegant" && elegant,
     error ? bad : success ? ok : norm,
-    props.disabled && "bg-neutral-200 text-black cursor-not-allowed",
-    props.readOnly && "bg-neutral-200 text-black cursor-not-allowed",
+    props.disabled && "bg-neutral-300/20 text-gray-600 cursor-not-allowed border-gray-200",
+    props.readOnly && "bg-neutral-300/20 text-gray-600 cursor-not-allowed border-gray-200",
     className
   );
 
@@ -62,7 +62,7 @@ export const Input = forwardRef(function Input(
         <div className="flex items-center justify-between">
           <label
             htmlFor={id}
-            className="block text-[11px] font-bold text-gray-800 uppercase"
+            className="block text-[11px] font-bold text-neutral-600 uppercase"
           >
             {label}{" "}
             {required && (

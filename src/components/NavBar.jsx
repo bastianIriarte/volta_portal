@@ -181,23 +181,24 @@ export default function NavBar({
   return (
     <header className="sticky top-0 z-40 navbar border-b border-black/10">
       {/* Top bar - mantengo tu estructura original */}
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <img
-            src="/volta_logo.png"
-            alt="Logo"
-            className="h-[30px] object-contain hidden sm:block mt-1"
-          />
-        
           {/* Hamburguesa solo móvil */}
-
           <button
-            className=" inline-flex items-center justify-center rounded-xl border border-black/10 px-3 py-2"
+            className=" inline-flex items-center justify-center rounded-xl border border-black/10 px-3 py-2 2xl:ml-[-40px]"
             aria-label="Abrir menú"
             onClick={() => setOpen(true)}
           >
             Menú <Menu className="w-5 h-5" />
           </button>
+          <Link to={'/dashboard'}>
+           <img
+            src="/volta_logo.png"
+            alt="Logo"
+            className="h-[25px] object-contain hidden sm:block"
+          />
+          </Link>
+
         </div>
 
         <div className="flex items-center gap-2">
@@ -254,11 +255,10 @@ export default function NavBar({
             {/* Header del drawer */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <div className="flex items-center gap-2 mx-auto">
-
                 <img
                   src="/volta_logo.png"
                   alt="Logo"
-                  className="h-[30px] object-contain"
+                  className="h-[25px] object-contain"
                 />
               </div>
               <button
@@ -278,6 +278,7 @@ export default function NavBar({
                 // Definir títulos de secciones
                 const sections = {
                   inicio: "Inicio",
+                  reportes: "Reportes",
                   administracion: "Administración",
                   compras: "Compras",
                   ventas: "Ventas",
@@ -328,8 +329,8 @@ export default function NavBar({
                           to={it.to}
                           onClick={() => setOpen(false)}
                           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-all mb-1 ${isActive
-                              ? "text-black bg-gray-100 border-r-2 border-black"
-                              : "text-gray-600 hover:text-black hover:bg-gray-50"
+                            ? "text-black bg-gray-100 border-r-2 border-black"
+                            : "text-gray-600 hover:text-black hover:bg-gray-50"
                             }`}
                         >
                           {it.icon && <it.icon size={18} />}

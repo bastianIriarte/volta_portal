@@ -27,14 +27,14 @@ export default function ActivateAccount() {
   const [step, setStep] = useState(1); // 1: Validar empresa, 2: Datos solicitante, 3: Éxito
 
   // Step 1: Datos de empresa
-  const [companyRut, setCompanyRut] = useState("19513322-0");
-  const [sapCode, setSapCode] = useState("SAP002");
+  const [companyRut, setCompanyRut] = useState("");
+  const [sapCode, setSapCode] = useState("");
   const [companyData, setCompanyData] = useState(null);
 
   // Step 2: Datos del solicitante
-  const [requesterRut, setRequesterRut] = useState("19513322-0");
-  const [requesterName, setRequesterName] = useState("Bastian Iriarte");
-  const [requesterEmail, setRequesterEmail] = useState("biriarte@hitch.cl");
+  const [requesterRut, setRequesterRut] = useState("");
+  const [requesterName, setRequesterName] = useState("");
+  const [requesterEmail, setRequesterEmail] = useState("");
   const [requesterPhone, setRequesterPhone] = useState("");
   const [position, setPosition] = useState("");
 
@@ -92,7 +92,7 @@ export default function ActivateAccount() {
   };
 
   const onSapCodeChange = (e) => {
-    const v = e.target.value.toUpperCase();
+    const v = e.target.value;
     setSapCode(v);
     if (touched.sapCode) {
       const msg = validateSapCode(v);
@@ -232,11 +232,11 @@ export default function ActivateAccount() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white to-blue-100 p-6">
         <div className="w-full max-w-md">
           <div className="card rounded-2xl p-8 shadow-xl text-center">
-            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-              <CheckCircle className="w-10 h-10 text-emerald-600" />
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3 animate-pulse">
+              <CheckCircle className="w-8 h-8 text-emerald-600" />
             </div>
 
-            <h2 className="text-2xl font-bold text-[var(--brand-primary)] mb-3">
+            <h2 className="text-xl font-bold text-[var(--brand-primary)] mb-3">
               SOLICITUD ENVIADA
             </h2>
 
@@ -248,7 +248,7 @@ export default function ActivateAccount() {
               <p className="text-sm text-blue-900 mb-2">
                 <strong>¿Qué sigue?</strong>
               </p>
-              <ul className="text-sm text-blue-800 space-y-1">
+              <ul className="text-sm text-blue-800">
                 <li>• Un administrador revisará tu solicitud</li>
                 <li>• Recibirás un correo con la respuesta</li>
                 <li>• Si es aprobada, podrás activar tu cuenta</li>
@@ -256,14 +256,14 @@ export default function ActivateAccount() {
             </div>
 
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-6 text-left">
-              <p className="text-xs text-gray-600">
-                <strong>Empresa:</strong> {companyData?.business_name || companyRut}
+              <p className="text-[13px] text-gray-600">
+                <strong className="text-xs">EMPRESA:</strong> {companyData?.business_name || companyRut}
               </p>
-              <p className="text-xs text-gray-600">
-                <strong>Solicitante:</strong> {requesterName}
+              <p className="text-[13px] text-gray-600">
+                <strong className="text-xs">SOLICITANTE:</strong> {requesterName}
               </p>
-              <p className="text-xs text-gray-600">
-                <strong>Correo:</strong> {requesterEmail}
+              <p className="text-[13px] text-gray-600">
+                <strong className="text-xs">CORREO:</strong> {requesterEmail}
               </p>
             </div>
 
@@ -276,6 +276,7 @@ export default function ActivateAccount() {
               Volver al Inicio de Sesión
             </Button>
           </div>
+          <FooterNoLogin />
         </div>
       </div>
     );
@@ -285,13 +286,13 @@ export default function ActivateAccount() {
   if (step === 2) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white to-blue-100 p-6">
-        <div className="w-full max-w-lg">
+        <div className="w-full max-w-md">
           <div className="card rounded-2xl p-8 shadow-xl">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-[var(--brand-primary)] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <User className="w-8 h-8 text-white" />
+              <div className="w-12 h-12 bg-[var(--brand-primary)] rounded-full flex items-center justify-center mx-auto mb-2 shadow-lg">
+                <User className="w-6 h-6 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-[var(--brand-primary)] mb-2">
+              <h2 className="text-xl font-bold text-[var(--brand-primary)] mb-1">
                 DATOS DEL SOLICITANTE
               </h2>
               <p className="text-sm text-gray-600">
@@ -301,13 +302,13 @@ export default function ActivateAccount() {
 
             {/* Info de empresa validada */}
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-4">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-1 mb-1">
                 <CheckCircle className="w-4 h-4 text-emerald-600" />
-                <span className="text-sm font-semibold text-emerald-800">
+                <span className="text-xs font-semibold text-emerald-800 uppercase">
                   Empresa Validada
                 </span>
               </div>
-              <p className="text-sm text-emerald-700">
+              <p className="text-xs font-bold text-emerald-700">
                 {companyData?.business_name || "Empresa"}
               </p>
               <p className="text-xs text-emerald-600">
@@ -325,12 +326,11 @@ export default function ActivateAccount() {
             <div className="space-y-4">
               {/* RUT Solicitante */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Tu RUT <span className="text-red-500">*</span>
-                </label>
                 <div className="relative">
-                  <User className="absolute z-10 left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <User className="absolute z-10 left-3 top-10 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
+                    required
+                    label={'TU RUT'}
                     type="text"
                     placeholder="12.345.678-9"
                     value={requesterRut}
@@ -339,8 +339,8 @@ export default function ActivateAccount() {
                       setTouched((p) => ({ ...p, requesterRut: true }))
                     }
                     className={`pl-10 ${errors.requesterRut
-                        ? "border-red-400 focus:ring-red-200"
-                        : ""
+                      ? "border-red-400 focus:ring-red-200"
+                      : ""
                       }`}
                   />
                 </div>
@@ -353,12 +353,11 @@ export default function ActivateAccount() {
 
               {/* Nombre Completo */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Nombre Completo <span className="text-red-500">*</span>
-                </label>
                 <div className="relative">
-                  <FileText className="absolute z-10 left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <FileText className="absolute z-10 left-3 top-10 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
+                    required
+                    label={'Nombre Completo'}
                     type="text"
                     placeholder="Juan Pérez González"
                     value={requesterName}
@@ -367,8 +366,8 @@ export default function ActivateAccount() {
                       setTouched((p) => ({ ...p, requesterName: true }))
                     }
                     className={`pl-10 ${errors.requesterName
-                        ? "border-red-400 focus:ring-red-200"
-                        : ""
+                      ? "border-red-400 focus:ring-red-200"
+                      : ""
                       }`}
                   />
                 </div>
@@ -381,12 +380,11 @@ export default function ActivateAccount() {
 
               {/* Correo Electrónico */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Correo Electrónico <span className="text-red-500">*</span>
-                </label>
                 <div className="relative">
-                  <Mail className="absolute z-10 left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Mail className="absolute z-10 left-3 top-10 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
+                    required
+                    label={'Correo Electrónico'}
                     type="email"
                     placeholder="correo@empresa.cl"
                     value={requesterEmail}
@@ -395,8 +393,8 @@ export default function ActivateAccount() {
                       setTouched((p) => ({ ...p, requesterEmail: true }))
                     }
                     className={`pl-10 ${errors.requesterEmail
-                        ? "border-red-400 focus:ring-red-200"
-                        : ""
+                      ? "border-red-400 focus:ring-red-200"
+                      : ""
                       }`}
                   />
                 </div>
@@ -409,12 +407,10 @@ export default function ActivateAccount() {
 
               {/* Teléfono (opcional) */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Teléfono <span className="text-gray-400">(opcional)</span>
-                </label>
                 <div className="relative">
-                  <Phone className="absolute z-10 left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Phone className="absolute z-10 left-3 top-10 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
+                    label={'Teléfono'}
                     type="tel"
                     placeholder="+56 9 1234 5678"
                     value={requesterPhone}
@@ -426,12 +422,10 @@ export default function ActivateAccount() {
 
               {/* Cargo (opcional) */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Cargo <span className="text-gray-400">(opcional)</span>
-                </label>
                 <div className="relative">
-                  <Briefcase className="absolute z-10 left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Briefcase className="absolute z-10 left-3 top-10 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
+                    label={'Cargo'}
                     type="text"
                     placeholder="Ej: Gerente de Compras"
                     value={position}
@@ -451,7 +445,9 @@ export default function ActivateAccount() {
                 Enviar Solicitud de Registro
               </Button>
 
-              <button
+              <Button
+                variant="ghost"
+                icon={ArrowLeft}
                 type="button"
                 onClick={() => {
                   setStep(1);
@@ -459,13 +455,13 @@ export default function ActivateAccount() {
                   setTouched({});
                 }}
                 disabled={submitting}
-                className="w-full text-sm text-gray-600 hover:text-gray-800 transition-colors flex items-center justify-center gap-2"
+                className="w-full"
               >
-                <ArrowLeft className="w-4 h-4" />
                 Volver a validar empresa
-              </button>
+              </Button>
             </div>
           </div>
+          <FooterNoLogin />
         </div>
       </div>
     );
@@ -481,10 +477,10 @@ export default function ActivateAccount() {
               <img
                 src="/volta_logo.png"
                 alt="Logo"
-                className="h-[90px] w-[200px] object-contain mx-auto mb-4"
+                className="h-[40px] w-[150px] object-contain mx-auto mb-4"
               />
             </div>
-            <h2 className="text-2xl font-bold text-[var(--brand-primary)] mb-2">
+            <h2 className="text-xl font-bold text-[var(--brand-primary)] mb-2">
               SOLICITUD DE ACCESO
             </h2>
             <p className="text-sm text-gray-600">
@@ -493,8 +489,8 @@ export default function ActivateAccount() {
           </div>
 
           {errors.form && (
-            <div className="mb-4 rounded-lg border-2 border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="mb-4 rounded-lg border-2 justify-center border-red-200 bg-red-50 px-4 py-2 text-[13px] text-red-700 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
               <span>{errors.form}</span>
             </div>
           )}
@@ -502,12 +498,12 @@ export default function ActivateAccount() {
           <div className="space-y-4">
             {/* RUT Empresa */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                RUT de la Empresa <span className="text-red-500">*</span>
-              </label>
+
               <div className="relative">
-                <Building2 className="absolute left-3 z-10 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Building2 className="absolute left-3 z-10 top-10 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
+                  required
+                  label={'RUT de la Empresa '}
                   type="text"
                   placeholder="76.123.456-7"
                   value={companyRut}
@@ -516,8 +512,8 @@ export default function ActivateAccount() {
                     setTouched((p) => ({ ...p, companyRut: true }))
                   }
                   className={`pl-10 ${errors.companyRut
-                      ? "border-red-400 focus:ring-red-200"
-                      : ""
+                    ? "border-red-400 focus:ring-red-200"
+                    : ""
                     }`}
                 />
               </div>
@@ -530,12 +526,11 @@ export default function ActivateAccount() {
 
             {/* Código SAP */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Código SAP <span className="text-red-500">*</span>
-              </label>
               <div className="relative">
-                <Barcode className="absolute left-3  z-10 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Barcode className="absolute left-3 z-10 top-10 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
+                  required
+                  label={'Código SAP'}
                   type="text"
                   placeholder="SAP001"
                   value={sapCode}
@@ -579,7 +574,6 @@ export default function ActivateAccount() {
             </div>
           </div>
         </div>
-
         <FooterNoLogin />
       </div>
     </div>

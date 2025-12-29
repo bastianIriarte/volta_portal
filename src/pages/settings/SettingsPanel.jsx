@@ -1,7 +1,7 @@
 // src/pages/settings/SettingsPanel.jsx
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Settings, Globe, CreditCard, Mail, Database, Shield, Palette, ArrowRight, ClipboardEdit, Calendar, File, Cog, Server, Network } from "lucide-react";
+import { Settings, Globe, CreditCard, Mail, Database, Shield, Palette, ArrowRight, ClipboardEdit, Calendar, File, Cog, Server, Network, Cloud } from "lucide-react";
 
 export default function SettingsPanel() {
   const navigate = useNavigate();
@@ -21,11 +21,20 @@ export default function SettingsPanel() {
     {
       id: 'connection_agent',
       title: 'Conexión Agent',
-      description: 'Configuración de conexión al agente de base de datos',
+      description: 'Conexión al agente InsideOne para consultas a bases de datos',
       icon: Network,
       color: 'green',
       path: '/dashboard/settings/connection-agent',
-      details: ['Nombre', 'Endpoint', 'Driver (sqlsrv/hana)', 'Host', 'Puerto', 'Base de datos', 'Usuario']
+      details: ['URL del Agente', 'Modo de Query', 'Estado de BD']
+    },
+    {
+      id: 'connection_microsoft_graph',
+      title: 'Microsoft Graph',
+      description: 'Conexión a SharePoint via Microsoft Graph API',
+      icon: Cloud,
+      color: 'purple',
+      path: '/dashboard/settings/connection-microsoft-graph',
+      details: ['Tenant ID', 'Client ID', 'Client Secret', 'Site ID', 'Scope']
     },
 
   ];

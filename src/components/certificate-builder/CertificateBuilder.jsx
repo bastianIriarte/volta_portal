@@ -1692,17 +1692,26 @@ export default function CertificateBuilder({ templateId, onClose }) {
     setStylePanel({ show: false, fieldId: null });
 
     if (draggedField.isNew) {
+      const timestamp = Date.now();
+
+      // Contar cuántos campos del mismo tipo ya existen
+      const sameTypeCount = fields.filter((f) => f.field_type === draggedField.field_type).length + 1;
+
+      // Auto-generar field_key único basado en el tipo y contador
+      const uniqueFieldKey = `${draggedField.field_type}_${sameTypeCount}`;
+
       // Auto-generar field_label si no existe o está vacío
       const autoLabel = draggedField.field_label ||
-        `${draggedField.field_type}_${Date.now()}`;
+        `${draggedField.field_type}_${timestamp}`;
 
       const newField = {
         ...draggedField,
-        id: `temp_${Date.now()}`,
+        id: `temp_${timestamp}`,
+        field_key: uniqueFieldKey,
         field_label: autoLabel,
         section,
         order_index: fields.filter((f) => f.section === section).length,
-        styles: { display: "inline-block", width: "100%", marginBottom: "8px" },
+        styles: draggedField.styles || {},
         isNew: undefined,
       };
       setFields([...fields, newField]);
@@ -1784,9 +1793,18 @@ export default function CertificateBuilder({ templateId, onClose }) {
   };
 
   const handleDuplicateField = (field) => {
+    const timestamp = Date.now();
+
+    // Contar cuántos campos del mismo tipo ya existen
+    const sameTypeCount = fields.filter((f) => f.field_type === field.field_type).length + 1;
+
+    // Generar field_key único
+    const uniqueFieldKey = `${field.field_type}_${sameTypeCount}`;
+
     const newField = {
       ...field,
-      id: `temp_${Date.now()}`,
+      id: `temp_${timestamp}`,
+      field_key: uniqueFieldKey,
       order_index: fields.filter((f) => f.section === field.section).length,
     };
     setFields([...fields, newField]);
@@ -1968,15 +1986,6 @@ export default function CertificateBuilder({ templateId, onClose }) {
         <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <h2 className="font-semibold text-gray-900 text-sm truncate">{template?.name || "Nueva Plantilla"}</h2>
-            <select
-              value={selectedDataType}
-              onChange={(e) => handleDataTypeChange(e.target.value)}
-              className="text-xs border border-gray-300 rounded px-2 py-1"
-            >
-              <option value="transporte_residuos">Transporte Residuos</option>
-              <option value="gestion_residuos">Gestión Residuos</option>
-              <option value="lodos_grasos">Lodos Grasos</option>
-            </select>
           </div>
           <div className="flex items-center gap-2">
             {/* Undo/Redo */}
@@ -2055,7 +2064,7 @@ export default function CertificateBuilder({ templateId, onClose }) {
         <div className="flex-1 overflow-auto p-6 flex items-start justify-center">
           <div
             className="bg-white shadow-xl overflow-hidden transition-transform origin-top flex flex-col"
-            style={{ transform: `scale(${scale})`, width: "210mm", minHeight: "297mm" }}
+            style={{ transform: `scale(${scale})`, width: "900px", minHeight: "297mm", padding: "30px 70px 0 70px" }}
           >
             {/* Header */}
             <CertificateSection
@@ -2308,7 +2317,7 @@ function CertificateSection({
         </div>
       )}
 
-      <div className={`px-8 pt-4 ${fields.length === 0 ? "opacity-0" : ""}`} style={{ minHeight: isMain ? "400px" : "80px" }}>
+      <div className={`px-8 pt-4 ${fields.length === 0 ? "opacity-0" : ""}`} style={{ minHeight: isMain ? "400px" : "80px", fontSize: 0 }}>
         {fields.map((field, index) => {
           const isHovered = hoveredField === field.id;
 
@@ -2316,6 +2325,7 @@ function CertificateSection({
             width: field.styles?.width || "100%",
             display: "inline-block",
             verticalAlign: "top",
+            fontSize: field.styles?.fontSize || "",
             ...field.styles,
           };
 
@@ -2389,6 +2399,7 @@ function CertificateSection({
                   }}
                   className={`transition-all cursor-pointer ${isHovered ? "ring-2 ring-sky-300 ring-offset-1 rounded" : ""}`}
                   style={{
+                    fontSize: field.styles?.fontSize || "12px",
                     // Para imágenes usar flexbox, para otros textAlign
                     ...(["image", "signature"].includes(field.field_type)
                       ? {
