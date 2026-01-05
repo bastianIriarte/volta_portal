@@ -141,7 +141,7 @@ export default function CompanyCreateModal({ open, onClose }) {
               onClick: () => handleClose(false),
             },
             {
-              label: searching ? "Buscando..." : "Buscar en SAP",
+              label: searching ? "Buscando..." : "Validar RUT",
               variant: "primary",
               onClick: handleSearchSap,
               disabled: searching || !searchRut,

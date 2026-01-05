@@ -21,7 +21,7 @@ export const Select = ({
   className,
   wrapperClass,
   children,
-  height = "h-37",
+  height = "h-[37px]",
   padding = "",
   ...props
 }) => {
@@ -50,7 +50,7 @@ export const Select = ({
         <div className="flex items-center justify-between">
           <label
             htmlFor={id}
-            className="block text-[11px] font-bold text-gray-800 uppercase"
+            className="block text-[11px] font-bold text-neutral-600 uppercase"
           >
             {label}{" "}
             {required && <span className="text-red-500" aria-hidden="true">*</span>}
@@ -63,7 +63,7 @@ export const Select = ({
           id={id}
           aria-invalid={!!error}
           aria-describedby={describedBy.join(" ") || undefined}
-          className={`${selectClass} ${height}`}
+          className={`${selectClass} ${height} text-[13px]`}
           {...props}
         >
           {children}

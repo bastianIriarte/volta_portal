@@ -27,7 +27,7 @@ export const Textarea = ({
   if (!error && helper) describedBy.push(`${id}-help`);
 
   const base =
-    "w-full rounded-xl border px-3 py-2 bg-white outline-none transition shadow-sm";
+    "w-full border px-3 py-2 bg-white outline-none transition shadow-sm";
   const elegant = "bg-white/70 backdrop-blur-sm";
   const ok = "border-emerald-300 focus:ring-2 focus:ring-emerald-200";
   const bad = "border-red-300 focus:ring-2 focus:ring-red-200";
@@ -44,13 +44,17 @@ export const Textarea = ({
   return (
     <div className={cls("space-y-1.5", wrapperClass)}>
       {label && (
-        <label
-          htmlFor={id}
-          className="block text-sm font-medium  /80"
-        >
-          {label}{" "}
-          {required && <span className="text-red-500" aria-hidden="true">*</span>}
-        </label>
+       <label
+            htmlFor={id}
+            className="block text-[11px] font-bold text-neutral-600 uppercase"
+          >
+            {label}{" "}
+            {required && (
+              <span className="text-red-500" aria-hidden="true">
+                *
+              </span>
+            )}
+          </label>
       )}
 
       <textarea

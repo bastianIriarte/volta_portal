@@ -32,7 +32,9 @@ export default function UsersView() {
       "name",
       "rut", 
       "email",
-      "role_name"
+      "role_name",
+      "company",
+      "created_at"
     ]
   };
 
@@ -74,12 +76,14 @@ export default function UsersView() {
 
   // Configuración de columnas
   const columns = [
-    { key: "name", label: "Nombre" },
+    { key: "name", label: "Nombre COMPLETO" },
     { key: "rut", label: "RUT" },
     { key: "email", label: "Correo" },
     { key: "role_name", label: "Perfil" },
+    { key: "company", label: "Empresa" },
+    { key: "created_at", label: "Fecha creación" },
     { key: "status", label: "Estado", sortable: false },
-    { key: "actions", label: "Acciones", sortable: false, headerClassName: "text-right" }
+    { key: "actions", label: "Acciones", sortable: false, headerClassName: "text-center" }
   ];
 
   // Funciones de acciones
@@ -120,7 +124,7 @@ export default function UsersView() {
   // Configuración de acciones por fila
   const getRowActions = () => [
     {
-      label: "Editar",
+      label: "",
       icon: Pencil,
       variant: "outline",
       onClick: (user) => setModalForm({ mode: "edit", user }),
@@ -134,7 +138,7 @@ export default function UsersView() {
     //   title: "Restablecer contraseña"
     // },
     {
-      label: "Eliminar",
+      label: "",
       icon: Trash2,
       variant: "danger",
       onClick: handleDelete,
@@ -145,11 +149,13 @@ export default function UsersView() {
   // Renderizado de filas
   const renderRow = (user, index) => {
     return (
-      <tr key={user.id} className="border-t hover:bg-gray-50">
+      <tr key={user.id} className="border-t hover:bg-gray-50 text-[13px]">
         <td className="px-3 py-2">{user.name}</td>
         <td className="px-3 py-2">{user.rut}</td>
         <td className="px-3 py-2">{user.email}</td>
         <td className="px-3 py-2">{user.role_name}</td>
+        <td className="px-3 py-2">{user.company}</td>
+        <td className="px-3 py-2">{user.created_at}</td>
         <td className="px-3 py-2">
           <span
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${

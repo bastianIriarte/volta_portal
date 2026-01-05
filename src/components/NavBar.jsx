@@ -283,7 +283,8 @@ export default function NavBar({
                   compras: "Compras",
                   ventas: "Ventas",
                   listados: "Mantenedores",
-                  sistema: "Sistema"
+                  sistema: "Sistema",
+                  documentos: "Documentos"
                 };
 
                 // Agrupar items por sección

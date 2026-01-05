@@ -6,15 +6,15 @@ import { Route, Routes, Navigate } from "react-router-dom";
 import ProtectedRoute from "../components/ProtectedRoute";
 import { getCertificateTemplates, getCertificatesByCompany } from "../services/companyService";
 import { FileText } from "lucide-react";
-import CertificateReportView from "../pages/reports/CertificateReportView";
+import UnifiedReportView from "../pages/reports/UnifiedReportView";
 
 export default function AppShell() {
   const { session, logout } = useAuth();
   const [certificates, setCertificates] = useState([]);
   const [loadingCerts, setLoadingCerts] = useState(true);
 
-  // Obtener permisos del usuario desde la sesion
-  const userPermissions = session?.user?.permissions || [];
+  // Obtener permisos del usuario desde la sesion (backend devuelve permissions_users)
+  const userPermissions = session?.user?.permissions_users || [];
   // El AuthService devuelve 'role' directamente (no profile.code)
   const userRole = session?.user?.role;
   const isAdmin = userRole === 'root' || userRole === 'admin';
@@ -22,23 +22,32 @@ export default function AppShell() {
 
   // Cargar certificados al montar
   useEffect(() => {
-    loadCertificates();
-  }, [companyId, isAdmin]);
+    if (session?.user) {
+      loadCertificates();
+    }
+  }, [session?.user, companyId, isAdmin]);
 
   const loadCertificates = async () => {
+    console.log('[AppShell] loadCertificates - isAdmin:', isAdmin, 'companyId:', companyId, 'userRole:', userRole);
     try {
       let response;
 
       // Para clientes con empresa: cargar solo certificados asignados a su empresa
       // Para admins: cargar todos los certificados
       if (!isAdmin && companyId) {
+        console.log('[AppShell] Calling getCertificatesByCompany:', companyId);
         response = await getCertificatesByCompany(companyId);
       } else {
+        console.log('[AppShell] Calling getCertificateTemplates (admin or no company)');
         response = await getCertificateTemplates();
       }
 
+      console.log('[AppShell] Response:', response);
       if (response.success && response.data) {
+        console.log('[AppShell] Setting certificates:', response.data);
         setCertificates(response.data);
+      } else {
+        console.warn('[AppShell] Response failed or no data:', response);
       }
     } catch (error) {
       console.error("Error loading certificates:", error);
@@ -67,12 +76,12 @@ export default function AppShell() {
     });
   }, [certificates, userPermissions, isAdmin]);
 
-  // Crear items de menu para certificados
+  // Crear items de menu para certificados (usando query params)
   const certificateMenuItems = useMemo(() => {
     return allowedCertificates.map(cert => ({
-      to: `/dashboard/reportes/${cert.id}`,
+      to: `/dashboard/view?cert=${cert.code}`,
       label: cert.name,
-      id: `cert_${cert.id}`,
+      id: `cert_${cert.code}`,
       section: "reportes",
       icon: FileText
     }));
@@ -93,11 +102,17 @@ export default function AppShell() {
     return APP_ROUTES
       .filter(r => r.isMenu)
       .map(r => {
-        const allowed = !r.permission || checkPermission(r.permission, r.mode || "OR");
+        // Verificar permisos
+        const permissionAllowed = !r.permission || checkPermission(r.permission, r.mode || "OR");
+
+        // Verificar roles: null = todos, array = solo esos roles
+        const roleAllowed = !r.roles || r.roles.includes(userRole);
+
+        const allowed = permissionAllowed && roleAllowed;
         return allowed ? { to: r.path, label: r.label, id: r.id, section: r.section, icon: r.icon } : null;
       })
       .filter(Boolean);
-  }, [userPermissions]);
+  }, [userPermissions, userRole]);
 
   // Combinar items estaticos con certificados dinamicos
   const visibleItems = useMemo(() => {
@@ -151,18 +166,15 @@ export default function AppShell() {
               }
             />
           ))}
-          {/* Rutas dinamicas para certificados */}
-          {allowedCertificates.map(cert => (
-            <Route
-              key={`cert_route_${cert.id}`}
-              path={`/dashboard/reportes/${cert.id}`}
-              element={
-                <ProtectedRoute>
-                  <CertificateReportView />
-                </ProtectedRoute>
-              }
-            />
-          ))}
+          {/* Ruta unificada para ver certificados y reportes con query params */}
+          <Route
+            path="/dashboard/view"
+            element={
+              <ProtectedRoute>
+                <UnifiedReportView />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </main>
     </div>

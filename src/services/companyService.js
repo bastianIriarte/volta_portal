@@ -251,6 +251,22 @@ export const revokeCompanyCertificate = async (id) => {
   }
 };
 
+// Actualizar company_certificate (report_url, etc.)
+export const updateCompanyCertificate = async (id, data) => {
+  try {
+    const response = await api.put(`/api/company-certificates/${id}`, data);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
 // Obtener plantillas de certificados disponibles
 export const getCertificateTemplates = async () => {
   try {
@@ -322,6 +338,240 @@ export const getCertificateTemplateById = async (id) => {
 export const getCompanyFixedDocuments = async (companyId) => {
   try {
     const response = await api.get(`/api/company-documents/fixed/${companyId}`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// ==========================================
+// PLANTILLAS DE REPORTES
+// ==========================================
+
+// Obtener todas las plantillas de reportes
+export const getReportTemplates = async () => {
+  try {
+    const response = await api.get("/api/report-templates");
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// ==========================================
+// REPORTES DE EMPRESA (Asignaciones)
+// ==========================================
+
+// Obtener todos los reportes de una empresa
+export const getCompanyReports = async (companyId) => {
+  try {
+    const response = await api.get(`/api/company-reports/company/${companyId}`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Crear reporte de empresa
+export const createCompanyReport = async (data) => {
+  try {
+    const response = await api.post("/api/company-reports/store", data);
+    let success = response.status === 201 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Actualizar reporte de empresa
+export const updateCompanyReport = async (id, data) => {
+  try {
+    const response = await api.put(`/api/company-reports/${id}`, data);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Eliminar reporte de empresa
+export const deleteCompanyReport = async (id) => {
+  try {
+    const response = await api.delete(`/api/company-reports/${id}`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Revocar reporte de empresa
+export const revokeCompanyReport = async (id) => {
+  try {
+    const response = await api.post(`/api/company-reports/${id}/revoke`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Ejecutar fuente de datos del reporte
+export const executeReportDataSource = async (id, params = {}) => {
+  try {
+    const response = await api.post(`/api/company-reports/${id}/execute`, params);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// ==========================================
+// PLANTILLAS DE FACTURAS
+// ==========================================
+
+// Obtener todas las plantillas de facturas
+export const getInvoiceTemplates = async () => {
+  try {
+    const response = await api.get("/api/invoice-templates");
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// ==========================================
+// FACTURAS DE EMPRESA (Asignaciones)
+// ==========================================
+
+// Obtener todas las facturas de una empresa
+export const getCompanyInvoices = async (companyId) => {
+  try {
+    const response = await api.get(`/api/company-invoices/company/${companyId}`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Crear factura de empresa
+export const createCompanyInvoice = async (data) => {
+  try {
+    const response = await api.post("/api/company-invoices/store", data);
+    let success = response.status === 201 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Actualizar factura de empresa
+export const updateCompanyInvoice = async (id, data) => {
+  try {
+    const response = await api.put(`/api/company-invoices/${id}`, data);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Eliminar factura de empresa
+export const deleteCompanyInvoice = async (id) => {
+  try {
+    const response = await api.delete(`/api/company-invoices/${id}`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Revocar factura de empresa
+export const revokeCompanyInvoice = async (id) => {
+  try {
+    const response = await api.post(`/api/company-invoices/${id}/revoke`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Ejecutar fuente de datos de factura
+export const executeInvoiceDataSource = async (id, params = {}) => {
+  try {
+    const response = await api.post(`/api/company-invoices/${id}/execute`, params);
     let success = response.status === 200 && !response.error;
     return returnResponse(
       success,

@@ -64,11 +64,11 @@ import {
   getBuilderConfig,
   getTemplateFields,
   saveTemplateFields,
-  getSimulatedData,
   uploadBuilderImage,
   listBuilderImages,
   getCertificatePdfUrl,
 } from "../../services/certificateBuilderService";
+import { getTableProcessors, previewTableProcessor } from "../../services/dataSourceService";
 
 // Mapeo de iconos
 const iconMap = {
@@ -350,13 +350,15 @@ function StylePanel({ field, onUpdate, onClose }) {
 }
 
 // Panel lateral de Configuración de Campo
-function FieldConfigPanel({ field, config, onSave, onClose }) {
+function FieldConfigPanel({ field, config, tableProcessors = [], onSave, onClose }) {
   const [editedField, setEditedField] = useState({ ...field });
   const [activeTab, setActiveTab] = useState("general");
   const [uploading, setUploading] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [existingImages, setExistingImages] = useState([]);
   const [loadingImages, setLoadingImages] = useState(false);
+  const [previewingProcessor, setPreviewingProcessor] = useState(false);
+  const [processorPreview, setProcessorPreview] = useState(null);
   const fileInputRef = useRef(null);
 
   // Estados para espaciado tipo Elementor
@@ -1292,48 +1294,143 @@ function FieldConfigPanel({ field, config, onSave, onClose }) {
 
           {activeTab === "data" && (
             <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Fuente de datos</label>
-                <input
-                  type="text"
-                  value={editedField.data_source || ""}
-                  onChange={(e) => handleChange("data_source", e.target.value)}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs font-mono"
-                  placeholder="certificate.date, client.name"
-                />
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Ruta del dato en los datos simulados
-                </p>
-              </div>
+              {/* Para tablas: selector de procesador */}
+              {field.field_type === "table" ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Procesador de Tabla
+                    </label>
+                    <select
+                      value={editedField.processor_id || ""}
+                      onChange={(e) => {
+                        const processorId = e.target.value ? parseInt(e.target.value) : null;
+                        handleChange("processor_id", processorId);
+                        // Limpiar preview al cambiar procesador
+                        setProcessorPreview(null);
+                      }}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                    >
+                      <option value="">-- Seleccionar procesador --</option>
+                      {tableProcessors.map((proc) => (
+                        <option key={proc.id} value={proc.id}>
+                          {proc.name} ({proc.code})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      El procesador define la fuente de datos, columnas y estilos de la tabla
+                    </p>
+                  </div>
 
-              {field.field_type === "table" && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Columnas (JSON)</label>
-                  <textarea
-                    value={JSON.stringify(editedField.table_columns || [], null, 2)}
-                    onChange={(e) => {
-                      try {
-                        handleChange("table_columns", JSON.parse(e.target.value));
-                      } catch {}
-                    }}
-                    rows={4}
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs font-mono"
-                    placeholder='[{"key": "fecha", "label": "Fecha"}]'
-                  />
-                </div>
+                  {editedField.processor_id && (
+                    <div className="space-y-2">
+                      <button
+                        onClick={async () => {
+                          setPreviewingProcessor(true);
+                          try {
+                            const res = await previewTableProcessor(editedField.processor_id, {});
+                            if (res.success) {
+                              setProcessorPreview(res.data);
+                            } else {
+                              handleSnackbar("Error al previsualizar: " + res.message, "error");
+                            }
+                          } catch (err) {
+                            handleSnackbar("Error de conexión", "error");
+                          } finally {
+                            setPreviewingProcessor(false);
+                          }
+                        }}
+                        disabled={previewingProcessor}
+                        className="w-full px-3 py-1.5 bg-sky-50 text-sky-700 border border-sky-200 rounded text-xs hover:bg-sky-100 flex items-center justify-center gap-2"
+                      >
+                        {previewingProcessor ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Eye className="w-3 h-3" />
+                        )}
+                        Previsualizar Tabla
+                      </button>
+
+                      {processorPreview?.html && (
+                        <div className="border border-gray-200 rounded p-2 bg-white max-h-48 overflow-auto">
+                          <p className="text-xs text-gray-500 mb-1">Vista previa:</p>
+                          <div
+                            className="text-xs"
+                            dangerouslySetInnerHTML={{ __html: processorPreview.html }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {tableProcessors.length === 0 && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
+                      <p className="font-medium">No hay procesadores configurados</p>
+                      <p className="mt-1">Ve a <strong>Procesadores</strong> en el menú para crear uno que conecte una fuente de datos con la tabla.</p>
+                    </div>
+                  )}
+
+                  <details className="border border-gray-200 rounded p-2 bg-gray-50">
+                    <summary className="text-xs font-medium text-gray-700 cursor-pointer">Configuración manual (avanzado)</summary>
+                    <div className="mt-2 space-y-2">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Fuente de datos (ruta)</label>
+                        <input
+                          type="text"
+                          value={editedField.data_source || ""}
+                          onChange={(e) => handleChange("data_source", e.target.value)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-mono"
+                          placeholder="datos.tabla_residuos"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Columnas (JSON)</label>
+                        <textarea
+                          value={JSON.stringify(editedField.table_columns || [], null, 2)}
+                          onChange={(e) => {
+                            try {
+                              handleChange("table_columns", JSON.parse(e.target.value));
+                            } catch {}
+                          }}
+                          rows={3}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-mono"
+                          placeholder='[{"key": "fecha", "label": "Fecha"}]'
+                        />
+                      </div>
+                    </div>
+                  </details>
+                </>
+              ) : (
+                /* Para otros tipos de campo: fuente de datos simple */
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Fuente de datos</label>
+                    <input
+                      type="text"
+                      value={editedField.data_source || ""}
+                      onChange={(e) => handleChange("data_source", e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs font-mono"
+                      placeholder="certificate.date, client.name"
+                    />
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Ruta del dato en los datos simulados
+                    </p>
+                  </div>
+
+                  <details className="border border-gray-200 rounded p-2 bg-gray-50">
+                    <summary className="text-xs font-medium text-gray-700 cursor-pointer">Variables disponibles</summary>
+                    <div className="mt-2 text-xs text-gray-600 space-y-0.5">
+                      <p><code className="bg-gray-200 px-1 rounded text-xs">certificate.date</code></p>
+                      <p><code className="bg-gray-200 px-1 rounded text-xs">certificate.code</code></p>
+                      <p><code className="bg-gray-200 px-1 rounded text-xs">issuer.name</code></p>
+                      <p><code className="bg-gray-200 px-1 rounded text-xs">client.name</code></p>
+                      <p><code className="bg-gray-200 px-1 rounded text-xs">client.rut</code></p>
+                      <p><code className="bg-gray-200 px-1 rounded text-xs">signature.name</code></p>
+                    </div>
+                  </details>
+                </>
               )}
-
-              <details className="border border-gray-200 rounded p-2 bg-gray-50">
-                <summary className="text-xs font-medium text-gray-700 cursor-pointer">Variables disponibles</summary>
-                <div className="mt-2 text-xs text-gray-600 space-y-0.5">
-                  <p><code className="bg-gray-200 px-1 rounded text-xs">certificate.date</code></p>
-                  <p><code className="bg-gray-200 px-1 rounded text-xs">certificate.code</code></p>
-                  <p><code className="bg-gray-200 px-1 rounded text-xs">issuer.name</code></p>
-                  <p><code className="bg-gray-200 px-1 rounded text-xs">client.name</code></p>
-                  <p><code className="bg-gray-200 px-1 rounded text-xs">client.rut</code></p>
-                  <p><code className="bg-gray-200 px-1 rounded text-xs">signature.name</code></p>
-                </div>
-              </details>
             </div>
           )}
         </div>
@@ -1544,8 +1641,8 @@ export default function CertificateBuilder({ templateId, onClose }) {
   const [config, setConfig] = useState(null);
   const [template, setTemplate] = useState(null);
   const [fields, setFields] = useState([]);
-  const [simulatedData, setSimulatedData] = useState(null);
-  const [selectedDataType, setSelectedDataType] = useState("transporte_residuos");
+  const [simulatedData] = useState({});
+  const selectedDataType = "transporte_residuos";
   const [expandedCategories, setExpandedCategories] = useState({});
   const [draggedField, setDraggedField] = useState(null);
   const [dragOverSection, setDragOverSection] = useState(null);
@@ -1566,6 +1663,9 @@ export default function CertificateBuilder({ templateId, onClose }) {
   // Sistema de Log de Actividad
   const [activityLogs, setActivityLogs] = useState([]);
   const [showActivityLog, setShowActivityLog] = useState(false);
+
+  // Procesadores de tabla disponibles
+  const [tableProcessors, setTableProcessors] = useState([]);
 
   const addLog = useCallback((type, message) => {
     setActivityLogs((prev) => [
@@ -1653,19 +1753,14 @@ export default function CertificateBuilder({ templateId, onClose }) {
         }
       }
 
-      const dataRes = await getSimulatedData(selectedDataType);
-      if (dataRes.success) setSimulatedData(dataRes.data);
+      // Cargar procesadores de tabla disponibles
+      const processorsRes = await getTableProcessors();
+      if (processorsRes.success) setTableProcessors(processorsRes.data || []);
     } catch (error) {
       handleSnackbar("Error cargando configuración", "error");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDataTypeChange = async (type) => {
-    setSelectedDataType(type);
-    const dataRes = await getSimulatedData(type);
-    if (dataRes.success) setSimulatedData(dataRes.data);
   };
 
   const handleDragStart = (e, field, isNew = false) => {
@@ -2141,6 +2236,7 @@ export default function CertificateBuilder({ templateId, onClose }) {
         <FieldConfigPanel
           field={selectedField}
           config={config}
+          tableProcessors={tableProcessors}
           onSave={handleUpdateField}
           onClose={() => { setShowFieldConfig(false); setSelectedField(null); }}
         />

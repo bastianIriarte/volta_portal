@@ -252,3 +252,155 @@ export const getTemplateLogs = async (templateId, limit = 50) => {
     return error;
   }
 };
+
+// =====================================
+// DATA SOURCES - Fuentes de datos dinámicas
+// =====================================
+
+/**
+ * Obtiene las variables disponibles para un template
+ * (desde fuentes configuradas o por defecto)
+ */
+export const getAvailableVariables = async (templateId) => {
+  try {
+    const response = await api.get(`/api/certificate-builder/templates/${templateId}/available-variables`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+/**
+ * Obtiene las fuentes de datos de un template
+ */
+export const getDataSources = async (templateId) => {
+  try {
+    const response = await api.get(`/api/certificate-builder/templates/${templateId}/data-sources`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+/**
+ * Crea una nueva fuente de datos
+ */
+export const createDataSource = async (data) => {
+  try {
+    const response = await api.post("/api/certificate-builder/data-sources", data);
+    let success = response.status === 201 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+/**
+ * Actualiza una fuente de datos
+ */
+export const updateDataSource = async (id, data) => {
+  try {
+    const response = await api.put(`/api/certificate-builder/data-sources/${id}`, data);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+/**
+ * Elimina una fuente de datos
+ */
+export const deleteDataSource = async (id) => {
+  try {
+    const response = await api.delete(`/api/certificate-builder/data-sources/${id}`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+/**
+ * Prueba una fuente de datos con parámetros de prueba
+ */
+export const testDataSource = async (id, params = {}) => {
+  try {
+    const response = await api.post(`/api/certificate-builder/data-sources/${id}/test`, { params });
+    let success = response.status === 200 && response.data.status !== false;
+    return returnResponse(
+      success,
+      success ? "Prueba exitosa" : response.data.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+/**
+ * Ejecuta todas las fuentes de datos de un template
+ */
+export const executeDataSources = async (templateId, params = {}) => {
+  try {
+    const response = await api.post(`/api/certificate-builder/templates/${templateId}/execute-sources`, { params });
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+/**
+ * Genera HTML de tabla desde una fuente de datos
+ */
+export const buildTableFromSource = async (sourceId, params = {}, options = {}) => {
+  try {
+    const response = await api.post(`/api/certificate-builder/data-sources/${sourceId}/build-table`, {
+      params,
+      options,
+    });
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? "Tabla generada" : response.error,
+      response.status,
+      success ? response.data.html : null
+    );
+  } catch (error) {
+    return error;
+  }
+};

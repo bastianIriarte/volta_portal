@@ -4,13 +4,18 @@ import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { Loader2, SaveIcon, X } from "lucide-react";
 import { createCustomer, getCustomerById, updateCustomer } from "../../../services/customerService";
+import { getCompaniesList } from "../../../services/companyService";
 import { handleSnackbar } from "../../../utils/messageHelpers";
 import { validateField } from "../../../utils/validators";
 import Loading from "../../../components/ui/Loading";
-// Importar los componentes reutilizables;
+import { useAuth } from "../../../context/auth";
 
 const CustomerForm = ({ mode, register, onClose }) => {
+    const { session } = useAuth();
+    const isRoot = session?.user?.role === 'root';
+
     const [loading, setLoading] = useState(false);
+    const [companies, setCompanies] = useState([]);
     const [form, setForm] = useState({
         id: null,
         rut: "",
@@ -21,10 +26,28 @@ const CustomerForm = ({ mode, register, onClose }) => {
         email: "",
         mobile: "",
         status: true,
+        company_id: "",
     });
 
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState({});
+
+    // Cargar lista de empresas si es root
+    useEffect(() => {
+        if (isRoot) {
+            const fetchCompanies = async () => {
+                try {
+                    const response = await getCompaniesList();
+                    if (response.success) {
+                        setCompanies(response.data || []);
+                    }
+                } catch (error) {
+                    console.error("Error al cargar empresas:", error);
+                }
+            };
+            fetchCompanies();
+        }
+    }, [isRoot]);
 
     // 🔹 Validar un campo individual usando el validador unificado
     const validateSingleField = (field, value) => {
@@ -162,6 +185,7 @@ const CustomerForm = ({ mode, register, onClose }) => {
                             email: data.email || "",
                             mobile: data.mobile || "",
                             status: data.status ? 1 : 0,
+                            company_id: data.company_id || "",
                         });
                     } else {
                         handleSnackbar(response.message, "error");
@@ -187,6 +211,7 @@ const CustomerForm = ({ mode, register, onClose }) => {
                     email: "",
                     mobile: "",
                     status: true,
+                    company_id: "",
                 });
             }
         };
@@ -333,6 +358,31 @@ const CustomerForm = ({ mode, register, onClose }) => {
                                     type="tel"
                                 />
                             </div>
+
+                            {/* Selector de Empresa (solo para root) */}
+                            {isRoot && (
+                                <>
+                                    <div className="col-span-1 md:col-span-2 lg:col-span-3">
+                                        <h4 className="font-semibold mb-3 border-b pb-2 mt-4">Asignación de Empresa</h4>
+                                    </div>
+                                    <div className="col-span-1 md:col-span-2">
+                                        <label className="text-sm">Empresa</label>
+                                        <Select
+                                            value={form.company_id}
+                                            onChange={(e) => handleChange("company_id", e.target.value)}
+                                            error={errors.company_id}
+                                        >
+                                            <option value="">Sin empresa asignada</option>
+                                            {companies.map((company) => (
+                                                <option key={company.id} value={company.id}>
+                                                    {company.business_name} - {company.rut}
+                                                </option>
+                                            ))}
+                                        </Select>
+                                    </div>
+                                </>
+                            )}
+
                             {mode === 'edit' && (
                                 <>
                                     {/* Información del Sistema */}
