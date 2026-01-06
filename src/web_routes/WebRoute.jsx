@@ -12,7 +12,6 @@ import {
   Database,
   Table2,
   FileText,
-  Receipt,
   FolderOpen,
   FileSpreadsheet,
 } from "lucide-react";
@@ -38,13 +37,12 @@ import CertificateBuilderView from "../pages/certificate_builder/CertificateBuil
 import DataSourcesView from "../pages/data_sources/DataSourcesView";
 import TableProcessorsView from "../pages/table_processors/TableProcessorsView";
 
-// Plantillas de Reportes y Facturas
+// Plantillas de Reportes
 import ReportTemplatesView from "../pages/report_templates/ReportTemplatesView";
-import InvoiceTemplatesView from "../pages/invoice_templates/InvoiceTemplatesView";
 
 // Vistas de Cliente
 import ClientDocumentsView from "../pages/client/ClientDocumentsView";
-import ClientInvoicesView from "../pages/client/ClientInvoicesView";
+import ClientCertificatesView from "../pages/client/ClientCertificatesView";
 
 
 export const APP_ROUTES = [
@@ -66,12 +64,11 @@ export const APP_ROUTES = [
   { path: "/dashboard/certificate-builder/:templateId", element: <CertificateBuilderView />, permission: null, roles: ["admin", "root"] },
   { path: "/dashboard/procesadores", element: <TableProcessorsView />, permission: null, label: "Procesadores", id: "procesadores", isMenu: true, section: "administracion", icon: Table2, roles: ["admin", "root"] },
   { path: "/dashboard/reports", element: <ReportTemplatesView />, permission: null, label: "Gestión de Reportes", id: "reports", isMenu: true, section: "administracion", icon: FileText, roles: ["admin", "root"] },
-  { path: "/dashboard/reports-invoices", element: <InvoiceTemplatesView />, permission: null, label: "Gestión de Facturas", id: "reports-invoices", isMenu: true, section: "administracion", icon: Receipt, roles: ["admin", "root"] },
 
   // ========================================
   // MÓDULO DE CLIENTE (Solo Clientes)
   // ========================================
-  { path: "/dashboard/mis-facturas", element: <ClientInvoicesView />, permission: null, label: "Facturas", id: "mis-facturas", isMenu: true, section: "reportes", icon: Receipt, roles: ["cliente"] },
+  { path: "/dashboard/mis-certificados", element: <ClientCertificatesView />, permission: null, label: "Certificados", id: "mis-certificados", isMenu: true, section: "inicio", icon: Award, roles: null },
   { path: "/dashboard/reporte-sharepoint", element: <SharePointListView />, permission: null, label: "Reporte SharePoint", id: "reporte-sharepoint", isMenu: true, section: "reportes", icon: FileSpreadsheet, roles: ["cliente"] },
   { path: "/dashboard/mis-documentos", element: <ClientDocumentsView />, permission: null, label: "Documentos", id: "mis-documentos", isMenu: true, section: "documentos", icon: FolderOpen, roles: ["cliente"] },
 

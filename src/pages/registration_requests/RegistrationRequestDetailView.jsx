@@ -579,7 +579,7 @@ export default function RegistrationRequestDetailView() {
 
       {/* Modal de rechazo */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 top-[-30px]">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
               <div className="p-2 bg-red-100 rounded-lg">

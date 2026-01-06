@@ -8,6 +8,7 @@ export default function TemplateFormModal({
   mode,
   formData,
   setFormData,
+  dataSources = [],
   saving,
   onSave,
   onClose,
@@ -58,6 +59,19 @@ export default function TemplateFormModal({
                 className="w-full"
               />
             </div>
+            <Select
+              label="Origen de Datos"
+              value={formData.data_source_id}
+              onChange={(e) => setFormData({ ...formData, data_source_id: e.target.value })}
+              hint="Selecciona la fuente de datos SQL para las variables del certificado"
+            >
+              <option value="">Sin origen de datos</option>
+              {dataSources.map((ds) => (
+                <option key={ds.id} value={ds.id}>
+                  {ds.name} ({ds.code})
+                </option>
+              ))}
+            </Select>
           </>
         ) : (
           <>
@@ -80,6 +94,19 @@ export default function TemplateFormModal({
                 className="w-full"
               />
             </div>
+            <Select
+              label="Origen de Datos"
+              value={formData.data_source_id}
+              onChange={(e) => setFormData({ ...formData, data_source_id: e.target.value })}
+              hint="Fuente de datos SQL para las variables del certificado"
+            >
+              <option value="">Sin origen de datos</option>
+              {dataSources.map((ds) => (
+                <option key={ds.id} value={ds.id}>
+                  {ds.name} ({ds.code})
+                </option>
+              ))}
+            </Select>
             <Select
               label="Estado"
               value={formData.status}

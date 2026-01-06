@@ -10,6 +10,7 @@ import RecoveryPassword from "./components/RecoveryPassword";
 import ActivateAccount from "./components/ActivateAccount";
 import AppShell from "./web_routes/AppShell";
 import { AuthProvider, useAuth } from "./context/auth";
+import ReportFullscreenView from "./pages/reports/ReportFullscreenView";
 
 
 
@@ -24,6 +25,15 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/recuperar-password" element={<RecoveryPassword />} />
             <Route path="/primera-vez" element={<ActivateAccount />} />
+            {/* Reporte fullscreen sin menú (protegido pero sin AppShell) */}
+            <Route
+              path="/report-fullscreen"
+              element={
+                <ProtectedRoute>
+                  <ReportFullscreenView />
+                </ProtectedRoute>
+              }
+            />
             {/* Todo lo demás protegido */}
             <Route
               path="/*"

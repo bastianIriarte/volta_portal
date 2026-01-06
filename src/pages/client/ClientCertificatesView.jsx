@@ -1,24 +1,17 @@
-// File: src/pages/reports/ClientReportsView.jsx
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  BarChart3, Calendar, Building2, Loader2,
-  Download, Search
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { Award, Calendar, Loader2, Download, Building2 } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import { useAuth } from "../../context/auth";
-import { getReportTemplates, getCompanyReports } from "../../services/companyService";
+import { getCertificateTemplates, getCertificatesByCompany } from "../../services/companyService";
 import { handleSnackbar } from "../../utils/messageHelpers";
 
-export default function ClientReportsView() {
-  const navigate = useNavigate();
+export default function ClientCertificatesView() {
   const { session } = useAuth();
+  const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [reports, setReports] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
 
   // Modal de generación
-  const [selectedReport, setSelectedReport] = useState(null);
+  const [selectedCert, setSelectedCert] = useState(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -30,40 +23,33 @@ export default function ClientReportsView() {
   const companyName = session?.user?.company?.business_name || "";
 
   useEffect(() => {
-    loadReports();
+    loadCertificates();
   }, [companyId, isAdmin]);
 
-  const loadReports = async () => {
+  const loadCertificates = async () => {
     setLoading(true);
     try {
       let response;
       if (!isAdmin && companyId) {
-        // Para clientes: obtener reportes asignados a su empresa
-        response = await getCompanyReports(companyId);
+        response = await getCertificatesByCompany(companyId);
       } else {
-        // Para admins: obtener todas las plantillas de reportes
-        response = await getReportTemplates();
+        response = await getCertificateTemplates();
       }
 
       if (response.success && response.data) {
-        // Filtrar solo reportes activos
-        setReports(response.data.filter(r => r.status === 1 || r.status === undefined));
+        // Filtrar solo certificados activos (status puede ser boolean o integer)
+        setCertificates(response.data.filter(c => c.status === true || c.status === 1));
       }
     } catch (error) {
-      console.error("Error loading reports:", error);
-      handleSnackbar("Error al cargar reportes", "error");
+      console.error("Error loading certificates:", error);
+      handleSnackbar("Error al cargar certificados", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredReports = reports.filter(report =>
-    report.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (report.code && report.code.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
-  const handleOpenModal = (report) => {
-    setSelectedReport(report);
+  const handleOpenModal = (cert) => {
+    setSelectedCert(cert);
     // Valores por defecto: mes actual
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -73,13 +59,13 @@ export default function ClientReportsView() {
   };
 
   const handleCloseModal = () => {
-    setSelectedReport(null);
+    setSelectedCert(null);
     setDateFrom("");
     setDateTo("");
   };
 
-  const handleGenerateReport = () => {
-    if (!selectedReport) return;
+  const handleGeneratePDF = () => {
+    if (!selectedCert) return;
     if (!dateFrom || !dateTo) {
       handleSnackbar("Selecciona el rango de fechas", "error");
       return;
@@ -87,7 +73,7 @@ export default function ClientReportsView() {
 
     setGenerating(true);
 
-    // Construir URL del reporte con parámetros
+    // Construir URL del PDF con parámetros
     const params = new URLSearchParams();
     params.append("date_from", dateFrom);
     params.append("date_to", dateTo);
@@ -95,17 +81,18 @@ export default function ClientReportsView() {
       params.append("company_id", companyId);
     }
 
-    // Determinar la URL según el tipo de origen
-    let reportUrl;
-    if (selectedReport.origin_type === "iframe" && selectedReport.report_url) {
-      reportUrl = selectedReport.report_url;
-    } else {
-      reportUrl = `${baseURL}/api/reports/generate/${selectedReport.id}?${params.toString()}`;
-    }
+    const pdfUrl = `${baseURL}/api/certificate-builder/templates/${selectedCert.id}/pdf?${params.toString()}`;
 
-    window.open(reportUrl, "_blank");
+    // Abrir en nueva ventana
+    window.open(pdfUrl, "_blank");
+
     setGenerating(false);
-    handleSnackbar("Generando reporte...", "success");
+    handleSnackbar("Generando certificado...", "success");
+  };
+
+  const handlePreview = (cert) => {
+    const pdfUrl = `${baseURL}/api/certificate-builder/templates/${cert.id}/pdf?preview=true`;
+    window.open(pdfUrl, "_blank");
   };
 
 
@@ -122,13 +109,13 @@ export default function ClientReportsView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <BarChart3 size={32} className="text-blue-600" />
+          <Award size={32} className="text-blue-600" />
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Reportes</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Certificados</h2>
             <p className="text-gray-600">
               {isAdmin
-                ? "Todos los reportes disponibles en el sistema"
-                : "Reportes disponibles para tu empresa"
+                ? "Todos los certificados disponibles en el sistema"
+                : "Certificados disponibles para tu empresa"
               }
             </p>
           </div>
@@ -142,62 +129,46 @@ export default function ClientReportsView() {
         )}
       </div>
 
-      {/* Barra de busqueda */}
-      {reports.length > 0 && (
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar reportes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      )}
-
-      {/* Grid de reportes */}
-      {filteredReports.length === 0 ? (
+      {/* Grid de certificados */}
+      {certificates.length === 0 ? (
         <div className="text-center py-16 bg-gray-50 rounded-lg border border-gray-200">
-          <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900">No hay reportes disponibles</h3>
+          <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900">No hay certificados disponibles</h3>
           <p className="text-gray-500 mt-2">
-            {searchTerm
-              ? "No se encontraron reportes con ese criterio"
-              : isAdmin
-                ? "No se han creado reportes en el sistema"
-                : "Tu empresa no tiene reportes asignados"
+            {isAdmin
+              ? "No se han creado certificados en el sistema"
+              : "Tu empresa no tiene certificados asignados"
             }
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredReports.map((report) => (
+          {certificates.map((cert) => (
             <div
-              key={report.id}
-              onClick={() => handleOpenModal(report)}
+              key={cert.id}
+              onClick={() => handleOpenModal(cert)}
               className="relative p-6 rounded-lg border-2 cursor-pointer transition-all duration-200 bg-blue-50 border-blue-200 hover:bg-blue-100 transform hover:scale-105 hover:shadow-lg"
             >
               {/* Icono */}
               <div className="mb-4 text-blue-600">
-                <BarChart3 size={40} />
+                <Award size={40} />
               </div>
 
               {/* Contenido */}
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {report.name}
+                  {cert.name}
                 </h3>
 
-                {report.description && (
+                {cert.description && (
                   <p className="text-sm text-gray-600 line-clamp-2">
-                    {report.description}
+                    {cert.description}
                   </p>
                 )}
 
-                {report.code && (
+                {cert.code && (
                   <div className="text-xs text-gray-500">
-                    Código: <span className="font-mono">{report.code}</span>
+                    Código: <span className="font-mono">{cert.code}</span>
                   </div>
                 )}
               </div>
@@ -216,9 +187,9 @@ export default function ClientReportsView() {
 
       {/* Modal de generación */}
       <Modal
-        open={!!selectedReport}
+        open={!!selectedCert}
         onClose={handleCloseModal}
-        title={`Generar: ${selectedReport?.name}`}
+        title={`Generar: ${selectedCert?.name}`}
         size="sm"
         actions={[
           {
@@ -227,24 +198,22 @@ export default function ClientReportsView() {
             onClick: handleCloseModal,
           },
           {
-            label: generating ? "Generando..." : "Generar Reporte",
+            label: generating ? "Generando..." : "Generar PDF",
             variant: "primary",
-            onClick: handleGenerateReport,
+            onClick: handleGeneratePDF,
             disabled: generating || !dateFrom || !dateTo,
             icon: Download,
           },
         ]}
       >
         <div className="space-y-4">
-          {/* Info del reporte */}
+          {/* Info del certificado */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
+              <Award className="w-5 h-5 text-blue-600" />
               <div>
-                <p className="text-sm font-medium text-blue-800">{selectedReport?.name}</p>
-                {selectedReport?.code && (
-                  <p className="text-xs text-blue-600">Código: {selectedReport?.code}</p>
-                )}
+                <p className="text-sm font-medium text-blue-800">{selectedCert?.name}</p>
+                <p className="text-xs text-blue-600">Código: {selectedCert?.code}</p>
               </div>
             </div>
           </div>
@@ -252,7 +221,7 @@ export default function ClientReportsView() {
           {/* Rango de fechas */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Periodo del reporte
+              Periodo del certificado
             </label>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -329,8 +298,8 @@ export default function ClientReportsView() {
           {/* Nota */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-xs text-blue-700">
-              El reporte se generará con los datos correspondientes al periodo seleccionado.
-              Se abrirá en una nueva ventana para su visualización o descarga.
+              El certificado se generará con los datos correspondientes al periodo seleccionado.
+              Se abrirá en una nueva ventana para su descarga o impresión.
             </p>
           </div>
         </div>

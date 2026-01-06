@@ -35,6 +35,7 @@ const emptyForm = {
   filepath: "",
   primary_color: "#0284c7",
   secondary_color: "#64748b",
+  data_source_id: "",
 };
 
 export default function CertificateBuilderView() {
@@ -56,6 +57,9 @@ export default function CertificateBuilderView() {
   const [historyLogs, setHistoryLogs] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  // Data sources disponibles
+  const [dataSources, setDataSources] = useState([]);
+
   // Configuración de la tabla
   const tableConfig = {
     defaultSort: "id",
@@ -69,13 +73,19 @@ export default function CertificateBuilderView() {
 
   const { modals, openConfirm, closeModal } = useModals();
 
-  // Cargar plantillas
+  // Cargar plantillas y data sources
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/api/certificate-templates");
-      if (response.data?.data) {
-        setTemplates(response.data.data);
+      const [templatesRes, dataSourcesRes] = await Promise.all([
+        api.get("/api/certificate-templates"),
+        api.get("/api/data-sources"),
+      ]);
+      if (templatesRes.data?.data) {
+        setTemplates(templatesRes.data.data);
+      }
+      if (dataSourcesRes.data?.data) {
+        setDataSources(dataSourcesRes.data.data);
       }
     } catch (error) {
       handleSnackbar("Error cargando plantillas", "error");
@@ -120,6 +130,7 @@ export default function CertificateBuilderView() {
       description: template.description || "",
       filepath: template.filepath || "",
       status: template.status ?? 1,
+      data_source_id: template.data_source_id || "",
     });
     setFormModal({ open: true, mode: "edit", data: template });
   };
@@ -150,6 +161,7 @@ export default function CertificateBuilderView() {
           filepath: formData.filepath || null,
           primary_color: formData.primary_color,
           secondary_color: formData.secondary_color,
+          data_source_id: formData.data_source_id || null,
           status: 1,
         });
 
@@ -166,6 +178,7 @@ export default function CertificateBuilderView() {
           code: formData.code,
           description: formData.description,
           filepath: formData.filepath || null,
+          data_source_id: formData.data_source_id || null,
           status: formData.status,
         });
 
@@ -413,6 +426,7 @@ export default function CertificateBuilderView() {
         mode={formModal.mode}
         formData={formData}
         setFormData={setFormData}
+        dataSources={dataSources}
         saving={saving}
         onSave={handleSave}
         onClose={() => setFormModal({ open: false, mode: "create", data: null })}

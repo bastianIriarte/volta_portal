@@ -161,7 +161,7 @@ export default function CertificateReportView() {
 
   const handleExportCSV = () => {
     if (items.length === 0) {
-      handleSnackbar("No hay datos para exportar", "warning");
+      handleSnackbar("No hay datos para exportar", "error");
       return;
     }
 

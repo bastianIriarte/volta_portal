@@ -4,7 +4,8 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, FileText, Table, ExternalLink, Calendar,
   Download, RefreshCcw, Loader2, Filter, X,
-  Building2, Search, Award
+  Building2, Search, Award,
+  BarChart2
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../context/auth";
@@ -39,6 +40,7 @@ export default function UnifiedReportView() {
   const [template, setTemplate] = useState(null);
   const [templateType, setTemplateType] = useState(null); // "certificate" | "report"
   const [activeTab, setActiveTab] = useState("data");
+  const [companyReport, setCompanyReport] = useState(null); // Datos de la asignación de reporte a empresa
 
   // Estados para datos
   const [items, setItems] = useState([]);
@@ -52,6 +54,9 @@ export default function UnifiedReportView() {
   const [dateTo, setDateTo] = useState("");
   const [dateFilterField, setDateFilterField] = useState("FechaProgramada");
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Estado para loading del iframe
+  const [iframeLoading, setIframeLoading] = useState(true);
 
   // Informacion del usuario
   const companyName = session?.user?.company?.business_name || "";
@@ -92,8 +97,14 @@ export default function UnifiedReportView() {
 
       // La API devuelve { data, message, code } - verificar si hay data
       if (response.status === 200 && response.data?.data) {
-        setTemplate(response.data.data);
+        const templateData = response.data.data;
+        setTemplate(templateData);
         setTemplateType(type);
+
+        // Para reportes, cargar también la asignación específica de la empresa del usuario
+        if (type === "report" && companyId) {
+          await loadCompanyReport(templateData.id);
+        }
       } else {
         handleSnackbar(response.data?.error || "Plantilla no encontrada", "error");
         navigate("/dashboard");
@@ -103,6 +114,27 @@ export default function UnifiedReportView() {
       handleSnackbar("Error al cargar plantilla", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCompanyReport = async (reportId) => {
+    try {
+      // Cargar los reportes asignados a la empresa del usuario
+      const response = await api.get(`/api/company-reports/company/${companyId}`);
+      if (response.status === 200 && response.data?.data) {
+        // Buscar la asignación específica para este reporte
+        const assignment = response.data.data.find(r => r.report_id === reportId);
+        if (assignment) {
+          console.log('[UnifiedReportView] Company report assignment found:', assignment);
+          setCompanyReport(assignment);
+          // Si tiene report_url configurado, activar el tab de iframe primero
+          if (assignment.report_url) {
+            setActiveTab("iframe");
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error loading company report:", error);
     }
   };
 
@@ -225,9 +257,17 @@ export default function UnifiedReportView() {
     setSearchTerm("");
   };
 
+  // Handler para cuando el iframe termina de cargar
+  const handleIframeLoad = () => {
+    // Delay más largo para asegurar que Power BI termine de renderizar
+    setTimeout(() => {
+      setIframeLoading(false);
+    }, 2500);
+  };
+
   const handleExportCSV = () => {
     if (items.length === 0) {
-      handleSnackbar("No hay datos para exportar", "warning");
+      handleSnackbar("No hay datos para exportar", "error");
       return;
     }
 
@@ -275,8 +315,23 @@ export default function UnifiedReportView() {
   };
 
   // Determinar si mostrar iframe
-  const showIframe = template?.origin_type === "iframe" || template?.origin_type === "mixed";
-  const iframeUrl = template?.report_url || template?.filepath;
+  // Prioridad: companyReport.report_url > template.report_url > template.filepath
+  const effectiveReportUrl = companyReport?.report_url || template?.report_url || template?.filepath;
+  // Mostrar iframe si hay URL o si el tipo de origen es iframe/mixed
+  const showIframe = !!effectiveReportUrl || template?.origin_type === "iframe" || template?.origin_type === "mixed";
+  const iframeUrl = effectiveReportUrl;
+
+  // Resetear loading cuando cambia el tab a iframe
+  useEffect(() => {
+    if (activeTab === "iframe") {
+      setIframeLoading(true);
+      // Timeout de seguridad más largo para reportes pesados
+      const timeout = setTimeout(() => {
+        setIframeLoading(false);
+      }, 8000);
+      return () => clearTimeout(timeout);
+    }
+  }, [activeTab, iframeUrl]);
 
   if (loading) {
     return (
@@ -291,9 +346,7 @@ export default function UnifiedReportView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate(-1)} icon={ArrowLeft}>
-            Volver
-          </Button>
+      
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               {templateType === "certificate" ? (
@@ -303,7 +356,7 @@ export default function UnifiedReportView() {
               )}
               {template?.name}
             </h1>
-            <p className="text-gray-500 text-sm">{template?.code}</p>
+            <p className="text-gray-500 text-sm">Visualización de Reporte</p>
           </div>
         </div>
 
@@ -315,9 +368,23 @@ export default function UnifiedReportView() {
         )}
       </div>
 
-      {/* Tabs */}
+      {/* Tabs - Orden dinámico: si hay report_url configurado, iframe va primero */}
       <div className="border-b border-gray-200">
         <nav className="flex gap-4">
+          {/* Si hay URL de reporte configurada, mostrar iframe primero */}
+          {showIframe && iframeUrl && companyReport?.report_url && (
+            <button
+              onClick={() => setActiveTab("iframe")}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "iframe"
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <BarChart2 className="w-4 h-4" />
+              Dashboard
+            </button>
+          )}
           <button
             onClick={() => setActiveTab("data")}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -327,9 +394,10 @@ export default function UnifiedReportView() {
             }`}
           >
             <Table className="w-4 h-4" />
-            Datos
+            Detalle
           </button>
-          {showIframe && iframeUrl && (
+          {/* Si NO hay report_url de empresa pero sí hay URL de template, mostrar iframe después */}
+          {showIframe && iframeUrl && !companyReport?.report_url && (
             <button
               onClick={() => setActiveTab("iframe")}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -507,20 +575,34 @@ export default function UnifiedReportView() {
           <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
             <h3 className="font-medium text-gray-900">Reporte Visual</h3>
             <a
-              href={iframeUrl}
+              href={`/report-fullscreen?url=${btoa(iframeUrl)}&title=${encodeURIComponent(template?.name || 'Reporte')}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
             >
-              Abrir en nueva ventana <ExternalLink className="w-4 h-4" />
+              Ver en pantalla completa <ExternalLink className="w-4 h-4" />
             </a>
           </div>
-          <iframe
-            src={iframeUrl}
-            className="w-full h-[700px] border-0"
-            title="Reporte Visual"
-            sandbox="allow-scripts allow-same-origin allow-popups"
-          />
+          {/* Container con overflow-hidden para ocultar controles del iframe */}
+          <div className="relative overflow-hidden" style={{ height: '700px' }}>
+            {/* Loader overlay */}
+            <div
+              className={`absolute inset-0 bg-white flex flex-col items-center justify-center z-10 transition-opacity duration-300 ${
+                iframeLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+            >
+              <div className="w-12 h-12 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
+              <p className="mt-4 text-sm text-gray-600">Cargando reporte...</p>
+            </div>
+            <iframe
+              src={iframeUrl}
+              className="w-full border-0"
+              style={{ height: 'calc(100% + 56px)' }}
+              title="Reporte Visual"
+              sandbox="allow-scripts allow-same-origin allow-popups"
+              onLoad={handleIframeLoad}
+            />
+          </div>
         </div>
       )}
     </div>

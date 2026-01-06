@@ -9,15 +9,7 @@ export default function SettingsPanel() {
 
   // Configuraciones disponibles
   const settingsOptions = [
-    {
-      id: 'connection_service_layer',
-      title: 'Conexión Service Layer',
-      description: 'Configuración de conexión a SAP Service Layer',
-      icon: Server,
-      color: 'blue',
-      path: '/dashboard/settings/connection-service-layer',
-      details: ['Estado', 'Endpoint', 'Base de datos', 'Usuario', 'Contraseña']
-    },
+
     {
       id: 'connection_agent',
       title: 'Conexión Agent',
@@ -36,7 +28,16 @@ export default function SettingsPanel() {
       path: '/dashboard/settings/connection-microsoft-graph',
       details: ['Tenant ID', 'Client ID', 'Client Secret', 'Site ID', 'Scope']
     },
-
+    {
+      id: 'connection_service_layer',
+      disabled: true,
+      title: 'Conexión Service Layer',
+      description: 'Configuración de conexión a SAP Service Layer',
+      icon: Server,
+      color: 'blue',
+      path: '/dashboard/settings/connection-service-layer',
+      details: ['Estado', 'Endpoint', 'Base de datos', 'Usuario', 'Contraseña']
+    },
   ];
 
   // Obtener clases de color para cada opción
@@ -142,7 +143,7 @@ export default function SettingsPanel() {
               {setting.disabled && (
                 <div className="absolute top-3 right-3">
                   <span className="px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded-full">
-                    Próximamente
+                    N/A
                   </span>
                 </div>
               )}
@@ -205,10 +206,7 @@ export default function SettingsPanel() {
             <h4 className="font-semibold text-blue-900 mb-2">Información Importante</h4>
             <div className="text-sm text-blue-800 space-y-2">
               <p>
-                • Las configuraciones marcadas como "Próximamente" estarán disponibles en futuras actualizaciones.
-              </p>
-              <p>
-                • Los cambios en la configuración general y de Webpay se aplican inmediatamente.
+                • Las opciones marcadas como <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-xs font-medium">N/A</span> aun no se encuentran habilitadas para su versión. Contacte al administrador si requiere activarlas.
               </p>
               <p>
                 • Se recomienda realizar un respaldo antes de modificar configuraciones críticas.

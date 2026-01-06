@@ -15,7 +15,16 @@ export default function NavBar({
 }) {
   const [open, setOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState({});
   const { session, logout } = useAuth();
+
+  // Toggle para expandir/colapsar submenús
+  const toggleSubmenu = (itemId) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
   const closeBtnRef = useRef(null);
   const drawerRef = useRef(null);
   const userMenuRef = useRef(null);
@@ -181,7 +190,7 @@ export default function NavBar({
   return (
     <header className="sticky top-0 z-40 navbar border-b border-black/10">
       {/* Top bar - mantengo tu estructura original */}
-      <div className="max-w-7xl mx-auto py-3 flex items-center justify-between gap-4">
+      <div className="max-w-8xl mx-auto py-3 flex items-center justify-between gap-4 px-16">
         <div className="flex items-center gap-3">
           {/* Hamburguesa solo móvil */}
           <button
@@ -303,11 +312,69 @@ export default function NavBar({
                     </h3>
                     {sectionItems.map((it) => {
                       const currentPath = location.pathname;
+                      const currentSearch = location.search;
 
                       // ✅ Coincidencia exacta o subruta directa
                       const isActive =
                         currentPath === it.to ||
                         currentPath.startsWith(it.to + "/");
+
+                      // Si el item tiene children, renderizar como dropdown
+                      if (it.children && it.children.length > 0) {
+                        const isExpanded = expandedMenus[it.id];
+                        // Verificar si algún hijo está activo
+                        const hasActiveChild = it.children.some(child =>
+                          currentPath + currentSearch === child.to ||
+                          (currentPath === child.to.split('?')[0] && currentSearch.includes(child.to.split('?')[1] || ''))
+                        );
+
+                        return (
+                          <div key={it.id} className="mb-1">
+                            <button
+                              onClick={() => toggleSubmenu(it.id)}
+                              className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg font-medium transition-all ${
+                                hasActiveChild
+                                  ? "text-black bg-gray-100"
+                                  : "text-gray-600 hover:text-black hover:bg-gray-50"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                {it.icon && <it.icon size={18} />}
+                                <span className="text-sm">{it.label}</span>
+                              </div>
+                              <ChevronDown
+                                size={16}
+                                className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                              />
+                            </button>
+                            {/* Subitems */}
+                            {isExpanded && (
+                              <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-200 pl-3">
+                                {it.children.map((child) => {
+                                  const childIsActive =
+                                    currentPath + currentSearch === child.to ||
+                                    (currentPath === child.to.split('?')[0] && currentSearch.includes(child.to.split('?')[1] || ''));
+
+                                  return (
+                                    <Link
+                                      key={child.id}
+                                      to={child.to}
+                                      onClick={() => setOpen(false)}
+                                      className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all ${
+                                        childIsActive
+                                          ? "text-black bg-gray-100 font-medium"
+                                          : "text-gray-500 hover:text-black hover:bg-gray-50"
+                                      }`}
+                                    >
+                                      {child.label}
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
 
                       // 🔒 Evitar que "/dashboard" se marque cuando estás en subrutas
                       if (it.to === "/dashboard" && currentPath !== "/dashboard") {

@@ -142,6 +142,18 @@ export const getCompanyDocuments = async (companyId) => {
   }
 };
 
+// Descargar documento de empresa
+export const downloadCompanyDocument = async (documentId) => {
+  try {
+    const response = await api.get(`/api/company-documents/${documentId}/download`, {
+      responseType: 'blob'
+    });
+    return response;
+  } catch (error) {
+    return error;
+  }
+};
+
 // Crear documento de empresa
 export const createCompanyDocument = async (data) => {
   try {

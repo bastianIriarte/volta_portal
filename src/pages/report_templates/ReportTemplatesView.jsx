@@ -19,7 +19,11 @@ import {
   Layers,
   PlusCircle,
   MinusCircle,
+  AlertCircle,
+  CheckCircle,
+  Settings,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { handleSnackbar } from "../../utils/messageHelpers";
@@ -30,6 +34,7 @@ import {
   deleteReportTemplate,
 } from "../../services/reportTemplateService";
 import { getDataSources } from "../../services/dataSourceService";
+import { getConfigurations } from "../../services/configurationService";
 
 const ORIGIN_TYPES = [
   { value: "iframe", label: "Iframe (URL externa)", icon: Globe, color: "blue" },
@@ -41,10 +46,15 @@ const ORIGIN_TYPES = [
 const getOriginTypeInfo = (type) => ORIGIN_TYPES.find(t => t.value === type) || ORIGIN_TYPES[0];
 
 export default function ReportTemplatesView() {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const [dataSources, setDataSources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Microsoft Graph configuration
+  const [msGraphConfig, setMsGraphConfig] = useState(null);
+  const msGraphConfigured = msGraphConfig?.status === 1 && msGraphConfig?.site_id;
 
   // Modal states
   const [showModal, setShowModal] = useState(false);
@@ -83,9 +93,10 @@ export default function ReportTemplatesView() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [templatesRes, dataSourcesRes] = await Promise.all([
+      const [templatesRes, dataSourcesRes, msGraphRes] = await Promise.all([
         getReportTemplates(),
         getDataSources(),
+        getConfigurations("microsoft_graph"),
       ]);
 
       if (templatesRes.success) {
@@ -93,6 +104,9 @@ export default function ReportTemplatesView() {
       }
       if (dataSourcesRes.success) {
         setDataSources(dataSourcesRes.data || []);
+      }
+      if (msGraphRes.success && msGraphRes.data) {
+        setMsGraphConfig(msGraphRes.data);
       }
     } catch (error) {
       handleSnackbar("Error cargando datos", "error");
@@ -140,6 +154,50 @@ export default function ReportTemplatesView() {
     setPreviewUrl(null);
   };
 
+  // Función para validar URL
+  const isValidUrl = (url) => {
+    if (!url?.trim()) return false;
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Función para validar un origen individual
+  const validateOrigin = (origin, index) => {
+    if (!origin.type) {
+      return { valid: false, message: `Origen #${index + 1}: Debe seleccionar un tipo` };
+    }
+
+    if (origin.type === "iframe") {
+      if (!origin.report_url?.trim()) {
+        return { valid: false, message: `Origen #${index + 1}: La URL es obligatoria` };
+      }
+      if (!isValidUrl(origin.report_url)) {
+        return { valid: false, message: `Origen #${index + 1}: La URL no es válida` };
+      }
+    }
+
+    if (origin.type === "sql") {
+      if (!origin.data_source_id) {
+        return { valid: false, message: `Origen #${index + 1}: Debe seleccionar una fuente de datos` };
+      }
+    }
+
+    if (origin.type === "sharepoint") {
+      if (!msGraphConfigured) {
+        return { valid: false, message: `Origen #${index + 1}: Microsoft Graph no está configurado` };
+      }
+      if (!origin.sharepoint_list_id?.trim()) {
+        return { valid: false, message: `Origen #${index + 1}: El List ID es obligatorio` };
+      }
+    }
+
+    return { valid: true };
+  };
+
   const handleSave = async () => {
     if (!formData.name?.trim()) {
       handleSnackbar("El nombre es obligatorio", "error");
@@ -147,29 +205,72 @@ export default function ReportTemplatesView() {
     }
 
     // Validar según tipo de origen
-    if (formData.origin_type === "iframe" && !formData.report_url?.trim()) {
-      handleSnackbar("La URL del iframe es obligatoria", "error");
-      return;
+    if (formData.origin_type === "iframe") {
+      if (!formData.report_url?.trim()) {
+        handleSnackbar("La URL del iframe es obligatoria", "error");
+        return;
+      }
+      if (!isValidUrl(formData.report_url)) {
+        handleSnackbar("La URL del iframe no es válida. Debe incluir http:// o https://", "error");
+        return;
+      }
     }
-    if (formData.origin_type === "sql" && !formData.data_source_id) {
-      handleSnackbar("Debe seleccionar una fuente de datos", "error");
-      return;
+
+    if (formData.origin_type === "sql") {
+      if (!formData.data_source_id) {
+        handleSnackbar("Debe seleccionar una fuente de datos", "error");
+        return;
+      }
     }
-    if (formData.origin_type === "sharepoint" && !formData.sharepoint_site_id?.trim()) {
-      handleSnackbar("El Site ID de SharePoint es obligatorio", "error");
-      return;
+
+    if (formData.origin_type === "sharepoint") {
+      if (!msGraphConfigured) {
+        handleSnackbar("Debe configurar Microsoft Graph antes de usar SharePoint", "error");
+        return;
+      }
+      if (!formData.sharepoint_list_id?.trim()) {
+        handleSnackbar("El List ID de SharePoint es obligatorio", "error");
+        return;
+      }
     }
-    if (formData.origin_type === "mixed" && formData.origins.length === 0) {
-      handleSnackbar("Debe agregar al menos un origen", "error");
-      return;
+
+    if (formData.origin_type === "mixed") {
+      if (formData.origins.length === 0) {
+        handleSnackbar("Debe agregar al menos un origen", "error");
+        return;
+      }
+
+      // Validar cada origen individualmente
+      for (let i = 0; i < formData.origins.length; i++) {
+        const validation = validateOrigin(formData.origins[i], i);
+        if (!validation.valid) {
+          handleSnackbar(validation.message, "error");
+          return;
+        }
+      }
     }
 
     setSaving(true);
     try {
-      const dataToSend = {
-        ...formData,
-        origins: formData.origin_type === "mixed" ? formData.origins : null,
-      };
+      // Preparar datos para enviar
+      let dataToSend = { ...formData };
+
+      // Si es SharePoint, usar site_id de la configuración global
+      if (formData.origin_type === "sharepoint" && msGraphConfig?.site_id) {
+        dataToSend.sharepoint_site_id = msGraphConfig.site_id;
+      }
+
+      // Si es mixto, procesar los orígenes para usar site_id global en SharePoint
+      if (formData.origin_type === "mixed") {
+        dataToSend.origins = formData.origins.map(origin => {
+          if (origin.type === "sharepoint" && msGraphConfig?.site_id) {
+            return { ...origin, sharepoint_site_id: msGraphConfig.site_id };
+          }
+          return origin;
+        });
+      } else {
+        dataToSend.origins = null;
+      }
 
       if (modalMode === "edit" && selectedTemplate) {
         const response = await updateReportTemplate(selectedTemplate.id, dataToSend);
@@ -229,7 +330,7 @@ export default function ReportTemplatesView() {
       ...formData,
       origins: [
         ...formData.origins,
-        { type: "iframe", label: "", report_url: "", data_source_id: "", sharepoint_site_id: "", sharepoint_list_id: "" }
+        { type: "", report_url: "", data_source_id: "", sharepoint_site_id: "", sharepoint_list_id: "" }
       ]
     });
   };
@@ -402,7 +503,7 @@ export default function ReportTemplatesView() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 top-[-30px]">
           <div className={`bg-white rounded-lg shadow-xl w-full transition-all ${previewUrl ? 'max-w-5xl' : 'max-w-2xl'} max-h-[90vh] flex flex-col`}>
             <div className="flex items-center justify-between p-4 border-b shrink-0">
               <h3 className="text-lg font-semibold text-gray-900">
@@ -564,44 +665,80 @@ export default function ReportTemplatesView() {
                     <Cloud className="w-4 h-4" />
                     Configuración de SharePoint
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
-                        Site ID *
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="xxx-xxx-xxx"
-                        value={formData.sharepoint_site_id}
-                        onChange={(e) => setFormData({ ...formData, sharepoint_site_id: e.target.value })}
-                        className="w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-green-200 h-[37px] font-mono"
-                      />
+
+                  {/* Alerta si no está configurado Microsoft Graph */}
+                  {!msGraphConfigured ? (
+                    <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-amber-800">
+                            Microsoft Graph no está configurado
+                          </p>
+                          <p className="text-xs text-amber-700 mt-1">
+                            Para usar SharePoint, primero debes configurar la conexión a Microsoft Graph con un Site ID válido.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => navigate("/dashboard/settings/connection-microsoft-graph")}
+                            className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-800 hover:text-amber-900 underline"
+                          >
+                            <Settings className="w-3.5 h-3.5" />
+                            Ir a configuración
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
-                        List ID
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="xxx-xxx-xxx"
-                        value={formData.sharepoint_list_id}
-                        onChange={(e) => setFormData({ ...formData, sharepoint_list_id: e.target.value })}
-                        className="w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-green-200 h-[37px] font-mono"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
-                      Ruta del archivo/carpeta
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="/Documentos/Reportes/archivo.xlsx"
-                      value={formData.sharepoint_path}
-                      onChange={(e) => setFormData({ ...formData, sharepoint_path: e.target.value })}
-                      className="w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-green-200 h-[37px]"
-                    />
-                  </div>
+                  ) : (
+                    <>
+                      {/* Site ID desde configuración global (solo lectura) */}
+                      <div className="p-3 bg-green-100 border border-green-300 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span className="text-xs font-medium text-green-800">Conexión configurada</span>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-green-700 uppercase mb-1">
+                            Site ID (desde configuración global)
+                          </label>
+                          <input
+                            type="text"
+                            value={msGraphConfig?.site_id || ""}
+                            disabled
+                            className="w-full rounded border px-3 py-2 bg-green-50 text-[13px] border-green-300 h-[37px] font-mono text-green-800 cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+
+                      {/* List ID editable */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
+                          List ID
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="xxx-xxx-xxx"
+                          value={formData.sharepoint_list_id}
+                          onChange={(e) => setFormData({ ...formData, sharepoint_list_id: e.target.value })}
+                          className="w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-green-200 h-[37px] font-mono"
+                        />
+                      </div>
+
+                      {/* Ruta del archivo */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
+                          Ruta del archivo/carpeta
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="/Documentos/Reportes/archivo.xlsx"
+                          value={formData.sharepoint_path}
+                          onChange={(e) => setFormData({ ...formData, sharepoint_path: e.target.value })}
+                          className="w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-green-200 h-[37px]"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -644,43 +781,32 @@ export default function ReportTemplatesView() {
                             </button>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[10px] font-medium text-gray-500 mb-1">
-                                Etiqueta
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="Ej: Tabla de datos"
-                                value={origin.label || ""}
-                                onChange={(e) => updateOrigin(index, "label", e.target.value)}
-                                className="w-full rounded border px-2 py-1.5 text-[12px] border-gray-300 focus:ring-2 focus:ring-purple-200"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-medium text-gray-500 mb-1">
-                                Tipo
-                              </label>
-                              <select
-                                value={origin.type || "iframe"}
-                                onChange={(e) => updateOrigin(index, "type", e.target.value)}
-                                className="w-full rounded border px-2 py-1.5 text-[12px] border-gray-300 focus:ring-2 focus:ring-purple-200"
-                              >
-                                <option value="iframe">Iframe</option>
-                                <option value="sql">SQL</option>
-                                <option value="sharepoint">SharePoint</option>
-                              </select>
-                            </div>
+                          {/* Selector de tipo primero */}
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-500 mb-1">
+                              Tipo de origen
+                            </label>
+                            <select
+                              value={origin.type || ""}
+                              onChange={(e) => updateOrigin(index, "type", e.target.value)}
+                              className="w-full rounded border px-2 py-1.5 text-[12px] border-gray-300 focus:ring-2 focus:ring-purple-200"
+                            >
+                              <option value="">Seleccionar tipo...</option>
+                              <option value="iframe">Iframe (URL externa)</option>
+                              <option value="sql">SQL (Fuente de datos)</option>
+                              <option value="sharepoint">SharePoint</option>
+                            </select>
                           </div>
 
+                          {/* Campos según el tipo seleccionado */}
                           {origin.type === "iframe" && (
                             <div>
                               <label className="block text-[10px] font-medium text-gray-500 mb-1">
-                                URL
+                                URL del reporte *
                               </label>
                               <input
                                 type="text"
-                                placeholder="https://..."
+                                placeholder="https://app.powerbi.com/..."
                                 value={origin.report_url || ""}
                                 onChange={(e) => updateOrigin(index, "report_url", e.target.value)}
                                 className="w-full rounded border px-2 py-1.5 text-[12px] border-gray-300 focus:ring-2 focus:ring-purple-200"
@@ -691,7 +817,7 @@ export default function ReportTemplatesView() {
                           {origin.type === "sql" && (
                             <div>
                               <label className="block text-[10px] font-medium text-gray-500 mb-1">
-                                Fuente de Datos
+                                Fuente de Datos *
                               </label>
                               <select
                                 value={origin.data_source_id || ""}
@@ -707,32 +833,54 @@ export default function ReportTemplatesView() {
                           )}
 
                           {origin.type === "sharepoint" && (
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-[10px] font-medium text-gray-500 mb-1">
-                                  Site ID
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder="xxx-xxx"
-                                  value={origin.sharepoint_site_id || ""}
-                                  onChange={(e) => updateOrigin(index, "sharepoint_site_id", e.target.value)}
-                                  className="w-full rounded border px-2 py-1.5 text-[12px] border-gray-300 focus:ring-2 focus:ring-purple-200 font-mono"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-medium text-gray-500 mb-1">
-                                  List ID
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder="xxx-xxx"
-                                  value={origin.sharepoint_list_id || ""}
-                                  onChange={(e) => updateOrigin(index, "sharepoint_list_id", e.target.value)}
-                                  className="w-full rounded border px-2 py-1.5 text-[12px] border-gray-300 focus:ring-2 focus:ring-purple-200 font-mono"
-                                />
-                              </div>
-                            </div>
+                            <>
+                              {!msGraphConfigured ? (
+                                <div className="p-2 bg-amber-50 border border-amber-200 rounded">
+                                  <div className="flex items-start gap-2">
+                                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                                    <div className="flex-1">
+                                      <p className="text-[11px] font-medium text-amber-800">
+                                        Microsoft Graph no configurado
+                                      </p>
+                                      <button
+                                        type="button"
+                                        onClick={() => navigate("/dashboard/settings/connection-microsoft-graph")}
+                                        className="text-[10px] text-amber-700 underline"
+                                      >
+                                        Configurar
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <div className="p-2 bg-green-50 border border-green-200 rounded">
+                                    <div className="flex items-center gap-1 mb-1">
+                                      <CheckCircle className="w-3 h-3 text-green-600" />
+                                      <span className="text-[10px] text-green-700 font-medium">Site ID (config global)</span>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={msGraphConfig?.site_id || ""}
+                                      disabled
+                                      className="w-full rounded border px-2 py-1 text-[11px] bg-green-50 border-green-200 font-mono text-green-800 cursor-not-allowed"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-medium text-gray-500 mb-1">
+                                      List ID
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="xxx-xxx"
+                                      value={origin.sharepoint_list_id || ""}
+                                      onChange={(e) => updateOrigin(index, "sharepoint_list_id", e.target.value)}
+                                      className="w-full rounded border px-2 py-1.5 text-[12px] border-gray-300 focus:ring-2 focus:ring-purple-200 font-mono"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       ))}
@@ -792,7 +940,7 @@ export default function ReportTemplatesView() {
 
       {/* Delete Modal */}
       {showDeleteModal && selectedTemplate && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 top-[-30px]">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">

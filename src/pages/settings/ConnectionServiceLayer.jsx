@@ -42,6 +42,7 @@ export default function ConnectionServiceLayer() {
   useEffect(() => {
     async function fetchConfig() {
       try {
+        navigate('/dashboard/settings');
         const res = await getConfigurations(code);
         if (res.success) {
           setFormData({

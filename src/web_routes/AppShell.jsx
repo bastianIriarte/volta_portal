@@ -4,14 +4,13 @@ import NavBar from "../components/NavBar";
 import { useAuth } from "../context/auth";
 import { Route, Routes, Navigate } from "react-router-dom";
 import ProtectedRoute from "../components/ProtectedRoute";
-import { getCertificateTemplates, getCertificatesByCompany } from "../services/companyService";
-import { FileText } from "lucide-react";
+import { getReportTemplates, getCompanyReports } from "../services/companyService";
+import { BarChart3 } from "lucide-react";
 import UnifiedReportView from "../pages/reports/UnifiedReportView";
 
 export default function AppShell() {
   const { session, logout } = useAuth();
-  const [certificates, setCertificates] = useState([]);
-  const [loadingCerts, setLoadingCerts] = useState(true);
+  const [reports, setReports] = useState([]);
 
   // Obtener permisos del usuario desde la sesion (backend devuelve permissions_users)
   const userPermissions = session?.user?.permissions_users || [];
@@ -20,72 +19,98 @@ export default function AppShell() {
   const isAdmin = userRole === 'root' || userRole === 'admin';
   const companyId = session?.user?.company_id;
 
-  // Cargar certificados al montar
+  // Cargar reportes al montar
   useEffect(() => {
     if (session?.user) {
-      loadCertificates();
+      loadReports();
     }
   }, [session?.user, companyId, isAdmin]);
 
-  const loadCertificates = async () => {
-    console.log('[AppShell] loadCertificates - isAdmin:', isAdmin, 'companyId:', companyId, 'userRole:', userRole);
+  const loadReports = async () => {
+    console.log('[AppShell] loadReports - isAdmin:', isAdmin, 'companyId:', companyId, 'userRole:', userRole);
     try {
       let response;
 
-      // Para clientes con empresa: cargar solo certificados asignados a su empresa
-      // Para admins: cargar todos los certificados
+      // Para clientes con empresa: cargar solo reportes asignados a su empresa
+      // Para admins: cargar todos los reportes
       if (!isAdmin && companyId) {
-        console.log('[AppShell] Calling getCertificatesByCompany:', companyId);
-        response = await getCertificatesByCompany(companyId);
+        console.log('[AppShell] Calling getCompanyReports:', companyId);
+        response = await getCompanyReports(companyId);
       } else {
-        console.log('[AppShell] Calling getCertificateTemplates (admin or no company)');
-        response = await getCertificateTemplates();
+        console.log('[AppShell] Calling getReportTemplates (admin or no company)');
+        response = await getReportTemplates();
       }
 
       console.log('[AppShell] Response:', response);
       if (response.success && response.data) {
-        console.log('[AppShell] Setting certificates:', response.data);
-        setCertificates(response.data);
+        console.log('[AppShell] Raw reports data:', response.data);
+        // Log para debug - verificar campos disponibles
+        console.log('[AppShell] Report fields:', response.data.map(r => ({
+          code: r.code,
+          report_code: r.report_code,
+          name: r.name,
+          report_name: r.report_name
+        })));
+        // Por ahora usar todos los reportes sin filtrar por status
+        setReports(response.data);
       } else {
         console.warn('[AppShell] Response failed or no data:', response);
       }
     } catch (error) {
-      console.error("Error loading certificates:", error);
-    } finally {
-      setLoadingCerts(false);
+      console.error("Error loading reports:", error);
     }
   };
 
-  // Filtrar certificados segun permisos
-  // Nota: Para clientes, la API ya devuelve solo los certificados de su empresa
-  // Para admins, se devuelven todos los certificados del sistema
-  const allowedCertificates = useMemo(() => {
+  // Filtrar reportes segun permisos
+  const allowedReports = useMemo(() => {
     // Admin ve todos (ya vienen todos de la API)
     if (isAdmin) {
-      return certificates;
+      return reports;
     }
 
     // Para clientes: filtrar adicionalmente por permisos si es necesario
-    // (la API ya filtró por empresa, pero podemos filtrar más por permisos específicos)
-    return certificates.filter(cert => {
-      const permCode = `certificates.${cert.code}`;
+    return reports.filter(report => {
+      // Para clientes: campo es report_code, para admins: code
+      const code = report.report_code || report.code;
+      const permCode = `reports.${code}`;
       return userPermissions.includes(permCode) ||
-             userPermissions.includes('certificates.*') ||
+             userPermissions.includes('reports.*') ||
              // Si no tiene permisos específicos, mostrar todos los de su empresa
              userPermissions.length === 0;
     });
-  }, [certificates, userPermissions, isAdmin]);
+  }, [reports, userPermissions, isAdmin]);
 
-  // Crear items de menu para certificados (usando query params)
-  const certificateMenuItems = useMemo(() => {
-    return allowedCertificates.map(cert => ({
-      to: `/dashboard/view?cert=${cert.code}`,
-      label: cert.name,
-      id: `cert_${cert.code}`,
-      section: "reportes",
-      icon: FileText
-    }));
-  }, [allowedCertificates]);
+  // Crear item de menu para reportes como dropdown con children
+  const reportsDropdownItem = useMemo(() => {
+    if (allowedReports.length === 0) return null;
+
+    // Para clientes: campos son report_code, report_name
+    // Para admins: campos son code, name
+    const children = allowedReports
+      .map(report => {
+        const code = report.report_code || report.code;
+        const name = report.report_name || report.name;
+        return {
+          to: `/dashboard/view?report=${code}`,
+          label: name,
+          id: `report_${code}`
+        };
+      })
+      .filter(child => child.label && child.id && !child.id.includes('undefined'));
+
+    console.log('[AppShell] reportsDropdownItem children:', children);
+
+    if (children.length === 0) return null;
+
+    return {
+      to: "#",
+      label: "Reportes",
+      id: "reportes-dropdown",
+      section: "inicio",
+      icon: BarChart3,
+      children
+    };
+  }, [allowedReports]);
 
   // Funcion para verificar permisos (sin usar hook)
   const checkPermission = (permission, mode = "OR") => {
@@ -114,19 +139,28 @@ export default function AppShell() {
       .filter(Boolean);
   }, [userPermissions, userRole]);
 
-  // Combinar items estaticos con certificados dinamicos
+  // Combinar items estaticos con reportes dinamicos (como dropdown)
   const visibleItems = useMemo(() => {
     const result = [...staticMenuItems];
+    console.log('[AppShell] staticMenuItems:', staticMenuItems);
 
-    // Agregar certificados en la seccion "reportes" despues de inicio
-    if (certificateMenuItems.length > 0) {
-      const inicioIndex = result.findIndex(item => item.section === "inicio");
-      const insertIndex = inicioIndex >= 0 ? inicioIndex + 1 : 0;
-      result.splice(insertIndex, 0, ...certificateMenuItems);
+    // Agregar el dropdown de reportes al FINAL de la seccion "inicio"
+    if (reportsDropdownItem) {
+      // Encontrar el último índice de items con section "inicio"
+      let lastInicioIndex = -1;
+      result.forEach((item, index) => {
+        if (item.section === "inicio") {
+          lastInicioIndex = index;
+        }
+      });
+      const insertIndex = lastInicioIndex >= 0 ? lastInicioIndex + 1 : result.length;
+      console.log('[AppShell] Inserting reports dropdown at end of inicio, index:', insertIndex);
+      result.splice(insertIndex, 0, reportsDropdownItem);
     }
 
+    console.log('[AppShell] Final visibleItems:', result);
     return result;
-  }, [staticMenuItems, certificateMenuItems]);
+  }, [staticMenuItems, reportsDropdownItem]);
 
   return (
     <div>
