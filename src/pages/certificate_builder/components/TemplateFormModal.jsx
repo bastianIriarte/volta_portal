@@ -61,8 +61,11 @@ export default function TemplateFormModal({
             </div>
             <Select
               label="Origen de Datos"
-              value={formData.data_source_id}
-              onChange={(e) => setFormData({ ...formData, data_source_id: e.target.value })}
+              value={formData.data_source_id || ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData({ ...formData, data_source_id: value ? parseInt(value) : null });
+              }}
               hint="Selecciona la fuente de datos SQL para las variables del certificado"
             >
               <option value="">Sin origen de datos</option>
@@ -96,8 +99,11 @@ export default function TemplateFormModal({
             </div>
             <Select
               label="Origen de Datos"
-              value={formData.data_source_id}
-              onChange={(e) => setFormData({ ...formData, data_source_id: e.target.value })}
+              value={formData.data_source_id || ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData({ ...formData, data_source_id: value ? parseInt(value) : null });
+              }}
               hint="Fuente de datos SQL para las variables del certificado"
             >
               <option value="">Sin origen de datos</option>

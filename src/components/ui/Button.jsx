@@ -26,6 +26,7 @@ export const Button = ({
     outline: "border border-[var(--brand-primary)] text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/5",
     danger:  "bg-red-600 hover:bg-red-700 text-white",
     success: "bg-emerald-600 hover:bg-emerald-700 text-white",
+    warning: "bg-amber-500 hover:bg-amber-600 text-white",
   };
 
   return (

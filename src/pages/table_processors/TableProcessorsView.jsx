@@ -9,20 +9,16 @@ import { useModals } from "../../hooks/useModals.js";
 import { handleSnackbar } from "../../utils/messageHelpers.js";
 import {
   Table2,
-  Plus,
   Eye,
   Edit2,
   Trash2,
   Play,
   Loader2,
   RefreshCw,
-  Columns3,
-  Calculator,
-  Filter,
-  ArrowUpDown,
   CheckCircle,
   XCircle,
-  Palette,
+  Code2,
+  Info,
 } from "lucide-react";
 import {
   getTableProcessors,
@@ -31,61 +27,14 @@ import {
   deleteTableProcessor,
   previewTableProcessor,
   getDataSources,
-  getDataSourceSchema,
 } from "../../services/dataSourceService.js";
 import { useTableLogic } from "../../hooks/useTableLogic.js";
-
-const COLUMN_FORMATS = [
-  { value: "", label: "Sin formato" },
-  { value: "number", label: "Número (1.234,56)" },
-  { value: "currency", label: "Moneda ($1.234)" },
-  { value: "date", label: "Fecha (dd/mm/yyyy)" },
-  { value: "datetime", label: "Fecha y hora" },
-  { value: "percentage", label: "Porcentaje (%)" },
-];
-
-const COLUMN_ALIGNS = [
-  { value: "left", label: "Izquierda" },
-  { value: "center", label: "Centro" },
-  { value: "right", label: "Derecha" },
-];
-
-const COMPUTED_TYPES = [
-  { value: "sum", label: "Suma" },
-  { value: "count", label: "Conteo" },
-  { value: "avg", label: "Promedio" },
-];
 
 const emptyForm = {
   name: "",
   code: "",
   description: "",
   data_source_id: "",
-  columns: [],
-  computed_rows: [],
-  filters: [],
-  order_by: [],
-  group_by: null,
-  primary_color: "#0284c7",
-  font_size: "10px",
-  striped_rows: true,
-  show_header: true,
-};
-
-const emptyColumn = {
-  key: "",
-  label: "",
-  width: "",
-  align: "left",
-  format: "",
-};
-
-const emptyComputedRow = {
-  label: "Total",
-  type: "sum",
-  field: "",
-  format: "",
-  labelColspan: 1,
 };
 
 export default function TableProcessorsView() {
@@ -105,13 +54,6 @@ export default function TableProcessorsView() {
   const [previewing, setPreviewing] = useState(false);
   const [previewParams, setPreviewParams] = useState({});
 
-  // Campos disponibles de la fuente de datos seleccionada
-  const [availableFields, setAvailableFields] = useState([]);
-  const [loadingFields, setLoadingFields] = useState(false);
-
-  // Tab activa en el formulario
-  const [activeTab, setActiveTab] = useState("general");
-
   // Configuración de la tabla
   const tableConfig = {
     defaultSort: "name",
@@ -129,13 +71,16 @@ export default function TableProcessorsView() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [processorsRes, sourcesRes] = await Promise.all([getTableProcessors(), getDataSources()]);
+      const [processorsRes, dataSourcesRes] = await Promise.all([
+        getTableProcessors(),
+        getDataSources(),
+      ]);
 
       if (processorsRes.success) {
         setProcessors(processorsRes.data || []);
       }
-      if (sourcesRes.success) {
-        setDataSources(sourcesRes.data || []);
+      if (dataSourcesRes.success) {
+        setDataSources(dataSourcesRes.data || []);
       }
     } catch (error) {
       console.error("Error:", error);
@@ -150,47 +95,11 @@ export default function TableProcessorsView() {
     setPage(1);
   }, [trigger]);
 
-  // Cargar campos disponibles cuando cambia la fuente de datos seleccionada
-  const loadAvailableFields = async (dataSourceId) => {
-    if (!dataSourceId) {
-      setAvailableFields([]);
-      return;
-    }
-
-    setLoadingFields(true);
-    try {
-      // Usar get-schema para obtener solo los nombres de columnas sin ejecutar la query completa
-      const response = await getDataSourceSchema(dataSourceId);
-      if (response.success && response.data) {
-        const fields = response.data.map((col) => ({
-          key: col.ColumnName,
-          label: col.ColumnName.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-          type: col.DotNetType || "String",
-        }));
-        setAvailableFields(fields);
-      }
-    } catch (error) {
-      console.error("Error cargando campos:", error);
-    } finally {
-      setLoadingFields(false);
-    }
-  };
-
-  // Cargar campos cuando cambia la fuente de datos en el formulario
-  useEffect(() => {
-    if (formModal.open && formData.data_source_id) {
-      loadAvailableFields(formData.data_source_id);
-    } else {
-      setAvailableFields([]);
-    }
-  }, [formModal.open, formData.data_source_id]);
-
   // Columnas de la tabla
   const columns = [
     { key: "name", label: "Nombre" },
     { key: "code", label: "Código" },
-    { key: "data_source", label: "Fuente de Datos", sortable: false },
-    { key: "columns_count", label: "Columnas", sortable: false },
+    { key: "data_source", label: "Origen de Datos", sortable: false },
     { key: "status", label: "Estado", sortable: false },
     { key: "actions", label: "Acciones", sortable: false, headerClassName: "text-right" },
   ];
@@ -198,28 +107,24 @@ export default function TableProcessorsView() {
   // Abrir modal de crear
   const handleCreate = () => {
     setFormData(emptyForm);
-    setActiveTab("general");
     setFormModal({ open: true, mode: "create", data: null });
   };
 
   // Abrir modal de editar
   const handleEdit = (processor) => {
     setFormData({
-      ...emptyForm,
-      ...processor,
-      columns: processor.columns || [],
-      computed_rows: processor.computed_rows || [],
-      filters: processor.filters || [],
-      order_by: processor.order_by || [],
+      name: processor.name || "",
+      code: processor.code || "",
+      description: processor.description || "",
+      data_source_id: processor.data_source_id || "",
     });
-    setActiveTab("general");
     setFormModal({ open: true, mode: "edit", data: processor });
   };
 
   // Guardar
   const handleSave = async () => {
-    if (!formData.name?.trim() || !formData.code?.trim() || !formData.data_source_id) {
-      handleSnackbar("Nombre, código y fuente de datos son requeridos", "error");
+    if (!formData.name?.trim() || !formData.code?.trim()) {
+      handleSnackbar("Nombre y código son requeridos", "error");
       return;
     }
 
@@ -298,48 +203,6 @@ export default function TableProcessorsView() {
     }
   };
 
-  // Agregar columna
-  const addColumn = () => {
-    setFormData({
-      ...formData,
-      columns: [...formData.columns, { ...emptyColumn }],
-    });
-  };
-
-  // Actualizar columna
-  const updateColumn = (index, field, value) => {
-    const newColumns = [...formData.columns];
-    newColumns[index] = { ...newColumns[index], [field]: value };
-    setFormData({ ...formData, columns: newColumns });
-  };
-
-  // Eliminar columna
-  const removeColumn = (index) => {
-    const newColumns = formData.columns.filter((_, i) => i !== index);
-    setFormData({ ...formData, columns: newColumns });
-  };
-
-  // Agregar fila calculada
-  const addComputedRow = () => {
-    setFormData({
-      ...formData,
-      computed_rows: [...formData.computed_rows, { ...emptyComputedRow }],
-    });
-  };
-
-  // Actualizar fila calculada
-  const updateComputedRow = (index, field, value) => {
-    const newRows = [...formData.computed_rows];
-    newRows[index] = { ...newRows[index], [field]: value };
-    setFormData({ ...formData, computed_rows: newRows });
-  };
-
-  // Eliminar fila calculada
-  const removeComputedRow = (index) => {
-    const newRows = formData.computed_rows.filter((_, i) => i !== index);
-    setFormData({ ...formData, computed_rows: newRows });
-  };
-
   // Acciones por fila
   const getRowActions = () => [
     {
@@ -366,10 +229,7 @@ export default function TableProcessorsView() {
   ];
 
   // Renderizado de filas
-  const renderRow = (processor, index) => {
-    const source = dataSources.find((s) => s.id === processor.data_source_id);
-    const columnsCount = processor.columns?.length || 0;
-
+  const renderRow = (processor) => {
     return (
       <tr key={processor.id} className="border-t hover:bg-gray-50">
         <td className="px-3 py-2">
@@ -378,30 +238,26 @@ export default function TableProcessorsView() {
             <div className="text-xs text-gray-500 truncate max-w-xs">{processor.description}</div>
           )}
         </td>
-        <td className="px-3 py-2 text-sm font-mono text-gray-600">{processor.code}</td>
-        <td className="px-3 py-2 text-sm">
-          {source ? (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              {source.name}
-            </span>
-          ) : (
-            <span className="text-gray-400">Sin fuente</span>
-          )}
+        <td className="px-3 py-2">
+          <code className="text-sm font-mono text-sky-700 bg-sky-50 px-2 py-0.5 rounded">
+            {processor.code}
+          </code>
         </td>
-        <td className="px-3 py-2 text-sm text-center">
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-            <Columns3 className="w-3 h-3 mr-1" />
-            {columnsCount}
-          </span>
+        <td className="px-3 py-2 text-sm text-gray-500">
+          {processor.data_source ? (
+            <span className="text-gray-700">{processor.data_source.name}</span>
+          ) : (
+            <span className="text-gray-300">Sin origen</span>
+          )}
         </td>
         <td className="px-3 py-2">
           {processor.status === 1 ? (
-            <span className="inline-flex items-center text-green-600">
+            <span className="inline-flex items-center text-green-600 text-sm">
               <CheckCircle className="w-4 h-4 mr-1" />
               Activo
             </span>
           ) : (
-            <span className="inline-flex items-center text-gray-400">
+            <span className="inline-flex items-center text-gray-400 text-sm">
               <XCircle className="w-4 h-4 mr-1" />
               Inactivo
             </span>
@@ -414,22 +270,27 @@ export default function TableProcessorsView() {
     );
   };
 
-  // Tabs del formulario
-  const tabs = [
-    { id: "general", label: "General", icon: Table2 },
-    { id: "columns", label: "Columnas", icon: Columns3 },
-    { id: "computed", label: "Cálculos", icon: Calculator },
-    { id: "style", label: "Estilos", icon: Palette },
-  ];
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-3xl font-bold text-bradford-navy mb-2">Procesadores de Tablas</h2>
         <p className="text-bradford-navy/70">
-          Configura cómo se transforman y muestran los datos en tablas HTML para certificados
+          Configura los procesadores que generan tablas HTML para certificados. Cada código debe tener su función correspondiente en el backend.
         </p>
+      </div>
+
+      {/* Info box */}
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex gap-3">
+        <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div className="text-sm text-blue-800">
+          <p className="font-medium mb-1">¿Cómo funcionan los procesadores?</p>
+          <p className="text-blue-700">
+            Cada procesador tiene un <strong>código único</strong> que se mapea a una función en el backend
+            (ej: <code className="bg-blue-100 px-1 rounded">tabla_riles</code> → <code className="bg-blue-100 px-1 rounded">TableProcessorHelpers::tablaRiles()</code>).
+            La función del backend genera el HTML de la tabla con la lógica específica que necesites.
+          </p>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -473,7 +334,7 @@ export default function TableProcessorsView() {
         open={formModal.open}
         onClose={() => setFormModal({ open: false, mode: "create", data: null })}
         title={formModal.mode === "create" ? "Nuevo Procesador" : "Editar Procesador"}
-        size="xl"
+        size="sm"
         actions={[
           {
             label: "Cancelar",
@@ -488,398 +349,77 @@ export default function TableProcessorsView() {
           },
         ]}
       >
-        <div className="space-y-4">
-          {/* Tabs */}
-          <div className="flex border-b">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors ${
-                    activeTab === tab.id
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Tab General */}
-          {activeTab === "general" && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Nombre"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Tabla de productos"
-                />
-                <Input
-                  label="Código"
-                  required
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3">
+            <Input
+              label="Nombre"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Tabla de Riles"
+            />
+            <div>
+              <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
+                Código <span className="text-red-500">*</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
                   value={formData.code}
                   onChange={(e) =>
                     setFormData({ ...formData, code: e.target.value.toLowerCase().replace(/\s/g, "_") })
                   }
-                  placeholder="tabla_productos"
-                  className="font-mono"
+                  placeholder="tabla_riles"
+                  className="flex-1 rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-indigo-200 h-[37px] font-mono"
                 />
               </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
-                  Fuente de Datos <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.data_source_id}
-                  onChange={(e) => setFormData({ ...formData, data_source_id: e.target.value })}
-                  className="w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-indigo-200 h-[37px]"
-                >
-                  <option value="">Selecciona una fuente...</option>
-                  {dataSources
-                    .filter((s) => s.is_array)
-                    .map((source) => (
-                      <option key={source.id} value={source.id}>
-                        {source.name} ({source.key})
-                      </option>
-                    ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">Solo se muestran fuentes de datos tipo array</p>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">Descripción</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-indigo-200"
-                  rows={2}
-                />
-              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Este código se usará para invocar la función del backend
+              </p>
             </div>
-          )}
 
-          {/* Tab Columnas */}
-          {activeTab === "columns" && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm text-gray-600">Define las columnas que se mostrarán en la tabla</p>
-                  {loadingFields && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
-                </div>
-                <Button onClick={addColumn} variant="outline" size="sm" icon={Plus} disabled={availableFields.length === 0}>
-                  Agregar Columna
-                </Button>
-              </div>
-
-              {!formData.data_source_id ? (
-                <div className="text-center py-8 text-amber-600 bg-amber-50 rounded-lg">
-                  Primero selecciona una fuente de datos en la pestaña General.
-                </div>
-              ) : availableFields.length === 0 && !loadingFields ? (
-                <div className="text-center py-8 text-gray-500">
-                  No se pudieron cargar los campos. Verifica que la fuente de datos funcione correctamente.
-                </div>
-              ) : formData.columns.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No hay columnas definidas. Agrega una columna para comenzar.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {formData.columns.map((col, index) => (
-                    <div key={index} className="p-3 bg-gray-50 rounded-lg grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-3">
-                        <label className="block text-xs text-gray-500 mb-1">Campo</label>
-                        <select
-                          value={col.key}
-                          onChange={(e) => {
-                            const selectedKey = e.target.value;
-                            const field = availableFields.find((f) => f.key === selectedKey);
-                            // Actualizar en una sola operación para evitar race conditions
-                            const newColumns = [...formData.columns];
-                            newColumns[index] = {
-                              ...newColumns[index],
-                              key: selectedKey,
-                              // Siempre actualizar etiqueta al cambiar campo
-                              label: field ? field.label : selectedKey,
-                            };
-                            setFormData({ ...formData, columns: newColumns });
-                          }}
-                          className="w-full px-2 py-1.5 border rounded text-sm"
-                        >
-                          <option value="">-- Seleccionar --</option>
-                          {availableFields.map((field) => (
-                            <option key={field.key} value={field.key}>
-                              {field.key}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-span-3">
-                        <label className="block text-xs text-gray-500 mb-1">Etiqueta</label>
-                        <input
-                          type="text"
-                          value={col.label}
-                          onChange={(e) => updateColumn(index, "label", e.target.value)}
-                          className="w-full px-2 py-1.5 border rounded text-sm"
-                          placeholder="Nombre Campo"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-xs text-gray-500 mb-1">Ancho</label>
-                        <input
-                          type="text"
-                          value={col.width}
-                          onChange={(e) => updateColumn(index, "width", e.target.value)}
-                          className="w-full px-2 py-1.5 border rounded text-sm"
-                          placeholder="100px o 20%"
-                        />
-                      </div>
-                      <div className="col-span-1">
-                        <label className="block text-xs text-gray-500 mb-1">Alinear</label>
-                        <select
-                          value={col.align}
-                          onChange={(e) => updateColumn(index, "align", e.target.value)}
-                          className="w-full px-2 py-1.5 border rounded text-sm"
-                        >
-                          {COLUMN_ALIGNS.map((a) => (
-                            <option key={a.value} value={a.value}>
-                              {a.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-xs text-gray-500 mb-1">Formato</label>
-                        <select
-                          value={col.format}
-                          onChange={(e) => updateColumn(index, "format", e.target.value)}
-                          className="w-full px-2 py-1.5 border rounded text-sm"
-                        >
-                          {COLUMN_FORMATS.map((f) => (
-                            <option key={f.value} value={f.value}>
-                              {f.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-span-1">
-                        <button
-                          onClick={() => removeColumn(index)}
-                          className="p-1.5 text-red-500 hover:bg-red-100 rounded"
-                          title="Eliminar columna"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div>
+              <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
+                Origen de Datos
+              </label>
+              <select
+                value={formData.data_source_id}
+                onChange={(e) => setFormData({ ...formData, data_source_id: e.target.value })}
+                className="w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-indigo-200 h-[37px]"
+              >
+                <option value="">-- Sin origen de datos --</option>
+                {dataSources.map((ds) => (
+                  <option key={ds.id} value={ds.id}>
+                    {ds.name} ({ds.code})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Opcional: selecciona el origen de datos que usará este procesador
+              </p>
             </div>
-          )}
+          </div>
 
-          {/* Tab Cálculos */}
-          {activeTab === "computed" && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-gray-600">Define filas calculadas (totales, promedios, etc.)</p>
-                <Button onClick={addComputedRow} variant="outline" size="sm" icon={Plus}>
-                  Agregar Cálculo
-                </Button>
-              </div>
+          <div>
+            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">Descripción</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-indigo-200"
+              rows={2}
+              placeholder="Opcional: describe qué datos muestra esta tabla..."
+            />
+          </div>
 
-              {formData.computed_rows.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No hay filas calculadas. Agrega una para mostrar totales.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {formData.computed_rows.map((row, index) => (
-                    <div key={index} className="p-3 bg-orange-50 rounded-lg grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-3">
-                        <label className="block text-xs text-gray-500 mb-1">Etiqueta</label>
-                        <input
-                          type="text"
-                          value={row.label}
-                          onChange={(e) => updateComputedRow(index, "label", e.target.value)}
-                          className="w-full px-2 py-1.5 border rounded text-sm"
-                          placeholder="Total"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-xs text-gray-500 mb-1">Tipo</label>
-                        <select
-                          value={row.type}
-                          onChange={(e) => updateComputedRow(index, "type", e.target.value)}
-                          className="w-full px-2 py-1.5 border rounded text-sm"
-                        >
-                          {COMPUTED_TYPES.map((t) => (
-                            <option key={t.value} value={t.value}>
-                              {t.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-span-3">
-                        <label className="block text-xs text-gray-500 mb-1">Campo a calcular</label>
-                        <input
-                          type="text"
-                          value={row.field}
-                          onChange={(e) => updateComputedRow(index, "field", e.target.value)}
-                          className="w-full px-2 py-1.5 border rounded text-sm font-mono"
-                          placeholder="monto"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-xs text-gray-500 mb-1">Formato</label>
-                        <select
-                          value={row.format}
-                          onChange={(e) => updateComputedRow(index, "format", e.target.value)}
-                          className="w-full px-2 py-1.5 border rounded text-sm"
-                        >
-                          {COLUMN_FORMATS.map((f) => (
-                            <option key={f.value} value={f.value}>
-                              {f.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-span-1">
-                        <label className="block text-xs text-gray-500 mb-1">Colspan</label>
-                        <input
-                          type="number"
-                          value={row.labelColspan}
-                          onChange={(e) => updateComputedRow(index, "labelColspan", parseInt(e.target.value))}
-                          className="w-full px-2 py-1.5 border rounded text-sm"
-                          min={1}
-                        />
-                      </div>
-                      <div className="col-span-1">
-                        <button
-                          onClick={() => removeComputedRow(index)}
-                          className="p-1.5 text-red-500 hover:bg-red-100 rounded"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab Estilos */}
-          {activeTab === "style" && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Color Principal</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={formData.primary_color}
-                      onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
-                      className="w-12 h-10 border rounded cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={formData.primary_color}
-                      onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
-                      className="flex-1 px-3 py-2 border rounded-lg font-mono"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tamaño de Fuente</label>
-                  <select
-                    value={formData.font_size}
-                    onChange={(e) => setFormData({ ...formData, font_size: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
-                  >
-                    <option value="8px">8px - Muy pequeño</option>
-                    <option value="9px">9px - Pequeño</option>
-                    <option value="10px">10px - Normal</option>
-                    <option value="11px">11px - Mediano</option>
-                    <option value="12px">12px - Grande</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.striped_rows}
-                    onChange={(e) => setFormData({ ...formData, striped_rows: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700">Filas alternadas (zebra)</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.show_header}
-                    onChange={(e) => setFormData({ ...formData, show_header: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700">Mostrar encabezado</span>
-                </label>
-              </div>
-
-              {/* Preview de estilos */}
-              <div className="mt-4 p-4 bg-gray-100 rounded-lg">
-                <p className="text-xs text-gray-500 mb-2">Vista previa de estilos:</p>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: formData.font_size }}>
-                  <thead>
-                    {formData.show_header && (
-                      <tr>
-                        <th
-                          style={{
-                            background: formData.primary_color,
-                            color: "#fff",
-                            padding: "6px 8px",
-                            border: "1px solid #d1d5db",
-                          }}
-                        >
-                          Columna 1
-                        </th>
-                        <th
-                          style={{
-                            background: formData.primary_color,
-                            color: "#fff",
-                            padding: "6px 8px",
-                            border: "1px solid #d1d5db",
-                          }}
-                        >
-                          Columna 2
-                        </th>
-                      </tr>
-                    )}
-                  </thead>
-                  <tbody>
-                    <tr style={{ background: formData.striped_rows ? "#fff" : "transparent" }}>
-                      <td style={{ padding: "5px 8px", border: "1px solid #d1d5db" }}>Dato 1</td>
-                      <td style={{ padding: "5px 8px", border: "1px solid #d1d5db" }}>Dato 2</td>
-                    </tr>
-                    <tr style={{ background: formData.striped_rows ? "#f9fafb" : "transparent" }}>
-                      <td style={{ padding: "5px 8px", border: "1px solid #d1d5db" }}>Dato 3</td>
-                      <td style={{ padding: "5px 8px", border: "1px solid #d1d5db" }}>Dato 4</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          {/* Info sobre implementación */}
+          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded">
+            <p className="text-xs text-amber-700">
+              <span className="font-medium">Backend:</span> Crea la función correspondiente:
+            </p>
+            <code className="block mt-1.5 text-xs bg-amber-100 text-amber-900 px-2 py-1 rounded font-mono">
+              TableProcessorHelpers::{formData.code ? formData.code.replace(/_([a-z])/g, (_, c) => c.toUpperCase()) : 'codigo'}()
+            </code>
+          </div>
         </div>
       </Modal>
 
@@ -905,15 +445,40 @@ export default function TableProcessorsView() {
         ]}
       >
         <div className="space-y-4">
+          {/* Info del procesador */}
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Code2 className="w-4 h-4 text-gray-500" />
+              <code className="text-sm font-mono text-sky-700">{previewModal.processor?.code}</code>
+            </div>
+            {previewModal.processor?.description && (
+              <p className="text-sm text-gray-600">{previewModal.processor.description}</p>
+            )}
+          </div>
+
           {/* Parámetros */}
           <div>
             <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">Parámetros de prueba</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <input
                 type="text"
                 placeholder="company_id"
                 value={previewParams.company_id || ""}
                 onChange={(e) => setPreviewParams({ ...previewParams, company_id: e.target.value })}
+                className="rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-indigo-200 h-[37px]"
+              />
+              <input
+                type="date"
+                placeholder="date_from"
+                value={previewParams.date_from || ""}
+                onChange={(e) => setPreviewParams({ ...previewParams, date_from: e.target.value })}
+                className="rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-indigo-200 h-[37px]"
+              />
+              <input
+                type="date"
+                placeholder="date_to"
+                value={previewParams.date_to || ""}
+                onChange={(e) => setPreviewParams({ ...previewParams, date_to: e.target.value })}
                 className="rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-indigo-200 h-[37px]"
               />
             </div>
@@ -924,21 +489,11 @@ export default function TableProcessorsView() {
             <div>
               {previewResult.success ? (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
                     <p className="text-sm text-gray-600">
-                      <CheckCircle className="w-4 h-4 inline mr-1 text-green-500" />
-                      {previewResult.total || previewResult.data?.length || 0} registros encontrados
-                      {previewResult.limited && (
-                        <span className="text-xs text-blue-600 ml-2">
-                          (mostrando {previewResult.data?.length} de {previewResult.total})
-                        </span>
-                      )}
+                      Tabla generada correctamente
                     </p>
-                    {(previewResult.columns?.length === 0 || !previewResult.columns) && (
-                      <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
-                        Sin columnas configuradas (mostrando todas)
-                      </span>
-                    )}
                   </div>
                   {previewResult.html ? (
                     <div

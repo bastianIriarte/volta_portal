@@ -52,15 +52,27 @@ export default function CompanyInfoTab({
           onChange={(e) => onFormChange("phone", e.target.value)}
           disabled
         />
+        <Input
+          id="address"
+          label="Dirección"
+          value={formData.address || ""}
+          onChange={(e) => onFormChange("address", e.target.value)}
+          disabled
+        />
+        <Input
+          id="created_at"
+          label="Fecha de Registro"
+          value={formData.created_at || ""}
+          disabled
+        />
         <div>
           <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">Estado</label>
           <button
             onClick={() => onFormChange("status", !formData.status)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-              formData.status
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${formData.status
                 ? "bg-green-50 border-green-200 text-green-700"
                 : "bg-red-50 border-red-200 text-red-700"
-            }`}
+              }`}
           >
             {formData.status ? (
               <>
@@ -75,16 +87,9 @@ export default function CompanyInfoTab({
             )}
           </button>
         </div>
-        <Input
-          id="created_at"
-          label="Fecha de Registro"
-          value={formData.created_at || ""}
-          disabled
-        />
       </div>
-
       <div className="flex justify-end pt-4 border-t">
-        <Button onClick={onSave} icon={Save} disabled={saving}>
+        <Button onClick={onSave} icon={Save} disabled={saving} loading={saving}>
           {saving ? "Guardando..." : "Guardar Cambios"}
         </Button>
       </div>

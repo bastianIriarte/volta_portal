@@ -32,14 +32,15 @@ import {
   Redo2,
   FileDown,
   Printer,
+  RefreshCw,
 } from "lucide-react";
 import { handleSnackbar } from "../../utils/messageHelpers";
 import {
   getBuilderConfig,
   getTemplateFields,
   saveTemplateFields,
-  getCertificatePdfUrl,
 } from "../../services/certificateBuilderService";
+import api from "../../services/api";
 import { getTableProcessors } from "../../services/dataSourceService";
 
 // Componentes extraídos
@@ -105,6 +106,9 @@ export default function CertificateBuilder({ templateId, onClose }) {
   // Sistema de Log de Actividad
   const [activityLogs, setActivityLogs] = useState([]);
   const [showActivityLog, setShowActivityLog] = useState(false);
+
+  // Modal de Preview PDF
+  const [pdfPreview, setPdfPreview] = useState({ show: false, url: null, loading: false });
 
   // Procesadores de tabla disponibles
   const [tableProcessors, setTableProcessors] = useState([]);
@@ -234,6 +238,17 @@ export default function CertificateBuilder({ templateId, onClose }) {
 
   const handleDragLeave = () => setDragOverSection(null);
 
+  // Función helper para generar field_key único
+  const generateUniqueFieldKey = (baseType, currentFields) => {
+    let counter = 1;
+    let candidateKey = `${baseType}_${counter}`;
+    while (currentFields.some(f => f.field_key === candidateKey)) {
+      counter++;
+      candidateKey = `${baseType}_${counter}`;
+    }
+    return candidateKey;
+  };
+
   const handleDrop = (e, section) => {
     e.preventDefault();
     setDragOverSection(null);
@@ -246,9 +261,7 @@ export default function CertificateBuilder({ templateId, onClose }) {
 
     if (draggedField.isNew) {
       const timestamp = Date.now();
-      const sameTypeCount =
-        fields.filter((f) => f.field_type === draggedField.field_type).length + 1;
-      const uniqueFieldKey = `${draggedField.field_type}_${sameTypeCount}`;
+      const uniqueFieldKey = generateUniqueFieldKey(draggedField.field_type, fields);
       const autoLabel =
         draggedField.field_label || `${draggedField.field_type}_${timestamp}`;
 
@@ -356,9 +369,7 @@ export default function CertificateBuilder({ templateId, onClose }) {
 
   const handleDuplicateField = (field) => {
     const timestamp = Date.now();
-    const sameTypeCount =
-      fields.filter((f) => f.field_type === field.field_type).length + 1;
-    const uniqueFieldKey = `${field.field_type}_${sameTypeCount}`;
+    const uniqueFieldKey = generateUniqueFieldKey(field.field_type, fields);
 
     const newField = {
       ...field,
@@ -643,20 +654,60 @@ export default function CertificateBuilder({ templateId, onClose }) {
             <div className="h-4 w-px bg-gray-200" />
             {/* Botones de PDF */}
             <button
-              onClick={() => {
-                const url = getCertificatePdfUrl(templateId, selectedDataType, false);
-                window.open(url, "_blank");
+              onClick={async () => {
+                // Limpiar URL anterior si existe
+                if (pdfPreview.url) {
+                  window.URL.revokeObjectURL(pdfPreview.url);
+                }
+                setPdfPreview({ show: true, url: null, loading: true });
+                try {
+                  const response = await api.get(
+                    `/api/certificate-builder/templates/${templateId}/pdf?preview=true`,
+                    { responseType: "blob" }
+                  );
+                  if (response.status === 200) {
+                    const blob = new Blob([response.data], { type: "application/pdf" });
+                    const url = window.URL.createObjectURL(blob);
+                    setPdfPreview({ show: true, url, loading: false });
+                  } else {
+                    handleSnackbar("Error al generar preview", "error");
+                    setPdfPreview({ show: false, url: null, loading: false });
+                  }
+                } catch (error) {
+                  handleSnackbar("Error al generar preview", "error");
+                  setPdfPreview({ show: false, url: null, loading: false });
+                }
               }}
-              className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
+              disabled={pdfPreview.loading}
+              className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
               title="Vista previa PDF"
             >
-              <Printer className="h-3.5 w-3.5" />
-              Preview
+              <Printer className={`h-3.5 w-3.5 ${pdfPreview.loading ? 'animate-spin' : ''}`} />
+              {pdfPreview.loading ? 'Generando...' : 'Preview'}
             </button>
             <button
-              onClick={() => {
-                const url = getCertificatePdfUrl(templateId, selectedDataType, true);
-                window.open(url, "_blank");
+              onClick={async () => {
+                try {
+                  const response = await api.get(
+                    `/api/certificate-builder/templates/${templateId}/pdf?preview=true&download=true`,
+                    { responseType: "blob" }
+                  );
+                  if (response.status === 200) {
+                    const blob = new Blob([response.data], { type: "application/pdf" });
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = `certificado_${template?.code || templateId}_preview.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                  } else {
+                    handleSnackbar("Error al descargar PDF", "error");
+                  }
+                } catch (error) {
+                  handleSnackbar("Error al descargar PDF", "error");
+                }
               }}
               className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
               title="Descargar PDF"
@@ -692,7 +743,7 @@ export default function CertificateBuilder({ templateId, onClose }) {
               transform: `scale(${scale})`,
               width: "900px",
               minHeight: "297mm",
-              padding: "30px 70px 0 70px",
+              padding: "30px 100px 0 100px",
             }}
           >
             {/* Header */}
@@ -800,6 +851,142 @@ export default function CertificateBuilder({ templateId, onClose }) {
         onToggle={() => setShowActivityLog(!showActivityLog)}
         onClear={() => setActivityLogs([])}
       />
+
+      {/* Modal de Preview PDF */}
+      {pdfPreview.show && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-2xl w-[90vw] h-[90vh] max-w-6xl flex flex-col">
+            {/* Header del modal */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-900">Vista Previa del Certificado</h3>
+              <div className="flex items-center gap-2">
+                {/* Botón de refrescar */}
+                <button
+                  onClick={async () => {
+                    if (pdfPreview.url) {
+                      window.URL.revokeObjectURL(pdfPreview.url);
+                    }
+                    setPdfPreview({ show: true, url: null, loading: true });
+                    try {
+                      const response = await api.get(
+                        `/api/certificate-builder/templates/${templateId}/pdf?preview=true`,
+                        { responseType: "blob" }
+                      );
+                      if (response.status === 200) {
+                        const blob = new Blob([response.data], { type: "application/pdf" });
+                        const url = window.URL.createObjectURL(blob);
+                        setPdfPreview({ show: true, url, loading: false });
+                      } else {
+                        handleSnackbar("Error al refrescar preview", "error");
+                        setPdfPreview({ show: true, url: null, loading: false });
+                      }
+                    } catch (error) {
+                      handleSnackbar("Error al refrescar preview", "error");
+                      setPdfPreview({ show: true, url: null, loading: false });
+                    }
+                  }}
+                  disabled={pdfPreview.loading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
+                  title="Refrescar preview"
+                >
+                  <RefreshCw className={`h-4 w-4 ${pdfPreview.loading ? 'animate-spin' : ''}`} />
+                  Refrescar
+                </button>
+                {/* Botón de descargar */}
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await api.get(
+                        `/api/certificate-builder/templates/${templateId}/pdf?preview=true&download=true`,
+                        { responseType: "blob" }
+                      );
+                      if (response.status === 200) {
+                        const blob = new Blob([response.data], { type: "application/pdf" });
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.href = url;
+                        link.download = `certificado_${template?.code || templateId}_preview.pdf`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                      } else {
+                        handleSnackbar("Error al descargar PDF", "error");
+                      }
+                    } catch (error) {
+                      handleSnackbar("Error al descargar PDF", "error");
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-sky-600 rounded hover:bg-sky-700"
+                  title="Descargar PDF"
+                >
+                  <FileDown className="h-4 w-4" />
+                  Descargar
+                </button>
+                {/* Botón de cerrar */}
+                <button
+                  onClick={() => {
+                    if (pdfPreview.url) {
+                      window.URL.revokeObjectURL(pdfPreview.url);
+                    }
+                    setPdfPreview({ show: false, url: null, loading: false });
+                  }}
+                  className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                  title="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            {/* Contenido del modal */}
+            <div className="flex-1 p-4 bg-gray-100 overflow-hidden">
+              {pdfPreview.loading ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-600"></div>
+                    <span className="text-gray-600">Generando PDF...</span>
+                  </div>
+                </div>
+              ) : pdfPreview.url ? (
+                <iframe
+                  src={pdfPreview.url}
+                  className="w-full h-full rounded border border-gray-300"
+                  title="Vista previa del certificado"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-center text-gray-500">
+                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No se pudo cargar el preview</p>
+                    <button
+                      onClick={async () => {
+                        setPdfPreview({ show: true, url: null, loading: true });
+                        try {
+                          const response = await api.get(
+                            `/api/certificate-builder/templates/${templateId}/pdf?preview=true`,
+                            { responseType: "blob" }
+                          );
+                          if (response.status === 200) {
+                            const blob = new Blob([response.data], { type: "application/pdf" });
+                            const url = window.URL.createObjectURL(blob);
+                            setPdfPreview({ show: true, url, loading: false });
+                          }
+                        } catch (error) {
+                          handleSnackbar("Error al generar preview", "error");
+                          setPdfPreview({ show: true, url: null, loading: false });
+                        }
+                      }}
+                      className="mt-3 px-4 py-2 text-sm text-sky-600 hover:text-sky-700 hover:underline"
+                    >
+                      Intentar de nuevo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

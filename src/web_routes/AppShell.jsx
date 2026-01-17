@@ -68,21 +68,26 @@ export default function AppShell() {
       return reports;
     }
 
-    // Para clientes: filtrar adicionalmente por permisos si es necesario
+    // Para clientes: filtrar por permisos específicos del usuario
+    // El backend ya filtra por empresa, aquí filtramos por permisos asignados
     return reports.filter(report => {
       // Para clientes: campo es report_code, para admins: code
       const code = report.report_code || report.code;
-      const permCode = `reports.${code}`;
+      // Verificar permiso específico del reporte (front_code: reports.{code})
+      const permCode = `reports.${code?.toLowerCase()}`;
       return userPermissions.includes(permCode) ||
-             userPermissions.includes('reports.*') ||
-             // Si no tiene permisos específicos, mostrar todos los de su empresa
-             userPermissions.length === 0;
+             userPermissions.includes('reports.*');
     });
   }, [reports, userPermissions, isAdmin]);
 
   // Crear item de menu para reportes como dropdown con children
   const reportsDropdownItem = useMemo(() => {
     if (allowedReports.length === 0) return null;
+
+    // Para clientes: verificar que tenga el permiso base 'my.reports'
+    if (!isAdmin && !userPermissions.includes('my.reports')) {
+      return null;
+    }
 
     // Para clientes: campos son report_code, report_name
     // Para admins: campos son code, name
@@ -104,9 +109,9 @@ export default function AppShell() {
 
     return {
       to: "#",
-      label: "Reportes",
+      label: "Mis Reportes",
       id: "reportes-dropdown",
-      section: "inicio",
+      section: "reportes",
       icon: BarChart3,
       children
     };

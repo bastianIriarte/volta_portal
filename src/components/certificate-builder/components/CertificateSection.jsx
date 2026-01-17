@@ -107,44 +107,27 @@ export default function CertificateSection({
       }
 
       case "table": {
-        const tableData = simulatedData?.details || [];
-        const columns = field.table_columns || [
-          { key: "fecha", label: "Fecha", width: "15%" },
-          { key: "orden_trabajo", label: "OT", width: "15%" },
-          { key: "tipo_residuo", label: "Tipo Residuo", width: "35%" },
-          { key: "cantidad", label: "Cantidad", width: "15%" },
-          { key: "unidad", label: "Unidad", width: "10%" },
-        ];
+        const hasProcessor = !!field.processor_id;
         return (
-          <table
-            className="w-full text-sm border-collapse"
-            style={{ borderColor: template?.primary_color || "#0284c7" }}
-          >
-            <thead>
-              <tr style={{ backgroundColor: template?.primary_color || "#0284c7" }}>
-                {columns.map((col, i) => (
-                  <th
-                    key={i}
-                    className="border border-gray-300 px-2 py-1.5 text-left text-white font-medium text-xs"
-                    style={{ width: col.width }}
-                  >
-                    {col.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {tableData.map((row, ri) => (
-                <tr key={ri} className={ri % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  {columns.map((col, ci) => (
-                    <td key={ci} className="border border-gray-300 px-2 py-1 text-xs">
-                      {row[col.key] || "-"}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="py-3">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50/50 py-8 flex flex-col items-center justify-center">
+              <div className="w-14 h-14 bg-sky-100 rounded-xl flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M3 14h18M3 6h18M3 18h18M8 6v12M16 6v12" />
+                </svg>
+              </div>
+              <span className="text-sm font-medium text-gray-600">
+                {hasProcessor && field.processor_name
+                  ? `Tabla: ${field.processor_name}`
+                  : field.field_label || "Tabla de datos"}
+              </span>
+              {!hasProcessor && (
+                <span className="mt-1 text-xs text-gray-400">
+                  Sin procesador
+                </span>
+              )}
+            </div>
+          </div>
         );
       }
 

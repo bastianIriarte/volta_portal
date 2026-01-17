@@ -58,11 +58,14 @@ export default function CompanyReportsTab({
               {templates.map((template) => (
                 <tr
                   key={template.id}
-                  className={`hover:bg-gray-50 ${toggling === template.id ? 'opacity-50 pointer-events-none' : 'cursor-pointer'} ${assignedReports[template.id] ? 'bg-indigo-50' : ''}`}
-                  onClick={() => onToggle(template.id)}
+                  className={`hover:bg-gray-50 ${toggling === template.id ? 'opacity-50' : ''} ${assignedReports[template.id] ? 'bg-indigo-50' : ''}`}
                 >
                   <td className="px-4 py-3">
-                    <button className="p-1" disabled={toggling === template.id}>
+                    <button
+                      className={`p-1 ${toggling === template.id ? 'pointer-events-none' : 'cursor-pointer'}`}
+                      disabled={toggling === template.id}
+                      onClick={() => onToggle(template.id)}
+                    >
                       {toggling === template.id
                         ? <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
                         : assignedReports[template.id]

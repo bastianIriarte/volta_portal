@@ -4,13 +4,15 @@ import {
   Building2,
   Users,
   ClipboardList,
-  FileText,
   Award,
-  AlertCircle,
-  CheckCircle,
-  Clock,
   ArrowRight,
-  Printer
+  Clock,
+  CheckCircle,
+  Database,
+  Settings,
+  Table2,
+  Webhook,
+  BarChart3
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { StatCard } from "./components/StatCard";
@@ -19,87 +21,79 @@ import { WelcomeBanner } from "../WelcomeBanner";
 export default function DashboardAdminView({ dataDashboard }) {
   const navigate = useNavigate();
 
-  // Datos dummy para el dashboard del portal de proveedores
-  const stats = {
-    companies: 45,
-    users: 128,
-    pendingRequests: 8,
-    documents: 234,
-    certificates: 156,
-    expiringCertificates: 12,
-    expiredCertificates: 3
+  // Datos del dashboard (usar dataDashboard cuando venga del backend)
+  const stats = dataDashboard || {
+    companies: 0,
+    users: 0,
+    pendingRequests: 0,
+    certificates: 0,
+    reports: 0
   };
 
+  // KPIs principales - coherentes con el menu de administracion
   const kpis = [
     {
       label: "Empresas",
-      value: stats.companies,
+      value: stats.companies || 0,
       icon: Building2,
-      actionLabel: "Ver",
+      actionLabel: "Gestionar",
       url: "/dashboard/empresas",
       description: "Empresas registradas"
     },
     {
       label: "Usuarios",
-      value: stats.users,
+      value: stats.users || 0,
       icon: Users,
-      actionLabel: "Ver",
+      actionLabel: "Gestionar",
       url: "/dashboard/usuarios",
-      description: "Usuarios activos"
+      description: "Usuarios del sistema"
     },
     {
-      label: "Solicitudes Pendientes",
-      value: stats.pendingRequests,
+      label: "Solicitudes",
+      value: stats.pendingRequests || 0,
       icon: ClipboardList,
-      actionLabel: "Ver",
+      actionLabel: "Revisar",
       url: "/dashboard/solicitudes",
-      description: "Requieren atencion",
-      variant: "warning"
-    },
-    {
-      label: "Documentos",
-      value: stats.documents,
-      icon: FileText,
-      actionLabel: "Ver",
-      url: "/dashboard/empresas",
-      description: "Documentos registrados"
+      description: "Pendientes de revision",
+      variant: stats.pendingRequests > 0 ? "warning" : "default"
     },
     {
       label: "Certificados",
-      value: stats.certificates,
+      value: stats.certificates || 0,
       icon: Award,
-      actionLabel: "Ver",
-      url: "/dashboard/certificados",
-      description: "Certificados activos",
+      actionLabel: "Gestionar",
+      url: "/dashboard/certificate-builder",
+      description: "Plantillas activas",
       variant: "success"
+    },
+    {
+      label: "Reportes",
+      value: stats.reports || 0,
+      icon: BarChart3,
+      actionLabel: "Gestionar",
+      url: "/dashboard/reports",
+      description: "Reportes configurados"
     },
   ];
 
-  // Solicitudes recientes dummy
-  const recentRequests = [
-    { id: 1, company: "Constructora Los Andes SpA", requester: "Juan Perez", date: "Hace 2 horas", status: "pending" },
-    { id: 2, company: "Servicios del Norte Ltda", requester: "Maria Garcia", date: "Hace 5 horas", status: "pending" },
-    { id: 3, company: "Transportes del Sur SA", requester: "Pedro Lopez", date: "Ayer", status: "approved" },
-    { id: 4, company: "Minera Central SpA", requester: "Ana Martinez", date: "Hace 2 dias", status: "rejected" },
-  ];
+  // Solicitudes recientes
+  const recentRequests = dataDashboard?.recentRequests || [];
 
-  // Certificados por vencer dummy
-  const expiringCertificates = [
-    { id: 1, company: "Constructora Los Andes SpA", certificate: "F30 - Cumplimiento Tributario", expires: "5 dias" },
-    { id: 2, company: "Servicios del Norte Ltda", certificate: "CAL - Antecedentes Laborales", expires: "7 dias" },
-    { id: 3, company: "Minera Central SpA", certificate: "Poliza Responsabilidad Civil", expires: "10 dias" },
-  ];
+  // Certificados recientes
+  const recentCertificates = dataDashboard?.recentCertificates || [];
 
   const statusColors = {
     pending: "bg-amber-100 text-amber-800",
-    approved: "bg-cyan-100 text-cyan-800",
-    rejected: "bg-red-100 text-red-800"
+    approved: "bg-green-100 text-green-800",
+    rejected: "bg-red-100 text-red-800",
+    expiring: "bg-orange-100 text-orange-800"
   };
 
   const statusLabels = {
     pending: "Pendiente",
-    approved: "Aprobada",
-    rejected: "Rechazada"
+    approved: "Aprobado",
+    rejected: "Rechazado",
+    expiring: "Por vencer"
   };
 
   return (
@@ -125,71 +119,92 @@ export default function DashboardAdminView({ dataDashboard }) {
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Solicitudes Recientes */}
-        <div className="bg-white rounded-md shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
-            <h3 className="text-lg font-semibold text-black">Solicitudes Recientes</h3>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-gray-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Solicitudes Recientes</h3>
+            </div>
             <button
               onClick={() => navigate("/dashboard/solicitudes")}
-              className="text-sm text-black hover:text-black flex items-center gap-1 transition-colors"
+              className="text-sm text-cyan-600 hover:text-cyan-800 flex items-center gap-1 transition-colors"
             >
               Ver todas <ArrowRight className="w-4 h-4" />
             </button>
           </div>
           <div className="divide-y divide-gray-100">
-            {recentRequests.map((request) => (
-              <div key={request.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{request.company}</p>
-                    <p className="text-sm text-gray-500">{request.requester}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[request.status]}`}>
-                      {statusLabels[request.status]}
-                    </span>
-                    <p className="text-xs text-gray-400 mt-1">{request.date}</p>
+            {recentRequests.length > 0 ? (
+              recentRequests.map((request) => (
+                <div key={request.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{request.company}</p>
+                      <p className="text-sm text-gray-500">{request.requester}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[request.status]}`}>
+                        {statusLabels[request.status]}
+                      </span>
+                      <p className="text-xs text-gray-400 mt-1">{request.date}</p>
+                    </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="px-6 py-8 text-center text-gray-500">
+                <CheckCircle className="w-12 h-12 mx-auto text-green-400 mb-2" />
+                <p>No hay solicitudes pendientes</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
-        {/* Certificados por Vencer */}
-        <div className="bg-white rounded-md shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
-            <h3 className="text-lg font-semibold text-black">Certificados Recientes</h3>
+        {/* Certificados Recientes */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Award className="w-5 h-5 text-gray-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Actividad de Certificados</h3>
+            </div>
             <button
-              onClick={() => navigate("/dashboard/certificados")}
-              className="text-sm text-black hover:text-black flex items-center gap-1 transition-colors"
+              onClick={() => navigate("/dashboard/certificate-builder")}
+              className="text-sm text-cyan-600 hover:text-cyan-800 flex items-center gap-1 transition-colors"
             >
               Ver todos <ArrowRight className="w-4 h-4" />
             </button>
           </div>
           <div className="divide-y divide-gray-100">
-            {expiringCertificates.map((cert) => (
-              <div key={cert.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{cert.company}</p>
-                    <p className="text-sm text-gray-500">{cert.certificate}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                      <Clock className="w-3 h-3" />
-                      {cert.expires}
-                    </span>
+            {recentCertificates.length > 0 ? (
+              recentCertificates.map((cert) => (
+                <div key={cert.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{cert.company}</p>
+                      <p className="text-sm text-gray-500">{cert.certificate}</p>
+                    </div>
+                    <div className="text-right">
+                      {cert.status === 'expiring' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                          <Clock className="w-3 h-3" />
+                          {cert.expires}
+                        </span>
+                      ) : (
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[cert.status]}`}>
+                          {statusLabels[cert.status]}
+                        </span>
+                      )}
+                      {cert.date && <p className="text-xs text-gray-400 mt-1">{cert.date}</p>}
+                    </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="px-6 py-8 text-center text-gray-500">
+                <CheckCircle className="w-12 h-12 mx-auto text-green-400 mb-2" />
+                <p>No hay actividad reciente</p>
               </div>
-            ))}
+            )}
           </div>
-          {expiringCertificates.length === 0 && (
-            <div className="px-6 py-8 text-center text-gray-500">
-              <CheckCircle className="w-12 h-12 mx-auto text-cyan-400 mb-2" />
-              <p>No hay certificados por vencer</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

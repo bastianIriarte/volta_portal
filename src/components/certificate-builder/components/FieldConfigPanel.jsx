@@ -183,10 +183,10 @@ export default function FieldConfigPanel({
         field.field_type === "signature"
           ? "signature"
           : field.field_key?.includes("logo")
-          ? "logo"
-          : field.field_key?.includes("header")
-          ? "header"
-          : "general";
+            ? "logo"
+            : field.field_key?.includes("header")
+              ? "header"
+              : "general";
 
       const result = await uploadBuilderImage(file, imageType);
 
@@ -265,11 +265,10 @@ export default function FieldConfigPanel({
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
-              activeTab === tab.key
-                ? "text-sky-600 border-b-2 border-sky-600 bg-sky-50/50"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
+            className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${activeTab === tab.key
+              ? "text-sky-600 border-b-2 border-sky-600 bg-sky-50/50"
+              : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+              }`}
           >
             {tab.label}
           </button>
@@ -284,24 +283,23 @@ export default function FieldConfigPanel({
             {!["image", "signature", "table", "paragraph", "divider", "spacer"].includes(
               field.field_type
             ) && (
-              <label className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
-                <input
-                  type="checkbox"
-                  checked={editedField.styles?.showLabel === true}
-                  onChange={(e) => handleStyleChange("showLabel", e.target.checked)}
-                  className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
-                />
-                <span className="text-xs font-medium text-gray-700">
-                  Mostrar etiqueta en el certificado
-                </span>
-              </label>
-            )}
+                <label className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
+                  <input
+                    type="checkbox"
+                    checked={editedField.styles?.showLabel === true}
+                    onChange={(e) => handleStyleChange("showLabel", e.target.checked)}
+                    className="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                  />
+                  <span className="text-xs font-medium text-gray-700">
+                    Mostrar etiqueta en el certificado
+                  </span>
+                </label>
+              )}
 
             <div>
               <label
-                className={`block text-xs font-medium mb-1 ${
-                  editedField.styles?.showLabel ? "text-gray-700" : "text-gray-400"
-                }`}
+                className={`block text-xs font-medium mb-1 ${editedField.styles?.showLabel ? "text-gray-700" : "text-gray-400"
+                  }`}
               >
                 Etiqueta
               </label>
@@ -314,13 +312,12 @@ export default function FieldConfigPanel({
                     field.field_type
                   ) && !editedField.styles?.showLabel
                 }
-                className={`w-full px-2 py-1.5 border border-gray-300 rounded text-sm ${
-                  !["image", "signature", "table", "paragraph", "divider", "spacer"].includes(
-                    field.field_type
-                  ) && !editedField.styles?.showLabel
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : ""
-                }`}
+                className={`w-full px-2 py-1.5 border border-gray-300 rounded text-sm ${!["image", "signature", "table", "paragraph", "divider", "spacer"].includes(
+                  field.field_type
+                ) && !editedField.styles?.showLabel
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : ""
+                  }`}
               />
             </div>
 
@@ -360,11 +357,10 @@ export default function FieldConfigPanel({
                   />
                   <label
                     htmlFor={`image-upload-${field.id}`}
-                    className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 border-2 border-dashed rounded cursor-pointer transition-colors ${
-                      uploading
-                        ? "border-sky-300 bg-sky-50"
-                        : "border-gray-300 hover:border-sky-400 hover:bg-sky-50"
-                    }`}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 border-2 border-dashed rounded cursor-pointer transition-colors ${uploading
+                      ? "border-sky-300 bg-sky-50"
+                      : "border-gray-300 hover:border-sky-400 hover:bg-sky-50"
+                      }`}
                   >
                     {uploading ? (
                       <Loader2 className="h-3.5 w-3.5 text-sky-500 animate-spin" />
@@ -412,11 +408,10 @@ export default function FieldConfigPanel({
                           <button
                             key={idx}
                             onClick={() => handleSelectFromGallery(img.url)}
-                            className={`aspect-square border-2 rounded overflow-hidden hover:border-sky-400 transition-colors ${
-                              editedField.default_value === img.url
-                                ? "border-sky-500 ring-2 ring-sky-200"
-                                : "border-gray-200"
-                            }`}
+                            className={`aspect-square border-2 rounded overflow-hidden hover:border-sky-400 transition-colors ${editedField.default_value === img.url
+                              ? "border-sky-500 ring-2 ring-sky-200"
+                              : "border-gray-200"
+                              }`}
                             title={img.filename}
                           >
                             <img
@@ -540,7 +535,7 @@ export default function FieldConfigPanel({
                   <summary className="text-xs font-medium text-gray-600 cursor-pointer px-2 py-1.5 hover:bg-gray-100 flex items-center gap-1">
                     <span>Insertar variable</span>
                     <span className="text-[10px] bg-gray-200 px-1 rounded ml-auto">
-                      {(availableVariables.system?.length || 0) + (availableVariables.data_source?.length || 0)}
+                      {(availableVariables.system?.length || 0) + (availableVariables.data_source_info?.columns?.length || 0)}
                     </span>
                   </summary>
                   <div className="p-2 border-t border-gray-200 space-y-2">
@@ -560,68 +555,68 @@ export default function FieldConfigPanel({
                     {(availableVariables.system || [])
                       .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
                       .length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-medium text-sky-600 mb-1">Sistema</p>
-                        <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
-                          {(availableVariables.system || [])
-                            .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
-                            .map((v) => (
-                              <button
-                                key={v.key}
-                                type="button"
-                                onClick={() => {
-                                  const textarea = document.getElementById(`textarea-${field.id}`);
-                                  const start = textarea?.selectionStart || (editedField.default_value || "").length;
-                                  const currentValue = editedField.default_value || "";
-                                  const newValue = currentValue.slice(0, start) + `{${v.key}}` + currentValue.slice(start);
-                                  handleChange("default_value", newValue);
-                                  handleSnackbar(`{${v.key}} insertado`, "info");
-                                }}
-                                className="px-1.5 py-0.5 text-[10px] bg-sky-100 text-sky-700 rounded hover:bg-sky-200 transition-colors"
-                                title={v.label}
-                              >
-                                {v.key.split('.').pop()}
-                              </button>
-                            ))}
+                        <div>
+                          <p className="text-[10px] font-medium text-sky-600 mb-1">Sistema</p>
+                          <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+                            {(availableVariables.system || [])
+                              .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
+                              .map((v) => (
+                                <button
+                                  key={v.key}
+                                  type="button"
+                                  onClick={() => {
+                                    const textarea = document.getElementById(`textarea-${field.id}`);
+                                    const start = textarea?.selectionStart || (editedField.default_value || "").length;
+                                    const currentValue = editedField.default_value || "";
+                                    const newValue = currentValue.slice(0, start) + `{${v.key}}` + currentValue.slice(start);
+                                    handleChange("default_value", newValue);
+                                    handleSnackbar(`{${v.key}} insertado`, "info");
+                                  }}
+                                  className="px-1.5 py-0.5 text-[10px] bg-sky-100 text-sky-700 rounded hover:bg-sky-200 transition-colors"
+                                  title={v.label}
+                                >
+                                  {v.key.split('.').pop()}
+                                </button>
+                              ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
                     {/* Variables del origen de datos */}
-                    {(availableVariables.data_source || [])
+                    {(availableVariables.data_source_info?.columns || [])
                       .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
                       .length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-medium text-emerald-600 mb-1">
-                          Origen: {availableVariables.data_source_info?.name || "SQL"}
-                        </p>
-                        <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                          {(availableVariables.data_source || [])
-                            .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
-                            .map((v) => (
-                              <button
-                                key={v.key}
-                                type="button"
-                                onClick={() => {
-                                  const textarea = document.getElementById(`textarea-${field.id}`);
-                                  const start = textarea?.selectionStart || (editedField.default_value || "").length;
-                                  const currentValue = editedField.default_value || "";
-                                  const newValue = currentValue.slice(0, start) + `{${v.key}}` + currentValue.slice(start);
-                                  handleChange("default_value", newValue);
-                                  handleSnackbar(`{${v.key}} insertado`, "info");
-                                }}
-                                className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 transition-colors"
-                                title={v.label}
-                              >
-                                {v.key.replace('data.', '')}
-                              </button>
-                            ))}
+                        <div>
+                          <p className="text-[10px] font-medium text-emerald-600 mb-1">
+                            Origen: {availableVariables.data_source_info?.name || "SQL"}
+                          </p>
+                          <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                            {(availableVariables.data_source_info?.columns || [])
+                              .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
+                              .map((v) => (
+                                <button
+                                  key={v.key}
+                                  type="button"
+                                  onClick={() => {
+                                    const textarea = document.getElementById(`textarea-${field.id}`);
+                                    const start = textarea?.selectionStart || (editedField.default_value || "").length;
+                                    const currentValue = editedField.default_value || "";
+                                    const newValue = currentValue.slice(0, start) + `{${v.key}}` + currentValue.slice(start);
+                                    handleChange("default_value", newValue);
+                                    handleSnackbar(`{${v.key}} insertado`, "info");
+                                  }}
+                                  className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 transition-colors"
+                                  title={v.label}
+                                >
+                                  {v.key.replace('data.', '')}
+                                </button>
+                              ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
                     {/* Sin variables */}
-                    {(availableVariables.system?.length || 0) === 0 && (availableVariables.data_source?.length || 0) === 0 && (
+                    {(availableVariables.system?.length || 0) === 0 && (availableVariables.data_source_info?.columns?.length || 0) === 0 && (
                       <p className="text-[10px] text-gray-500 text-center py-2">
                         Sin variables disponibles. Configura un origen de datos en la plantilla.
                       </p>
@@ -669,12 +664,11 @@ export default function FieldConfigPanel({
                         <label className="text-xs text-gray-500">Ancho</label>
                         <button
                           onClick={() => handleStyleChange("maxWidth", "auto")}
-                          className={`text-xs px-1 py-0.5 rounded ${
-                            editedField.styles?.maxWidth === "auto" ||
+                          className={`text-xs px-1 py-0.5 rounded ${editedField.styles?.maxWidth === "auto" ||
                             !editedField.styles?.maxWidth
-                              ? "bg-sky-100 text-sky-700"
-                              : "text-gray-500 hover:bg-gray-100"
-                          }`}
+                            ? "bg-sky-100 text-sky-700"
+                            : "text-gray-500 hover:bg-gray-100"
+                            }`}
                         >
                           Auto
                         </button>
@@ -704,11 +698,10 @@ export default function FieldConfigPanel({
                         <label className="text-xs text-gray-500">Alto</label>
                         <button
                           onClick={() => handleStyleChange("maxHeight", "auto")}
-                          className={`text-xs px-1 py-0.5 rounded ${
-                            editedField.styles?.maxHeight === "auto"
-                              ? "bg-sky-100 text-sky-700"
-                              : "text-gray-500 hover:bg-gray-100"
-                          }`}
+                          className={`text-xs px-1 py-0.5 rounded ${editedField.styles?.maxHeight === "auto"
+                            ? "bg-sky-100 text-sky-700"
+                            : "text-gray-500 hover:bg-gray-100"
+                            }`}
                         >
                           Auto
                         </button>
@@ -747,12 +740,11 @@ export default function FieldConfigPanel({
                       <button
                         key={opt.value}
                         onClick={() => handleStyleChange("objectFit", opt.value)}
-                        className={`px-1.5 py-1 text-xs rounded ${
-                          editedField.styles?.objectFit === opt.value ||
+                        className={`px-1.5 py-1 text-xs rounded ${editedField.styles?.objectFit === opt.value ||
                           (!editedField.styles?.objectFit && opt.value === "contain")
-                            ? "bg-sky-100 text-sky-700 border border-sky-300"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                        }`}
+                          ? "bg-sky-100 text-sky-700 border border-sky-300"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          }`}
                       >
                         {opt.label}
                       </button>
@@ -773,11 +765,10 @@ export default function FieldConfigPanel({
                     <button
                       key={size.value}
                       onClick={() => handleStyleChange("fontSize", size.value)}
-                      className={`px-1.5 py-1 text-xs rounded ${
-                        editedField.styles?.fontSize === size.value
-                          ? "bg-sky-100 text-sky-700 border border-sky-300"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
+                      className={`px-1.5 py-1 text-xs rounded ${editedField.styles?.fontSize === size.value
+                        ? "bg-sky-100 text-sky-700 border border-sky-300"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
                     >
                       {size.label}
                     </button>
@@ -811,11 +802,10 @@ export default function FieldConfigPanel({
                         editedField.styles?.fontWeight === "bold" ? "normal" : "bold"
                       )
                     }
-                    className={`p-1.5 rounded ${
-                      editedField.styles?.fontWeight === "bold"
-                        ? "bg-sky-100 text-sky-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
+                    className={`p-1.5 rounded ${editedField.styles?.fontWeight === "bold"
+                      ? "bg-sky-100 text-sky-700"
+                      : "bg-gray-100 text-gray-600"
+                      }`}
                   >
                     <Bold className="h-3.5 w-3.5" />
                   </button>
@@ -826,11 +816,10 @@ export default function FieldConfigPanel({
                         editedField.styles?.fontStyle === "italic" ? "normal" : "italic"
                       )
                     }
-                    className={`p-1.5 rounded ${
-                      editedField.styles?.fontStyle === "italic"
-                        ? "bg-sky-100 text-sky-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
+                    className={`p-1.5 rounded ${editedField.styles?.fontStyle === "italic"
+                      ? "bg-sky-100 text-sky-700"
+                      : "bg-gray-100 text-gray-600"
+                      }`}
                   >
                     <Italic className="h-3.5 w-3.5" />
                   </button>
@@ -843,11 +832,10 @@ export default function FieldConfigPanel({
                           : "underline"
                       )
                     }
-                    className={`p-1.5 rounded ${
-                      editedField.styles?.textDecoration === "underline"
-                        ? "bg-sky-100 text-sky-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
+                    className={`p-1.5 rounded ${editedField.styles?.textDecoration === "underline"
+                      ? "bg-sky-100 text-sky-700"
+                      : "bg-gray-100 text-gray-600"
+                      }`}
                   >
                     <Underline className="h-3.5 w-3.5" />
                   </button>
@@ -870,11 +858,10 @@ export default function FieldConfigPanel({
                   <button
                     key={value}
                     onClick={() => handleStyleChange("textAlign", value)}
-                    className={`p-1.5 rounded ${
-                      editedField.styles?.textAlign === value
-                        ? "bg-sky-100 text-sky-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
+                    className={`p-1.5 rounded ${editedField.styles?.textAlign === value
+                      ? "bg-sky-100 text-sky-700"
+                      : "bg-gray-100 text-gray-600"
+                      }`}
                   >
                     <Icon className="h-3.5 w-3.5" />
                   </button>
@@ -948,12 +935,11 @@ export default function FieldConfigPanel({
                     <button
                       key={opt.value}
                       onClick={() => handleStyleChange("width", opt.value)}
-                      className={`px-2 py-1 text-xs rounded ${
-                        editedField.styles?.width === opt.value ||
+                      className={`px-2 py-1 text-xs rounded ${editedField.styles?.width === opt.value ||
                         (!editedField.styles?.width && opt.value === "100%")
-                          ? "bg-sky-100 text-sky-700 border border-sky-300"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
+                        ? "bg-sky-100 text-sky-700 border border-sky-300"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
                     >
                       {opt.label}
                     </button>
@@ -982,11 +968,10 @@ export default function FieldConfigPanel({
                     <button
                       key={opt.value}
                       onClick={() => handleStyleChange("spacerHeight", opt.value)}
-                      className={`px-2 py-1 text-[10px] rounded ${
-                        editedField.styles?.spacerHeight === opt.value
-                          ? "bg-sky-100 text-sky-700 border border-sky-300 font-medium"
-                          : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-300"
-                      }`}
+                      className={`px-2 py-1 text-[10px] rounded ${editedField.styles?.spacerHeight === opt.value
+                        ? "bg-sky-100 text-sky-700 border border-sky-300 font-medium"
+                        : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-300"
+                        }`}
                     >
                       {opt.label}
                     </button>
@@ -1030,11 +1015,10 @@ export default function FieldConfigPanel({
                     <button
                       key={unit}
                       onClick={() => setPaddingUnit(unit)}
-                      className={`px-1.5 py-0.5 text-[10px] rounded ${
-                        paddingUnit === unit
-                          ? "bg-sky-100 text-sky-700 font-medium"
-                          : "text-gray-400 hover:text-gray-600"
-                      }`}
+                      className={`px-1.5 py-0.5 text-[10px] rounded ${paddingUnit === unit
+                        ? "bg-sky-100 text-sky-700 font-medium"
+                        : "text-gray-400 hover:text-gray-600"
+                        }`}
                     >
                       {unit.toUpperCase()}
                     </button>
@@ -1077,11 +1061,10 @@ export default function FieldConfigPanel({
                 </div>
                 <button
                   onClick={() => setPaddingLinked(!paddingLinked)}
-                  className={`p-1.5 rounded ${
-                    paddingLinked
-                      ? "bg-sky-100 text-sky-600"
-                      : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                  }`}
+                  className={`p-1.5 rounded ${paddingLinked
+                    ? "bg-sky-100 text-sky-600"
+                    : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                    }`}
                   title={paddingLinked ? "Valores vinculados" : "Valores independientes"}
                 >
                   <Link2 className="h-3.5 w-3.5" />
@@ -1098,11 +1081,10 @@ export default function FieldConfigPanel({
                     <button
                       key={unit}
                       onClick={() => setMarginUnit(unit)}
-                      className={`px-1.5 py-0.5 text-[10px] rounded ${
-                        marginUnit === unit
-                          ? "bg-sky-100 text-sky-700 font-medium"
-                          : "text-gray-400 hover:text-gray-600"
-                      }`}
+                      className={`px-1.5 py-0.5 text-[10px] rounded ${marginUnit === unit
+                        ? "bg-sky-100 text-sky-700 font-medium"
+                        : "text-gray-400 hover:text-gray-600"
+                        }`}
                     >
                       {unit.toUpperCase()}
                     </button>
@@ -1145,11 +1127,10 @@ export default function FieldConfigPanel({
                 </div>
                 <button
                   onClick={() => setMarginLinked(!marginLinked)}
-                  className={`p-1.5 rounded ${
-                    marginLinked
-                      ? "bg-sky-100 text-sky-600"
-                      : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                  }`}
+                  className={`p-1.5 rounded ${marginLinked
+                    ? "bg-sky-100 text-sky-600"
+                    : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                    }`}
                   title={marginLinked ? "Valores vinculados" : "Valores independientes"}
                 >
                   <Link2 className="h-3.5 w-3.5" />
@@ -1207,7 +1188,14 @@ export default function FieldConfigPanel({
                     value={editedField.processor_id || ""}
                     onChange={(e) => {
                       const processorId = e.target.value ? parseInt(e.target.value) : null;
-                      handleChange("processor_id", processorId);
+                      const selectedProcessor = tableProcessors.find(p => p.id === processorId);
+                      const updated = {
+                        ...editedField,
+                        processor_id: processorId,
+                        processor_name: selectedProcessor?.name || null,
+                      };
+                      setEditedField(updated);
+                      onSave(updated);
                       setProcessorPreview(null);
                     }}
                     className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
@@ -1220,7 +1208,7 @@ export default function FieldConfigPanel({
                     ))}
                   </select>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    El procesador define la fuente de datos, columnas y estilos de la tabla
+                    El procesador genera el HTML de la tabla desde el backend
                   </p>
                 </div>
 
@@ -1272,8 +1260,8 @@ export default function FieldConfigPanel({
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
                     <p className="font-medium">No hay procesadores configurados</p>
                     <p className="mt-1">
-                      Ve a <strong>Procesadores</strong> en el menú para crear uno que
-                      conecte una fuente de datos con la tabla.
+                      Ve a <strong>Procesadores</strong> en el menú para crear uno.
+                      El código del procesador debe tener su función en el backend.
                     </p>
                   </div>
                 )}
@@ -1291,9 +1279,9 @@ export default function FieldConfigPanel({
                         <p className="text-xs font-medium text-emerald-800">
                           {availableVariables.data_source_info.name}
                         </p>
-                        {availableVariables.data_source?.length > 0 && (
+                        {availableVariables.data_source_info?.columns?.length > 0 && (
                           <p className="text-[10px] text-emerald-600">
-                            {availableVariables.data_source.length} variables disponibles
+                            {availableVariables.data_source_info.columns.length} variables disponibles
                           </p>
                         )}
                       </div>
@@ -1372,7 +1360,7 @@ export default function FieldConfigPanel({
 
                 {/* Variables del Origen de Datos */}
                 {(() => {
-                  const filteredDataSource = (availableVariables.data_source || []).filter(
+                  const filteredDataSource = (availableVariables.data_source_info?.columns || []).filter(
                     (v) =>
                       !variableSearch ||
                       v.key.toLowerCase().includes(variableSearch.toLowerCase()) ||
@@ -1419,7 +1407,7 @@ export default function FieldConfigPanel({
                       v.key.toLowerCase().includes(variableSearch.toLowerCase()) ||
                       v.label.toLowerCase().includes(variableSearch.toLowerCase())
                   ).length === 0 &&
-                  (availableVariables.data_source || []).filter(
+                  (availableVariables.data_source_info?.columns || []).filter(
                     (v) =>
                       v.key.toLowerCase().includes(variableSearch.toLowerCase()) ||
                       v.label.toLowerCase().includes(variableSearch.toLowerCase())

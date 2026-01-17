@@ -52,7 +52,7 @@ export default function CertificateReportView() {
   // Informacion del usuario
   const companyName = session?.user?.company?.business_name || "";
   // El AuthService devuelve 'role' directamente (no profile.code)
-  const isClientUser = session?.user?.role === "cliente";
+  const isClientUser = session?.user?.role === "customer";
   const companyId = session?.user?.company_id;
 
   // Lista SharePoint configurada

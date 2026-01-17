@@ -1,48 +1,49 @@
 import React, { useState, useEffect } from "react";
-import { Modal } from "../../components/ui/Modal.jsx";
 import GenericFilters from "../../components/common/GenericFilters.jsx";
 import GenericTable from "../../components/common/GenericTable.jsx";
 import TableActions from "../../components/common/TableActions.jsx";
 import { useTableLogic } from "../../hooks/useTableLogic.js";
-import { useModals } from "../../hooks/useModals.js";
-import { deleteCustomer, getCustomers } from "../../services/customerService.js";
-import CustomerForm from "./components/CustomerForm.jsx";
-import ExcelImport from "./components/ExcelImport.jsx";
+import { getCustomers, toggleCustomerStatus, deleteCustomerUser } from "../../services/customerService.js";
+import { getCompaniesList } from "../../services/companyService.js";
+import CustomerPermissionsModal from "./components/CustomerPermissionsModal.jsx";
 import { handleSnackbar } from "../../utils/messageHelpers.js";
+import ConfirmModal from "../../components/common/ConfirmModal.jsx";
 import {
-  UserPlus,
-  Pencil,
-  Key,
-  Trash2,
   Search,
-  FileSpreadsheet,
-  CheckCircle
+  CheckCircle,
+  Shield,
+  Power,
+  Trash2,
+  Building2
 } from "lucide-react";
-import { Button } from "../../components/ui/Button.jsx";
 
 export default function CustomersView() {
   const [registers, setRegisters] = useState([]);
   const [loading, setLoading] = useState(false);
   const [trigger, setTrigger] = useState(0);
-  const [modalForm, setModalForm] = useState(null);
-  const [showExcelImport, setShowExcelImport] = useState(false);
+  const [permissionsModal, setPermissionsModal] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState("");
 
   // Configuración de la tabla
   const tableConfig = {
-    defaultSort: "first_name",
+    defaultSort: "name",
     defaultSortDir: "asc",
     pageSize: 8,
     searchFields: [
-      "first_name",
-      "second_name",
-      "last_name",
-      "second_last_name",
-      "rut_formatted",
+      "name",
+      "rut",
       "email",
-      "mobile",
-      "username"
+      "username",
+      "company"
     ]
   };
+
+  // Filtrar por empresa seleccionada
+  const companyFilteredRegisters = selectedCompany
+    ? registers.filter(r => r.company_id === parseInt(selectedCompany))
+    : registers;
 
   const {
     q,
@@ -55,9 +56,7 @@ export default function CustomersView() {
     pageData,
     totalPages,
     handleSort
-  } = useTableLogic(registers, tableConfig);
-
-  const { modals, openConfirm, openNotify, closeModal } = useModals();
+  } = useTableLogic(companyFilteredRegisters, tableConfig);
 
   // Cargar datos
   const fetchList = async () => {
@@ -75,105 +74,125 @@ export default function CustomersView() {
     }
   };
 
+  // Cargar lista de empresas
+  const fetchCompanies = async () => {
+    try {
+      const response = await getCompaniesList();
+      if (response.success) {
+        setCompanies(response.data || []);
+      }
+    } catch (error) {
+      console.error("Error al cargar empresas:", error);
+    }
+  };
+
   useEffect(() => {
     fetchList();
+    fetchCompanies();
     setPage(1);
   }, [trigger]);
 
   // Configuración de columnas
   const columns = [
-    { key: "first_name", label: "Nombre completo" },
-    { key: "rut_formatted", label: "RUT" },
+    { key: "name", label: "Nombre" },
+    { key: "rut", label: "RUT" },
     { key: "email", label: "Correo" },
-    { key: "phones", label: "Celular", sortable: false },
-    { key: "username", label: "Usuario", sortable: false },
+    { key: "company", label: "Empresa" },
     { key: "status", label: "Estado", sortable: false },
     { key: "actions", label: "Acciones", sortable: false, headerClassName: "text-center" }
   ];
 
-  // Funciones de acciones
-  const handleDelete = async (parent) => {
-    const fullName = `${parent.first_name ?? ""} ${parent.second_name ?? ""} ${parent.last_name ?? ""} ${parent.second_last_name ?? ""}`.trim();
-
-    openConfirm({
-      title: "Eliminar cliente",
-      msg: `¿Seguro que deseas eliminar al cliente <b>${fullName}</b>?`,
-      actionLabel: "Eliminar",
-      variant: "danger",
+  // Manejar cambio de estado (habilitar/deshabilitar)
+  const handleToggleStatus = (customer) => {
+    const newStatus = !customer.status;
+    const action = newStatus ? "habilitar" : "deshabilitar";
+    setConfirmModal({
+      type: "status",
+      customer,
+      title: `${newStatus ? "Habilitar" : "Deshabilitar"} Cliente`,
+      message: `¿Estás seguro de que deseas ${action} al cliente "${customer.name}"?`,
+      confirmText: newStatus ? "Habilitar" : "Deshabilitar",
+      variant: newStatus ? "primary" : "warning",
       onConfirm: async () => {
-        const response = await deleteCustomer(parent.id);
-        handleSnackbar(response.message, response.success ? 'success' : 'error');
-        closeModal('confirm');
-        if (response.success) {
-          setTrigger(prev => prev + 1);
+        try {
+          const response = await toggleCustomerStatus(customer.id, newStatus);
+          if (response.success) {
+            handleSnackbar(response.message || `Cliente ${action}do correctamente`, "success");
+            setTrigger(prev => prev + 1);
+          } else {
+            handleSnackbar(response.message || `Error al ${action} cliente`, "error");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          handleSnackbar(`Error al ${action} cliente`, "error");
         }
-      },
+        setConfirmModal(null);
+      }
     });
   };
 
-  const handleResetPassword = (parent) => {
-    const fullName = `${parent.first_name ?? ""} ${parent.second_name ?? ""} ${parent.last_name ?? ""} ${parent.second_last_name ?? ""}`.trim();
-
-    openConfirm({
-      title: "Restablecer contraseña",
-      msg: `¿Seguro que deseas restablecer la contraseña de ${fullName}?`,
-      actionLabel: "Restablecer",
-      variant: "primary",
-      onConfirm: () => {
-        closeModal('confirm');
-        openNotify({
-          variant: "info",
-          title: "Restablecer contraseña",
-          msg: `Se envió un correo de restablecimiento a ${parent.email}`,
-        });
-      },
+  // Manejar eliminación
+  const handleDelete = (customer) => {
+    setConfirmModal({
+      type: "delete",
+      customer,
+      title: "Eliminar Cliente",
+      message: `¿Estás seguro de que deseas eliminar al cliente "${customer.name}"? Esta acción no se puede deshacer.`,
+      confirmText: "Eliminar",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const response = await deleteCustomerUser(customer.id);
+          if (response.success) {
+            handleSnackbar(response.message || "Cliente eliminado correctamente", "success");
+            setTrigger(prev => prev + 1);
+          } else {
+            handleSnackbar(response.message || "Error al eliminar cliente", "error");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          handleSnackbar("Error al eliminar cliente", "error");
+        }
+        setConfirmModal(null);
+      }
     });
   };
 
   // Configuración de acciones por fila
-  const getRowActions = () => [
+  const getRowActions = (customer) => [
     {
-      label: "Editar",
-      icon: Pencil,
+      label: "Permisos",
+      icon: Shield,
       variant: "outline",
-      onClick: (parent) => setModalForm({ mode: "edit", register: parent }),
-      title: "Editar cliente"
+      onClick: (c) => setPermissionsModal(c),
+      title: "Gestionar permisos"
     },
-    // {
-    //   label: "Reset",
-    //   icon: Key,
-    //   variant: "outline",
-    //   onClick: handleResetPassword,
-    //   title: "Restablecer contraseña"
-    // },
+    {
+      label: customer.status ? "Deshabilitar" : "Habilitar",
+      icon: Power,
+      variant: customer.status ? "warning" : "success",
+      onClick: handleToggleStatus,
+      title: customer.status ? "Deshabilitar usuario" : "Habilitar usuario"
+    },
     {
       label: "Eliminar",
       icon: Trash2,
       variant: "danger",
       onClick: handleDelete,
-      title: "Eliminar cliente"
+      title: "Eliminar usuario"
     }
   ];
 
   // Renderizado de filas
-  const renderRow = (parent, index) => {
-    const fullName = `${parent.first_name ?? ""} ${parent.second_name ?? ""} ${parent.last_name ?? ""} ${parent.second_last_name ?? ""}`.trim();
-    const phones = [parent.mobile, parent.home_phone, parent.work_phone].filter(Boolean).join(" / ");
-    const location = [
-      parent.commune?.commune,
-      parent.region?.region,
-      parent.country?.name,
-    ].filter(Boolean).join(", ");
-
+  const renderRow = (customer, index) => {
     return (
-      <tr key={parent.id} className="border-t hover:bg-gray-50">
-        <td className="px-3 py-2 text-nowrap">{fullName}</td>
-        <td className="px-3 py-2 text-nowrap">{parent.rut_formatted}</td>
-        <td className="px-3 py-2">{parent.email}</td>
-        <td className="px-3 py-2">{phones || "-"}</td>
-        <td className="px-3 py-2 text-nowrap">{parent.username}</td>
+      <tr key={customer.id} className="border-t hover:bg-gray-50">
+        <td className="px-3 py-2 text-nowrap">{customer.name}</td>
+        <td className="px-3 py-2 text-nowrap">{customer.rut}</td>
+        <td className="px-3 py-2">{customer.email}</td>
+        <td className="px-3 py-2">{customer.company || "-"}</td>
         <td className="px-3 py-2 text-center">
-          {parent.status ? (
+          {customer.status ? (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
               <CheckCircle className="w-3 h-3 mr-1" />
               Activo
@@ -186,8 +205,8 @@ export default function CustomersView() {
         </td>
         <td className="px-3 py-2 text-center">
           <TableActions
-            actions={getRowActions()}
-            item={parent}
+            actions={getRowActions(customer)}
+            item={customer}
             className="space-x-2"
           />
         </td>
@@ -195,62 +214,59 @@ export default function CustomersView() {
     );
   };
 
-  // Función para manejar el cierre del modal con callback
-  const handleModalClose = (shouldRefresh = false) => {
-    setModalForm(null);
+  // Manejar cierre del modal de permisos
+  const handlePermissionsModalClose = (shouldRefresh = false) => {
+    setPermissionsModal(null);
     if (shouldRefresh) {
       setTrigger(prev => prev + 1);
     }
-  };
-
-  // Manejar éxito de importación Excel
-  const handleExcelImportSuccess = () => {
-    setTrigger(prev => prev + 1);
-    setShowExcelImport(false);
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-bold   mb-2">
-          Gestión de Clientes Portal
+        <h2 className="text-3xl font-bold mb-2">
+          Gestión de Clientes
         </h2>
-        <p className=" /70">
-          Listado de clientes registrados en portal
+        <p className="text-gray-600">
+          Usuarios con perfil de cliente. Gestiona sus permisos de acceso a reportes, certificados y documentos.
         </p>
       </div>
 
-      {/* Importación masiva Excel */}
-      {showExcelImport && (
-        <ExcelImport
-          showExcelImport={showExcelImport}
-          setShowExcelImport={setShowExcelImport}
-          onImportSuccess={handleExcelImportSuccess}
-        />
-      )}
-
-      {/* Filtros con botones personalizados */}
-      <GenericFilters
-        searchPlaceholder="Buscar clientes..."
-        searchValue={q}
-        onSearchChange={setQ}
-        resultsCount={filteredData.length}
-        showAddButton={!showExcelImport}
-        addButtonLabel="Agregar cliente"
-        onAdd={() => setModalForm({ mode: "new" })}
-      >
-        {/* Botón de Excel como filtro personalizado */}
-        {/* {!showExcelImport && (
-          <Button
-            onClick={() => setShowExcelImport(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium   border  rounded-lg hover: transition-colors"
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <GenericFilters
+            searchPlaceholder="Buscar clientes..."
+            searchValue={q}
+            onSearchChange={setQ}
+            resultsCount={filteredData.length}
+            showAddButton={false}
+          />
+        </div>
+        <div className="w-full sm:w-64">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            <Building2 className="w-4 h-4 inline mr-1" />
+            Filtrar por Empresa
+          </label>
+          <select
+            value={selectedCompany}
+            onChange={(e) => {
+              setSelectedCompany(e.target.value);
+              setPage(1);
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
           >
-            <FileSpreadsheet className="w-4 h-4" />
-            Importar Excel
-          </Button>
-        )} */}
-      </GenericFilters>
+            <option value="">Todas las empresas</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.business_name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {/* Tabla */}
       <GenericTable
@@ -273,66 +289,26 @@ export default function CustomersView() {
         renderRow={renderRow}
       />
 
-      {/* Modal formulario */}
-      <Modal
-        open={!!modalForm}
-        onClose={() => handleModalClose(false)}
-        title={
-          modalForm?.mode === "edit" ? "Editar cliente" : "Agregar cliente"
-        }
-        size="lg"
-        actions={[]}
-      >
-        {modalForm && (
-          <CustomerForm
-            mode={modalForm.mode}
-            register={modalForm.register}
-            onClose={handleModalClose}
-          />
-        )}
-      </Modal>
-
-      {/* Modal de notificación */}
-      <Modal
-        open={!!modals.notify}
-        onClose={() => closeModal('notify')}
-        title={modals.notify?.title}
-        variant={modals.notify?.variant || "info"}
-        isHtml={true}
-        actions={[
-          {
-            label: "Cerrar",
-            variant: "primary",
-            onClick: () => closeModal('notify'),
-          },
-        ]}
-      >
-        {modals.notify?.msg}
-      </Modal>
+      {/* Modal de permisos */}
+      {permissionsModal && (
+        <CustomerPermissionsModal
+          customer={permissionsModal}
+          onClose={handlePermissionsModalClose}
+        />
+      )}
 
       {/* Modal de confirmación */}
-      <Modal
-        open={!!modals.confirm}
-        onClose={() => closeModal('confirm')}
-        title={modals.confirm?.title}
-        variant="warn"
-        isHtml={true}
-        actions={[
-          {
-            label: "Cancelar",
-            variant: "outline",
-            onClick: () => closeModal('confirm')
-          },
-          {
-            label: modals.confirm?.actionLabel || "Confirmar",
-            variant: modals.confirm?.variant || "danger",
-            onClick: modals.confirm?.onConfirm,
-            autofocus: true,
-          },
-        ]}
-      >
-        {modals.confirm?.msg}
-      </Modal>
+      {confirmModal && (
+        <ConfirmModal
+          open={true}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmText={confirmModal.confirmText}
+          variant={confirmModal.variant}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
     </div>
   );
 }

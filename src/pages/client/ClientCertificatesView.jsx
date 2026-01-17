@@ -3,6 +3,7 @@ import { Award, Calendar, Loader2, Download, Building2 } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import { useAuth } from "../../context/auth";
 import { getCertificateTemplates, getCertificatesByCompany } from "../../services/companyService";
+import { generateCertificatePdfWithDates } from "../../services/certificateBuilderService";
 import { handleSnackbar } from "../../utils/messageHelpers";
 
 export default function ClientCertificatesView() {
@@ -64,7 +65,7 @@ export default function ClientCertificatesView() {
     setDateTo("");
   };
 
-  const handleGeneratePDF = () => {
+  const handleGeneratePDF = async () => {
     if (!selectedCert) return;
     if (!dateFrom || !dateTo) {
       handleSnackbar("Selecciona el rango de fechas", "error");
@@ -73,26 +74,46 @@ export default function ClientCertificatesView() {
 
     setGenerating(true);
 
-    // Construir URL del PDF con parámetros
-    const params = new URLSearchParams();
-    params.append("date_from", dateFrom);
-    params.append("date_to", dateTo);
-    if (companyId && !isAdmin) {
-      params.append("company_id", companyId);
+    try {
+      // Generar PDF con autenticación - descarga directa
+      const result = await generateCertificatePdfWithDates(
+        selectedCert.id,
+        dateFrom,
+        dateTo,
+        true // true = descargar directamente
+      );
+
+      if (result.success) {
+        handleSnackbar("Certificado descargado correctamente", "success");
+        setSelectedCert(null);
+        setDateFrom("");
+        setDateTo("");
+      } else {
+        handleSnackbar(result.error || "Error al generar certificado", "error");
+      }
+    } catch (error) {
+      handleSnackbar("Error al generar certificado", "error");
+    } finally {
+      setGenerating(false);
     }
-
-    const pdfUrl = `${baseURL}/api/certificate-builder/templates/${selectedCert.id}/pdf?${params.toString()}`;
-
-    // Abrir en nueva ventana
-    window.open(pdfUrl, "_blank");
-
-    setGenerating(false);
-    handleSnackbar("Generando certificado...", "success");
   };
 
-  const handlePreview = (cert) => {
-    const pdfUrl = `${baseURL}/api/certificate-builder/templates/${cert.id}/pdf?preview=true`;
-    window.open(pdfUrl, "_blank");
+  const handlePreview = async (cert) => {
+    try {
+      // Generar preview sin fechas (usará datos del mes actual por defecto)
+      const today = new Date();
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+      await generateCertificatePdfWithDates(
+        cert.id,
+        firstDay.toISOString().split("T")[0],
+        lastDay.toISOString().split("T")[0],
+        false
+      );
+    } catch (error) {
+      handleSnackbar("Error al generar preview", "error");
+    }
   };
 
 
@@ -298,8 +319,8 @@ export default function ClientCertificatesView() {
           {/* Nota */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-xs text-blue-700">
-              El certificado se generará con los datos correspondientes al periodo seleccionado.
-              Se abrirá en una nueva ventana para su descarga o impresión.
+              El certificado se generará con los datos correspondientes al periodo seleccionado
+              y se descargará automáticamente.
             </p>
           </div>
         </div>

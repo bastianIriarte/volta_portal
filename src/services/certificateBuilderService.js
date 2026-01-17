@@ -181,6 +181,7 @@ export const deleteBuilderImage = async (path) => {
 
 /**
  * Obtiene la URL para generar el PDF del certificado
+ * @deprecated Usar generateCertificatePdfWithDates en su lugar (requiere autenticación)
  * @param {number} templateId - ID de la plantilla
  * @param {string} dataType - Tipo de datos simulados (transporte_residuos, gestion_residuos, lodos_grasos)
  * @param {boolean} download - Si es true, descarga el archivo. Si es false, lo muestra en el navegador
@@ -190,6 +191,59 @@ export const getCertificatePdfUrl = (templateId, dataType = "transporte_residuos
   const baseUrl = api.defaults.baseURL || "";
   const downloadParam = download ? "&download=true" : "";
   return `${baseUrl}/api/certificate-builder/templates/${templateId}/pdf?data_type=${dataType}${downloadParam}`;
+};
+
+/**
+ * Genera el PDF del certificado con fechas y autenticación
+ * @param {number} templateId - ID de la plantilla
+ * @param {string} dateFrom - Fecha desde (YYYY-MM-DD)
+ * @param {string} dateTo - Fecha hasta (YYYY-MM-DD)
+ * @param {boolean} download - Si es true, descarga el archivo. Si es false, lo muestra en preview
+ * @param {boolean} preview - Si es true, usa datos de ejemplo para tablas (modo builder)
+ */
+export const generateCertificatePdfWithDates = async (templateId, dateFrom, dateTo, download = false, preview = false) => {
+  try {
+    const params = new URLSearchParams();
+    if (dateFrom) params.append("date_from", dateFrom);
+    if (dateTo) params.append("date_to", dateTo);
+    if (download) params.append("download", "true");
+    if (preview) params.append("preview", "true");
+
+    const response = await api.get(
+      `/api/certificate-builder/templates/${templateId}/pdf?${params.toString()}`,
+      { responseType: "blob" }
+    );
+
+    if (response.status === 200) {
+      // Crear URL del blob y abrir/descargar
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+
+      if (download) {
+        // Descargar archivo
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `certificado_${templateId}_${dateFrom}_${dateTo}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        // Abrir en nueva pestaña
+        window.open(url, "_blank");
+      }
+
+      return { success: true };
+    }
+
+    return { success: false, error: "Error al generar PDF" };
+  } catch (error) {
+    console.error("Error generando PDF:", error);
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message || "Error al generar PDF",
+    };
+  }
 };
 
 /**

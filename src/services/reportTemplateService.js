@@ -77,3 +77,28 @@ export const deleteReportTemplate = async (id) => {
     return error;
   }
 };
+
+// Ejecutar reporte por código con parámetros de empresa
+// GET /api/reports/data/{code}?company_id=X&date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
+export const executeReportByCode = async (code, params = {}) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.company_id) queryParams.append("company_id", params.company_id);
+    if (params.date_from) queryParams.append("date_from", params.date_from);
+    if (params.date_to) queryParams.append("date_to", params.date_to);
+
+    const url = `/api/reports/data/${code}?${queryParams.toString()}`;
+    const response = await api.get(url);
+    let success = response.status === 200 && !response.error;
+
+    // response.data.data contiene: { data: [], total, template, company, params }
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};

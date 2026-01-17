@@ -1,9 +1,11 @@
 
 import DashboardView from "../pages/dashboard/DashboardView";
 import UsersView from "../pages/users/UsersView";
+import CustomersView from "../pages/customers/CustomersView";
 import {
   Home,
   User,
+  Users,
   Settings,
   Webhook,
   Building2,
@@ -14,6 +16,7 @@ import {
   FileText,
   FolderOpen,
   FileSpreadsheet,
+  Shield,
 } from "lucide-react";
 
 
@@ -43,6 +46,8 @@ import ReportTemplatesView from "../pages/report_templates/ReportTemplatesView";
 // Vistas de Cliente
 import ClientDocumentsView from "../pages/client/ClientDocumentsView";
 import ClientCertificatesView from "../pages/client/ClientCertificatesView";
+import ProfilesManagement from "../pages/profiles/ProfilesManagement";
+import ProfilePermissionsMatrix from "../pages/profiles/ProfilePermissionsMatrix";
 
 
 export const APP_ROUTES = [
@@ -58,7 +63,25 @@ export const APP_ROUTES = [
 
   { path: "/dashboard/solicitudes/:id/gestionar", element: <RegistrationRequestDetailView />, permission: null, roles: ["admin", "root"] },
   { path: "/dashboard/usuarios", element: <UsersView />, permission: null, label: "Usuarios", id: "usuarios", isMenu: true, section: "administracion", icon: User, roles: ["admin", "root"] },
+  { path: "/dashboard/clientes", element: <CustomersView />, permission: null, label: "Clientes", id: "clientes", isMenu: true, section: "administracion", icon: Users, roles: ["admin", "root"] },
 
+  {
+    path: "/dashboard/profiles-managment",
+    element: <ProfilesManagement />,
+    permission: "profiles.list",
+    label: "Perfiles",
+    id: "profiles",
+    icon: Shield,
+    isMenu: true,
+    section: "administracion",
+    roles: ["admin", "root"],
+  },
+  {
+    path: "/dashboard/profiles-managment/permissions-matrix",
+    element: <ProfilePermissionsMatrix />,
+    permission: "profiles.edit",
+    roles: ["admin", "root"],
+  },
   { path: "/dashboard/fuentes-datos", element: <DataSourcesView />, permission: null, label: "Fuentes de Datos", id: "fuentes-datos", isMenu: true, section: "administracion", icon: Database, roles: ["admin", "root"] },
   { path: "/dashboard/certificate-builder", element: <CertificateBuilderView />, permission: null, label: "Gestión de Certificados", id: "certificados", isMenu: true, section: "administracion", icon: Award, roles: ["admin", "root"] },
   { path: "/dashboard/certificate-builder/:templateId", element: <CertificateBuilderView />, permission: null, roles: ["admin", "root"] },
@@ -66,11 +89,11 @@ export const APP_ROUTES = [
   { path: "/dashboard/reports", element: <ReportTemplatesView />, permission: null, label: "Gestión de Reportes", id: "reports", isMenu: true, section: "administracion", icon: FileText, roles: ["admin", "root"] },
 
   // ========================================
-  // MÓDULO DE CLIENTE (Solo Clientes)
+  // MÓDULO DE CLIENTE (Basado en permisos específicos del usuario)
   // ========================================
-  { path: "/dashboard/mis-certificados", element: <ClientCertificatesView />, permission: null, label: "Certificados", id: "mis-certificados", isMenu: true, section: "inicio", icon: Award, roles: null },
-  { path: "/dashboard/reporte-sharepoint", element: <SharePointListView />, permission: null, label: "Reporte SharePoint", id: "reporte-sharepoint", isMenu: true, section: "reportes", icon: FileSpreadsheet, roles: ["cliente"] },
-  { path: "/dashboard/mis-documentos", element: <ClientDocumentsView />, permission: null, label: "Documentos", id: "mis-documentos", isMenu: true, section: "documentos", icon: FolderOpen, roles: ["cliente"] },
+  { path: "/dashboard/reporte-sharepoint", element: <SharePointListView />, permission: "my.reports", label: "Reporte SharePoint", id: "reporte-sharepoint", isMenu: true, section: "reportes", icon: FileSpreadsheet, roles: ["admin", "root"] },
+  { path: "/dashboard/mis-certificados", element: <ClientCertificatesView />, label: "Mis Certificados", id: "mis-certificados", isMenu: true, section: "certificados", icon: Award, roles: ["customer", "admin", "root"] },
+  { path: "/dashboard/mis-documentos", element: <ClientDocumentsView />, permission: "my.documents", label: "Mis Documentos", id: "mis-documentos", isMenu: true, section: "documentos", icon: FolderOpen, roles: ["customer"] },
 
   // ========================================
   // MÓDULO DE SISTEMA (Solo Admin/Root)

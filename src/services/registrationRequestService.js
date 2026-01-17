@@ -53,10 +53,12 @@ export const getRegistrationRequestById = async (id) => {
   }
 };
 
-// Aprobar solicitud
-export const approveRequest = async (id) => {
+// Aprobar solicitud con permisos
+export const approveRequest = async (id, permissions = []) => {
   try {
-    const response = await api.post(`/api/registration-requests/${id}/approve`);
+    const response = await api.post(`/api/registration-requests/${id}/approve`, {
+      permissions,
+    });
     let success = response.status === 200 && !response.error;
     return returnResponse(
       success,

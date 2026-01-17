@@ -2,10 +2,10 @@ import api, {
   returnResponse
 } from "./api";
 
-// Función para obtener todos los registros
+// Función para obtener todos los clientes (usuarios con perfil customer)
 export const getCustomersList = async () => {
   try {
-    const response = await api.get("/api/customers-list");
+    const response = await api.get("/api/users/customers");
     let success = response.status != 200 || response.error ? false : true;
     return returnResponse(
       success,
@@ -18,22 +18,10 @@ export const getCustomersList = async () => {
   }
 };
 
-// Obtener todos los clientes con paginación, búsqueda y ordenamiento
+// Obtener todos los clientes (usuarios con perfil customer)
 export const getCustomers = async (params = {}) => {
   try {
-    // Construir query params
-    const queryParams = new URLSearchParams();
-
-    if (params.page) queryParams.append('page', params.page);
-    if (params.per_page) queryParams.append('per_page', params.per_page);
-    if (params.search) queryParams.append('search', params.search);
-    if (params.sort_by) queryParams.append('sort_by', params.sort_by);
-    if (params.sort_dir) queryParams.append('sort_dir', params.sort_dir);
-
-    const queryString = queryParams.toString();
-    const url = `/api/customers${queryString ? `?${queryString}` : ''}`;
-
-    const response = await api.get(url);
+    const response = await api.get("/api/users/customers");
     let success = response.status != 200 || response.error ? false : true;
     return returnResponse(
       success,
@@ -125,6 +113,72 @@ export const storeByExcel = async (formData) => {
       success ? response.data.message : response.error,
       response.status,
       success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Obtener permisos de un cliente/usuario (formato report_X, cert_X, doc_X)
+export const getCustomerPermissions = async (userId) => {
+  try {
+    const response = await api.get(`/api/user-permissions/${userId}/all`);
+    let success = response.status != 200 || response.error ? false : true;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Asignar permisos masivamente a un cliente/usuario
+export const saveCustomerPermissions = async (userId, permissions) => {
+  try {
+    const response = await api.post(`/api/user-permissions/bulk`, {
+      user_id: userId,
+      permissions: permissions
+    });
+    let success = response.status != 200 || response.error ? false : true;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Cambiar estado de un cliente/usuario (habilitar/deshabilitar)
+export const toggleCustomerStatus = async (userId, status) => {
+  try {
+    const response = await api.patch(`/api/users/${userId}/status`, { status });
+    let success = response.status != 200 || response.error ? false : true;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Eliminar un cliente/usuario
+export const deleteCustomerUser = async (userId) => {
+  try {
+    const response = await api.delete(`/api/users/${userId}`);
+    let success = response.status != 200 || response.error ? false : true;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status
     );
   } catch (error) {
     return error;

@@ -3,7 +3,7 @@ import { Select } from "../../../components/ui/Select";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { Loader2, SaveIcon, X } from "lucide-react";
-import { getProfilesList } from "../../../services/profileService";
+import { getProfiles } from "../../../services/profileService";
 import { getCompaniesList } from "../../../services/companyService";
 import { createUser, getUserById, updateUser } from "../../../services/userService";
 import { handleSnackbar } from "../../../utils/messageHelpers";
@@ -154,7 +154,7 @@ const UserForm = ({ mode, register, onClose }) => {
     // Obtener lista de perfiles
     const fetchProfiles = async () => {
         try {
-            const response = await getProfilesList();
+            const response = await getProfiles();
             if (response.success) {
                 setRegisters(response.data || []);
             }

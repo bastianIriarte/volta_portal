@@ -143,62 +143,32 @@ export default function CertificatePreview({ template, fields, data }) {
       );
     }
 
-    // Si no hay HTML del backend, usar la configuración de columnas (para preview en builder)
-    const tableData = data?.details || [];
-    const columns = field.table_columns || [
-      { key: "fecha", label: "Fecha", width: "15%" },
-      { key: "orden_trabajo", label: "Orden de Trabajo", width: "15%" },
-      { key: "patente", label: "Patente", width: "12%" },
-      { key: "tipo_residuo", label: "Tipo de Residuo", width: "20%" },
-      { key: "cantidad", label: "Cantidad", width: "12%" },
-      { key: "destinatario", label: "Destinatario", width: "26%" },
-    ];
+    // Mostrar placeholder genérico para el builder
+    // El HTML real se generará desde el backend usando TableProcessorHelpers
+    const hasProcessor = !!field.processor_id;
 
     return (
-      <div className="py-4">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="bg-sky-600 text-white">
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className="px-2 py-2 text-left font-medium border border-sky-700"
-                  style={{ width: col.width }}
-                >
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {tableData.length > 0 ? (
-              tableData.map((row, index) => (
-                <tr
-                  key={index}
-                  className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                >
-                  {columns.map((col) => (
-                    <td
-                      key={col.key}
-                      className="px-2 py-1.5 border border-gray-200"
-                    >
-                      {row[col.key] || "—"}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-2 py-4 text-center text-gray-400 border border-gray-200"
-                >
-                  Sin datos
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="py-3">
+        <div className="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50/50 py-8 flex flex-col items-center justify-center">
+          {/* Ícono de tabla */}
+          <div className="w-14 h-14 bg-sky-100 rounded-xl flex items-center justify-center mb-3">
+            <svg className="w-8 h-8 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M3 14h18M3 6h18M3 18h18M8 6v12M16 6v12" />
+            </svg>
+          </div>
+          {/* Label */}
+          <span className="text-sm font-medium text-gray-600">
+            {hasProcessor && field.processor_name
+              ? `Tabla: ${field.processor_name}`
+              : field.field_label || "Tabla de datos"}
+          </span>
+          {/* Badge de procesador */}
+          {!hasProcessor && (
+            <span className="mt-1 text-xs text-gray-400">
+              Sin procesador
+            </span>
+          )}
+        </div>
       </div>
     );
   };

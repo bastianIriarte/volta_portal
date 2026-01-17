@@ -65,7 +65,7 @@ export const createDataSource = async (data) => {
 export const updateDataSource = async (id, data) => {
   try {
     const response = await api.put(`/api/data-sources/${id}`, data);
-    let success = response.status === 200 && response.data.status !== false;
+    let success = response.status === 204 && response.data.status !== false;
     return returnResponse(
       success,
       success ? response.data.message : response.data.message,
@@ -97,20 +97,30 @@ export const deleteDataSource = async (id) => {
 
 /**
  * Probar una query sin guardar
+ * @param {string} query - SQL query
+ * @param {object} params - Parametros para reemplazar en la query
+ * @param {string} connection - Tipo de conexion (agent)
+ * @param {boolean} getSchema - Si obtener schema de columnas
  */
-export const testQuery = async (query, params = {}, connection = "agent") => {
+export const testQuery = async (query, params = {}, connection = "agent", getSchema = true) => {
   try {
     const response = await api.post("/api/data-sources/test-query", {
       query,
       params,
       connection,
+      get_schema: getSchema,
     });
     let success = response.status === 200 && response.data.status !== false;
     return returnResponse(
       success,
       success ? "Query ejecutada exitosamente" : response.data.error || response.data.message,
       response.status,
-      success ? { data: response.data.data, columns: response.data.columns, total: response.data.total } : null
+      success ? {
+        data: response.data.data,
+        columns: response.data.columns,
+        total: response.data.total,
+        query_method: response.data.query_method
+      } : null
     );
   } catch (error) {
     return error;

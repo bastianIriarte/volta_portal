@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import DashboardAdminView from "./admin/DashboardAdminView";
 import DashboardParentView from "./parent/DashboardParentView";
+import CustomerDashboardView from "./customer/CustomerDashboardView";
 import { useAuth } from "../../context/auth";
 import { getDataDashboard } from "../../services/dashboardService";
 import Loading from "../../components/ui/Loading";
@@ -11,7 +12,16 @@ export default function DashboardView() {
   const [dataDashboard, setDataDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Los clientes no necesitan cargar datos del dashboard admin
+  const isCustomer = role === "customer";
+
   useEffect(() => {
+    // Si es cliente, no cargar datos del dashboard admin
+    if (isCustomer) {
+      setLoading(false);
+      return;
+    }
+
     const fetchDashboard = async () => {
       try {
         const res = await getDataDashboard();
@@ -27,13 +37,12 @@ export default function DashboardView() {
       } finally {
         setTimeout(() => {
           setLoading(false);
-
         }, 300);
       }
     };
 
     fetchDashboard();
-  }, []);
+  }, [isCustomer]);
 
   if (loading) {
     return (
@@ -47,8 +56,11 @@ export default function DashboardView() {
     );
   }
 
-
   // Mostrar dashboard según rol
+  if (role === "customer") {
+    return <CustomerDashboardView />;
+  }
+
   if (role === "parent") {
     return <DashboardParentView dataDashboard={dataDashboard} />;
   }
