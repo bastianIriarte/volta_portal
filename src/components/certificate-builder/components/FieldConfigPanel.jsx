@@ -535,7 +535,10 @@ export default function FieldConfigPanel({
                   <summary className="text-xs font-medium text-gray-600 cursor-pointer px-2 py-1.5 hover:bg-gray-100 flex items-center gap-1">
                     <span>Insertar variable</span>
                     <span className="text-[10px] bg-gray-200 px-1 rounded ml-auto">
-                      {(availableVariables.system?.length || 0) + (availableVariables.data_source_info?.columns?.length || 0)}
+                      {((availableVariables.system?.sistema?.length || 0) +
+                        (availableVariables.system?.empresa?.length || 0) +
+                        (availableVariables.system?.certificado?.length || 0) +
+                        (availableVariables.data_source_info?.columns?.length || 0))}
                     </span>
                   </summary>
                   <div className="p-2 border-t border-gray-200 space-y-2">
@@ -551,14 +554,14 @@ export default function FieldConfigPanel({
                       />
                     </div>
 
-                    {/* Variables de sistema */}
-                    {(availableVariables.system || [])
+                    {/* Variables de Sistema (fechas) */}
+                    {(availableVariables.system?.sistema || [])
                       .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
                       .length > 0 && (
                         <div>
                           <p className="text-[10px] font-medium text-sky-600 mb-1">Sistema</p>
-                          <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
-                            {(availableVariables.system || [])
+                          <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+                            {(availableVariables.system?.sistema || [])
                               .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
                               .map((v) => (
                                 <button
@@ -582,13 +585,75 @@ export default function FieldConfigPanel({
                         </div>
                       )}
 
+                    {/* Variables de Empresa */}
+                    {(availableVariables.system?.empresa || [])
+                      .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
+                      .length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-medium text-violet-600 mb-1">Empresa</p>
+                          <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+                            {(availableVariables.system?.empresa || [])
+                              .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
+                              .map((v) => (
+                                <button
+                                  key={v.key}
+                                  type="button"
+                                  onClick={() => {
+                                    const textarea = document.getElementById(`textarea-${field.id}`);
+                                    const start = textarea?.selectionStart || (editedField.default_value || "").length;
+                                    const currentValue = editedField.default_value || "";
+                                    const newValue = currentValue.slice(0, start) + `{${v.key}}` + currentValue.slice(start);
+                                    handleChange("default_value", newValue);
+                                    handleSnackbar(`{${v.key}} insertado`, "info");
+                                  }}
+                                  className="px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-700 rounded hover:bg-violet-200 transition-colors"
+                                  title={v.label}
+                                >
+                                  {v.key.split('.').pop()}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Variables de Certificado */}
+                    {(availableVariables.system?.certificado || [])
+                      .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
+                      .length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-medium text-amber-600 mb-1">Certificado</p>
+                          <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+                            {(availableVariables.system?.certificado || [])
+                              .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
+                              .map((v) => (
+                                <button
+                                  key={v.key}
+                                  type="button"
+                                  onClick={() => {
+                                    const textarea = document.getElementById(`textarea-${field.id}`);
+                                    const start = textarea?.selectionStart || (editedField.default_value || "").length;
+                                    const currentValue = editedField.default_value || "";
+                                    const newValue = currentValue.slice(0, start) + `{${v.key}}` + currentValue.slice(start);
+                                    handleChange("default_value", newValue);
+                                    handleSnackbar(`{${v.key}} insertado`, "info");
+                                  }}
+                                  className="px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition-colors"
+                                  title={v.label}
+                                >
+                                  {v.key.split('.').pop()}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
                     {/* Variables del origen de datos */}
                     {(availableVariables.data_source_info?.columns || [])
                       .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
                       .length > 0 && (
                         <div>
                           <p className="text-[10px] font-medium text-emerald-600 mb-1">
-                            Origen: {availableVariables.data_source_info?.name || "SQL"}
+                            Consulta SQL Asociada
                           </p>
                           <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                             {(availableVariables.data_source_info?.columns || [])
@@ -616,7 +681,10 @@ export default function FieldConfigPanel({
                       )}
 
                     {/* Sin variables */}
-                    {(availableVariables.system?.length || 0) === 0 && (availableVariables.data_source_info?.columns?.length || 0) === 0 && (
+                    {((availableVariables.system?.sistema?.length || 0) +
+                      (availableVariables.system?.empresa?.length || 0) +
+                      (availableVariables.system?.certificado?.length || 0)) === 0 &&
+                      (availableVariables.data_source_info?.columns?.length || 0) === 0 && (
                       <p className="text-[10px] text-gray-500 text-center py-2">
                         Sin variables disponibles. Configura un origen de datos en la plantilla.
                       </p>
@@ -1316,25 +1384,25 @@ export default function FieldConfigPanel({
                   )}
                 </div>
 
-                {/* Variables de Sistema */}
+                {/* Variables de Sistema (fechas) */}
                 {(() => {
-                  const filteredSystem = (availableVariables.system || []).filter(
+                  const filteredSistema = (availableVariables.system?.sistema || []).filter(
                     (v) =>
                       !variableSearch ||
                       v.key.toLowerCase().includes(variableSearch.toLowerCase()) ||
                       v.label.toLowerCase().includes(variableSearch.toLowerCase())
                   );
-                  if (filteredSystem.length === 0 && variableSearch) return null;
+                  if (filteredSistema.length === 0) return null;
                   return (
                     <div className="border border-sky-200 rounded-lg overflow-hidden">
                       <div className="px-2 py-1.5 bg-sky-100 flex items-center justify-between">
-                        <span className="text-xs font-medium text-sky-800">Variables de Sistema</span>
+                        <span className="text-xs font-medium text-sky-800">Sistema</span>
                         <span className="text-[10px] bg-sky-200 text-sky-700 px-1.5 rounded-full">
-                          {filteredSystem.length}
+                          {filteredSistema.length}
                         </span>
                       </div>
-                      <div className="divide-y divide-sky-100 max-h-40 overflow-y-auto">
-                        {filteredSystem.map((v) => (
+                      <div className="divide-y divide-sky-100 max-h-32 overflow-y-auto">
+                        {filteredSistema.map((v) => (
                           <div
                             key={v.key}
                             className="px-2 py-1.5 hover:bg-sky-50 flex items-center justify-between gap-2"
@@ -1350,6 +1418,90 @@ export default function FieldConfigPanel({
                                 {v.sample || "-"}
                               </span>
                               <span className="text-[8px] text-sky-500 uppercase">{v.type}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Variables de Empresa */}
+                {(() => {
+                  const filteredEmpresa = (availableVariables.system?.empresa || []).filter(
+                    (v) =>
+                      !variableSearch ||
+                      v.key.toLowerCase().includes(variableSearch.toLowerCase()) ||
+                      v.label.toLowerCase().includes(variableSearch.toLowerCase())
+                  );
+                  if (filteredEmpresa.length === 0) return null;
+                  return (
+                    <div className="border border-violet-200 rounded-lg overflow-hidden">
+                      <div className="px-2 py-1.5 bg-violet-100 flex items-center justify-between">
+                        <span className="text-xs font-medium text-violet-800">Empresa</span>
+                        <span className="text-[10px] bg-violet-200 text-violet-700 px-1.5 rounded-full">
+                          {filteredEmpresa.length}
+                        </span>
+                      </div>
+                      <div className="divide-y divide-violet-100 max-h-32 overflow-y-auto">
+                        {filteredEmpresa.map((v) => (
+                          <div
+                            key={v.key}
+                            className="px-2 py-1.5 hover:bg-violet-50 flex items-center justify-between gap-2"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <code className="text-[11px] text-violet-700 font-mono font-medium">
+                                {`{${v.key}}`}
+                              </code>
+                              <p className="text-[10px] text-gray-500 truncate">{v.label}</p>
+                            </div>
+                            <div className="flex-shrink-0 text-right">
+                              <span className="text-[9px] text-gray-400 block italic">
+                                {v.sample || "-"}
+                              </span>
+                              <span className="text-[8px] text-violet-500 uppercase">{v.type}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Variables de Certificado */}
+                {(() => {
+                  const filteredCertificado = (availableVariables.system?.certificado || []).filter(
+                    (v) =>
+                      !variableSearch ||
+                      v.key.toLowerCase().includes(variableSearch.toLowerCase()) ||
+                      v.label.toLowerCase().includes(variableSearch.toLowerCase())
+                  );
+                  if (filteredCertificado.length === 0) return null;
+                  return (
+                    <div className="border border-amber-200 rounded-lg overflow-hidden">
+                      <div className="px-2 py-1.5 bg-amber-100 flex items-center justify-between">
+                        <span className="text-xs font-medium text-amber-800">Certificado</span>
+                        <span className="text-[10px] bg-amber-200 text-amber-700 px-1.5 rounded-full">
+                          {filteredCertificado.length}
+                        </span>
+                      </div>
+                      <div className="divide-y divide-amber-100 max-h-32 overflow-y-auto">
+                        {filteredCertificado.map((v) => (
+                          <div
+                            key={v.key}
+                            className="px-2 py-1.5 hover:bg-amber-50 flex items-center justify-between gap-2"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <code className="text-[11px] text-amber-700 font-mono font-medium">
+                                {`{${v.key}}`}
+                              </code>
+                              <p className="text-[10px] text-gray-500 truncate">{v.label}</p>
+                            </div>
+                            <div className="flex-shrink-0 text-right">
+                              <span className="text-[9px] text-gray-400 block italic">
+                                {v.sample || "-"}
+                              </span>
+                              <span className="text-[8px] text-amber-500 uppercase">{v.type}</span>
                             </div>
                           </div>
                         ))}
@@ -1401,21 +1553,31 @@ export default function FieldConfigPanel({
                 })()}
 
                 {/* Mensaje si no hay resultados en búsqueda */}
-                {variableSearch &&
-                  (availableVariables.system || []).filter(
+                {variableSearch && (() => {
+                  const allSystemVars = [
+                    ...(availableVariables.system?.sistema || []),
+                    ...(availableVariables.system?.empresa || []),
+                    ...(availableVariables.system?.certificado || []),
+                  ];
+                  const filteredSystem = allSystemVars.filter(
                     (v) =>
                       v.key.toLowerCase().includes(variableSearch.toLowerCase()) ||
                       v.label.toLowerCase().includes(variableSearch.toLowerCase())
-                  ).length === 0 &&
-                  (availableVariables.data_source_info?.columns || []).filter(
+                  );
+                  const filteredDataSource = (availableVariables.data_source_info?.columns || []).filter(
                     (v) =>
                       v.key.toLowerCase().includes(variableSearch.toLowerCase()) ||
                       v.label.toLowerCase().includes(variableSearch.toLowerCase())
-                  ).length === 0 && (
-                    <div className="p-2 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500 text-center">
-                      No se encontraron variables con "{variableSearch}"
-                    </div>
-                  )}
+                  );
+                  if (filteredSystem.length === 0 && filteredDataSource.length === 0) {
+                    return (
+                      <div className="p-2 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500 text-center">
+                        No se encontraron variables con "{variableSearch}"
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </>
             )}
           </div>

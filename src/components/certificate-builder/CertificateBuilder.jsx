@@ -254,7 +254,7 @@ export default function CertificateBuilder({ templateId, onClose }) {
     setDragOverSection(null);
     if (!draggedField) return;
 
-    const sectionLabels = { header: "Encabezado", body: "Cuerpo", footer: "Pie" };
+    const sectionLabels = { header: "Encabezado", body: "Cuerpo", signature_area: "Área de Firma", footer: "Pie" };
 
     // Cerrar panel de estilos si está abierto
     setStylePanel({ show: false, fieldId: null });
@@ -789,6 +789,28 @@ export default function CertificateBuilder({ templateId, onClose }) {
               stylePanel={stylePanel}
               setStylePanel={setStylePanel}
               isMain
+            />
+
+            {/* Área de Firma - Solo aparece en la última página */}
+            <CertificateSection
+              section="signature_area"
+              label="Área de Firma"
+              fields={getFieldsBySection("signature_area")}
+              dragOverSection={dragOverSection}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onRemoveField={handleRemoveField}
+              onConfigureField={handleConfigureField}
+              onDuplicateField={handleDuplicateField}
+              onReorder={handleReorder}
+              onQuickStyleUpdate={handleQuickStyleUpdate}
+              config={config}
+              resolveValue={resolveValue}
+              simulatedData={simulatedData}
+              template={template}
+              stylePanel={stylePanel}
+              setStylePanel={setStylePanel}
             />
 
             {/* Footer */}
