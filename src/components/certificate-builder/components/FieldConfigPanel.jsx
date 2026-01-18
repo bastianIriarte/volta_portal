@@ -238,7 +238,7 @@ export default function FieldConfigPanel({
   const FieldIcon = getIcon(config?.field_types?.[field.field_type]?.icon || "Type");
 
   return (
-    <div className="w-72 bg-white border-l border-gray-200 flex flex-col flex-shrink-0 h-full">
+    <div className="w-full sm:w-80 lg:w-72 bg-white border-l border-gray-200 flex flex-col flex-shrink-0 h-full max-h-screen lg:max-h-full overflow-hidden">
       {/* Header */}
       <div className="p-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
         <div className="flex items-center gap-2 min-w-0">

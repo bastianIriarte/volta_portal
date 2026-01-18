@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../../components/ui/Button.jsx";
 import { Modal } from "../../components/ui/Modal.jsx";
 import { Input } from "../../components/ui/Input.jsx";
@@ -14,13 +14,11 @@ import {
   Trash2,
   Play,
   Loader2,
-  RefreshCw,
   Code2,
   CheckCircle,
   XCircle,
   AlertCircle,
   Table2,
-  FileJson,
   Shield,
   Unlock,
   Eye,
@@ -65,10 +63,8 @@ const SUGGESTED_PARAMS = [
  */
 const extractQueryParams = (query) => {
   if (!query) return [];
-  // Busca patrones :nombreParametro (letras, numeros y guiones bajos)
   const matches = query.match(/:([a-zA-Z_][a-zA-Z0-9_]*)/g);
   if (!matches) return [];
-  // Elimina el : y devuelve valores unicos
   const params = matches.map((m) => m.slice(1));
   return [...new Set(params)];
 };
@@ -81,7 +77,7 @@ export default function DataSourcesView() {
   // Modal de formulario
   const [formModal, setFormModal] = useState({ open: false, mode: "create", data: null });
   const [formData, setFormData] = useState(emptyForm);
-  const [formTestParams, setFormTestParams] = useState({}); // Valores de prueba para validar query
+  const [formTestParams, setFormTestParams] = useState({});
   const [saving, setSaving] = useState(false);
 
   // Modal de preview/test
@@ -97,18 +93,18 @@ export default function DataSourcesView() {
   // SQL Runner
   const [showSqlRunner, setShowSqlRunner] = useState(false);
 
+  const { modals, openConfirm, closeModal } = useModals();
+
   // Configuración de la tabla
   const tableConfig = {
     defaultSort: "id",
     defaultSortDir: "desc",
     pageSize: 10,
-    searchFields: ["id","name", "key", "code", "description"],
+    searchFields: ["id", "name", "key", "code", "description"],
   };
 
   const { q, setQ, sortBy, sortDir, page, setPage, filteredData, pageData, totalPages, handleSort } =
     useTableLogic(dataSources, tableConfig);
-
-  const { modals, openConfirm, closeModal } = useModals();
 
   // Cargar datos
   const fetchData = async () => {
@@ -136,7 +132,7 @@ export default function DataSourcesView() {
   // Columnas de la tabla
   const columns = [
     { key: "id", label: "ID" },
-    { key: "name", label: "Nombre" },
+    { key: "name", label: "Consulta" },
     { key: "columns", label: "Columnas", sortable: false },
     { key: "status", label: "Estado", sortable: false },
     { key: "actions", label: "Acciones", sortable: false, headerClassName: "text-center" },
@@ -155,7 +151,6 @@ export default function DataSourcesView() {
       ...emptyForm,
       ...source,
     });
-    // Inicializar valores de prueba vacios para los parametros existentes
     const params = extractQueryParams(source.query_sql);
     const initialParams = {};
     params.forEach((p) => {
@@ -177,11 +172,10 @@ export default function DataSourcesView() {
       return;
     }
 
-    // Validar que se proporcionen valores de prueba si hay parametros
     const currentParams = extractQueryParams(formData.query_sql);
     const missingParams = currentParams.filter((p) => !formTestParams[p]?.trim());
     if (missingParams.length > 0) {
-      handleSnackbar(`Debes proporcionar valores de prueba para: ${missingParams.map(p => `:${p}`).join(", ")}`, "error");
+      handleSnackbar(`Debes proporcionar valores de prueba para: ${missingParams.map((p) => `:${p}`).join(", ")}`, "error");
       return;
     }
 
@@ -190,7 +184,7 @@ export default function DataSourcesView() {
       const dataToSave = {
         ...formData,
         code: formData.code || formData.key,
-        test_params: formTestParams, // Enviar parametros de prueba al backend
+        test_params: formTestParams,
       };
 
       let response;
@@ -218,8 +212,17 @@ export default function DataSourcesView() {
   // Eliminar
   const handleDelete = (source) => {
     openConfirm({
-      title: "Eliminar consulta SQL",
-      msg: `¿Estás seguro de eliminar la consulta "${source.name}"?`,
+      title: "Eliminar Consulta SQL",
+      msg: (
+        <div>
+          <p>
+            ¿Está seguro que desea eliminar la consulta <strong>{source.name}</strong>?
+          </p>
+          <p className="text-sm text-red-600 mt-2">
+            Esta acción no se puede deshacer. Los certificados que usen esta consulta podrían verse afectados.
+          </p>
+        </div>
+      ),
       variant: "danger",
       actionLabel: "Eliminar",
       onConfirm: async () => {
@@ -243,10 +246,8 @@ export default function DataSourcesView() {
   const handleTest = (source) => {
     setTestModal({ open: true, source });
     setTestResult(null);
-    // Detectar parametros de la query
     const params = extractQueryParams(source.query_sql);
     setDetectedParams(params);
-    // Inicializar valores vacios para cada parametro
     const initialParams = {};
     params.forEach((p) => {
       initialParams[p] = "";
@@ -279,25 +280,26 @@ export default function DataSourcesView() {
   // Acciones por fila
   const getRowActions = () => [
     {
-      label: "Probar",
+      label: "",
       icon: Play,
       variant: "outline",
       onClick: handleTest,
-      title: "Probar consulta SQL",
+      title: "Probar consulta",
+      className: "text-cyan-600 hover:text-cyan-900 hover:bg-cyan-50",
     },
     {
-      label: "Editar",
+      label: "",
       icon: Edit2,
       variant: "outline",
       onClick: handleEdit,
       title: "Editar consulta",
+      className: "text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50",
     },
     {
-      label: "Eliminar",
       icon: Trash2,
       variant: "danger",
       onClick: handleDelete,
-      title: "Eliminar consulta",
+      title: "Eliminar",
     },
   ];
 
@@ -308,23 +310,25 @@ export default function DataSourcesView() {
 
     return (
       <tr key={source.id} className="border-t hover:bg-gray-50">
+        <td className="px-3 py-2 text-sm text-gray-500">{source.id}</td>
         <td className="px-3 py-2">
-          {source.id}
-        </td>
-        <td className="px-3 py-2">
-          <div className="font-medium text-gray-900 flex items-center gap-2">
-            <Code2 className="w-4 h-4 text-blue-600" />
-            {source.name}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded flex items-center justify-center bg-blue-50">
+              <Database className="h-4 w-4 text-blue-600" />
+            </div>
+            <div>
+              <div className="font-medium text-gray-900">{source.name}</div>
+              {source.description && (
+                <div className="text-xs text-gray-500 truncate max-w-xs">{source.description}</div>
+              )}
+            </div>
           </div>
-          {source.description && (
-            <div className="text-xs text-gray-500 truncate max-w-xs ml-6">{source.description}</div>
-          )}
         </td>
         <td className="px-3 py-2">
           {columnsCount > 0 ? (
             <button
               onClick={() => setColumnsModal({ open: true, source })}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors cursor-pointer"
             >
               <Table2 className="w-3 h-3" />
               {columnsCount} columnas
@@ -347,7 +351,7 @@ export default function DataSourcesView() {
           )}
         </td>
         <td className="px-3 py-2">
-          <TableActions actions={getRowActions()} item={source} className="space-x-2" />
+          <TableActions actions={getRowActions()} item={source} className="justify-center" />
         </td>
       </tr>
     );
@@ -358,7 +362,7 @@ export default function DataSourcesView() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-bradford-navy mb-2">Consultas SQL</h2>
+          <h2 className="text-3xl font-bold text-bradford-navy mb-2">Fuentes de Datos</h2>
           <p className="text-bradford-navy/70">
             Configura consultas SQL para alimentar reportes y certificados
           </p>
@@ -378,15 +382,14 @@ export default function DataSourcesView() {
 
       {/* Filtros */}
       <GenericFilters
-        searchPlaceholder="Buscar por nombre..."
+        searchPlaceholder="Buscar por nombre o descripción..."
         searchValue={q}
         onSearchChange={setQ}
         resultsCount={filteredData.length}
         showAddButton={true}
         onAdd={handleCreate}
         addButtonLabel="Nueva Consulta"
-      >
-      </GenericFilters>
+      />
 
       {/* Tabla */}
       <GenericTable
@@ -464,7 +467,7 @@ export default function DataSourcesView() {
               placeholder="SELECT * FROM productos WHERE company_id = :company_id"
             />
 
-            {/* Parametros sugeridos - click para insertar */}
+            {/* Parametros sugeridos */}
             <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
               <p className="text-xs text-gray-600 mb-2">
                 <strong>Parametros disponibles</strong> (click para insertar):
@@ -549,7 +552,7 @@ export default function DataSourcesView() {
         ]}
       >
         <div className="space-y-4">
-          {/* Parámetros de prueba - generados dinámicamente */}
+          {/* Parámetros de prueba */}
           {detectedParams.length > 0 && (
             <div className="bg-slate-50 rounded-lg border border-slate-200 p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -607,7 +610,7 @@ export default function DataSourcesView() {
                 <Code2 className="w-4 h-4 text-slate-400" />
                 <span className="text-xs text-slate-400 uppercase tracking-wide">Query SQL</span>
               </div>
-              {detectedParams.length > 0 && Object.values(testParams).some(v => v) && (
+              {detectedParams.length > 0 && Object.values(testParams).some((v) => v) && (
                 <div className="flex items-center gap-1.5 text-xs text-cyan-400">
                   <Eye className="w-3 h-3" />
                   Vista previa con valores
@@ -617,11 +620,10 @@ export default function DataSourcesView() {
             <pre className="p-4 text-sm overflow-auto max-h-28 font-mono text-emerald-400">
               {(() => {
                 let sql = testModal.source?.query_sql || "Sin query";
-                // Reemplazar parametros con valores para vista previa
                 Object.entries(testParams).forEach(([key, value]) => {
                   if (value) {
                     sql = sql.replace(
-                      new RegExp(`:${key}`, 'g'),
+                      new RegExp(`:${key}`, "g"),
                       `<span class="text-amber-400">'${value}'</span>`
                     );
                   }
@@ -634,10 +636,11 @@ export default function DataSourcesView() {
           {/* Resultados */}
           {testResult && (
             <div className="rounded-lg border overflow-hidden">
-              {/* Header de resultados */}
-              <div className={`px-4 py-3 flex items-center justify-between ${
-                testResult.success ? "bg-emerald-50 border-b border-emerald-200" : "bg-red-50 border-b border-red-200"
-              }`}>
+              <div
+                className={`px-4 py-3 flex items-center justify-between ${
+                  testResult.success ? "bg-emerald-50 border-b border-emerald-200" : "bg-red-50 border-b border-red-200"
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   {testResult.success ? (
                     <>
@@ -653,41 +656,42 @@ export default function DataSourcesView() {
                 </div>
                 {testResult.success && (
                   <div className="flex items-center gap-3">
-                    {/* Método usado */}
                     {testResult.data?.query_method && (
-                      <div className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded ${
-                        testResult.data.query_method === 'encrypted'
-                          ? "bg-violet-100 text-violet-700"
-                          : "bg-slate-100 text-slate-600"
-                      }`}>
-                        {testResult.data.query_method === 'encrypted' ? (
+                      <div
+                        className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded ${
+                          testResult.data.query_method === "encrypted"
+                            ? "bg-violet-100 text-violet-700"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {testResult.data.query_method === "encrypted" ? (
                           <Shield className="w-3 h-3" />
                         ) : (
                           <Unlock className="w-3 h-3" />
                         )}
-                        {testResult.data.query_method === 'encrypted' ? 'Encriptado' : 'Plano'}
+                        {testResult.data.query_method === "encrypted" ? "Encriptado" : "Plano"}
                       </div>
                     )}
-                    {/* Total de registros */}
                     <div className="flex items-center gap-1.5 text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">
                       <Table2 className="w-3 h-3" />
-                      {testResult.data?.total || 0} {(testResult.data?.total || 0) === 1 ? 'registro' : 'registros'}
+                      {testResult.data?.total || 0} {(testResult.data?.total || 0) === 1 ? "registro" : "registros"}
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Contenido de resultados */}
               <div className="bg-white">
                 {testResult.success ? (
                   testResult.data?.data?.length > 0 ? (
-                    // Tabla de resultados
                     <div className="overflow-auto max-h-64">
                       <table className="w-full text-sm">
                         <thead className="bg-slate-50 sticky top-0">
                           <tr>
                             {testResult.data.columns?.map((col, i) => (
-                              <th key={i} className="px-3 py-2 text-left text-xs font-medium text-slate-600 uppercase tracking-wider border-b border-slate-200">
+                              <th
+                                key={i}
+                                className="px-3 py-2 text-left text-xs font-medium text-slate-600 uppercase tracking-wider border-b border-slate-200"
+                              >
                                 {col}
                               </th>
                             ))}
@@ -698,7 +702,7 @@ export default function DataSourcesView() {
                             <tr key={i} className="hover:bg-slate-50">
                               {testResult.data.columns?.map((col, j) => (
                                 <td key={j} className="px-3 py-2 text-slate-700 whitespace-nowrap max-w-xs truncate">
-                                  {row[col] !== null && row[col] !== undefined ? String(row[col]) : '-'}
+                                  {row[col] !== null && row[col] !== undefined ? String(row[col]) : "-"}
                                 </td>
                               ))}
                             </tr>
@@ -712,7 +716,6 @@ export default function DataSourcesView() {
                       )}
                     </div>
                   ) : (
-                    // Sin resultados
                     <div className="py-8 text-center">
                       <AlertCircle className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                       <p className="text-slate-500 text-sm">La consulta no retorno resultados</p>
@@ -720,7 +723,6 @@ export default function DataSourcesView() {
                     </div>
                   )
                 ) : (
-                  // Error
                   <div className="p-4">
                     <pre className="text-sm text-red-600 bg-red-50 p-3 rounded-lg overflow-auto font-mono">
                       {testResult.error}
@@ -786,7 +788,6 @@ export default function DataSourcesView() {
       >
         {columnsModal.source && (
           <div className="space-y-4">
-            {/* Info de la consulta */}
             <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
               <p className="text-xs text-slate-500 mb-1">Consulta SQL</p>
               <p className="text-sm font-medium text-slate-700">{columnsModal.source.name}</p>
@@ -795,7 +796,6 @@ export default function DataSourcesView() {
               )}
             </div>
 
-            {/* Lista de columnas */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-medium text-gray-700">

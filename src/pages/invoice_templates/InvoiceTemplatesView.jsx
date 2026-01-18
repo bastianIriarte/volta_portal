@@ -5,8 +5,6 @@ import {
   Search,
   Edit2,
   Trash2,
-  ToggleLeft,
-  ToggleRight,
   X,
   Save,
   Loader2,
@@ -363,27 +361,19 @@ export default function InvoiceTemplatesView() {
                 />
               </div>
 
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-gray-700">Estado:</label>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, status: !formData.status })}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    formData.status ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"
-                  }`}
+              {/* Estado - Select */}
+              <div>
+                <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                  Estado
+                </label>
+                <select
+                  value={formData.status ? "1" : "0"}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value === "1" })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 >
-                  {formData.status ? (
-                    <>
-                      <ToggleRight className="w-4 h-4" />
-                      Activo
-                    </>
-                  ) : (
-                    <>
-                      <ToggleLeft className="w-4 h-4" />
-                      Inactivo
-                    </>
-                  )}
-                </button>
+                  <option value="1">Activo</option>
+                  <option value="0">Inactivo</option>
+                </select>
               </div>
             </div>
 

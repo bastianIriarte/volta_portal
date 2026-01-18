@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Save, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
+import { X, Save, Loader2 } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 
@@ -56,29 +56,16 @@ export default function DocumentModal({
             onChange={(e) => onFormChange({ ...formData, file_path: e.target.value })}
           />
 
-          <div className="flex items-center gap-3">
-            <label className="text-[11px] font-bold text-neutral-600 uppercase">Estado:</label>
-            <button
-              type="button"
-              onClick={() => onFormChange({ ...formData, status: !formData.status })}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                formData.status
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-200 text-gray-600'
-              }`}
+          <div>
+            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">Estado</label>
+            <select
+              value={formData.status ? "1" : "0"}
+              onChange={(e) => onFormChange({ ...formData, status: e.target.value === "1" })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
-              {formData.status ? (
-                <>
-                  <ToggleRight className="w-4 h-4" />
-                  Activo
-                </>
-              ) : (
-                <>
-                  <ToggleLeft className="w-4 h-4" />
-                  Inactivo
-                </>
-              )}
-            </button>
+              <option value="1">Activo</option>
+              <option value="0">Inactivo</option>
+            </select>
           </div>
         </div>
 

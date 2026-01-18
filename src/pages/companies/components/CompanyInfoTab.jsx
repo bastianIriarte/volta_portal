@@ -1,5 +1,5 @@
 import React from "react";
-import { ToggleLeft, ToggleRight, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 
@@ -67,25 +67,14 @@ export default function CompanyInfoTab({
         />
         <div>
           <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">Estado</label>
-          <button
-            onClick={() => onFormChange("status", !formData.status)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${formData.status
-                ? "bg-green-50 border-green-200 text-green-700"
-                : "bg-red-50 border-red-200 text-red-700"
-              }`}
+          <select
+            value={formData.status ? "1" : "0"}
+            onChange={(e) => onFormChange("status", e.target.value === "1")}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           >
-            {formData.status ? (
-              <>
-                <ToggleRight className="w-5 h-5" />
-                Activa
-              </>
-            ) : (
-              <>
-                <ToggleLeft className="w-5 h-5" />
-                Inactiva
-              </>
-            )}
-          </button>
+            <option value="1">Activa</option>
+            <option value="0">Inactiva</option>
+          </select>
         </div>
       </div>
       <div className="flex justify-end pt-4 border-t">

@@ -458,3 +458,24 @@ export const buildTableFromSource = async (sourceId, params = {}, options = {}) 
     return error;
   }
 };
+
+/**
+ * Obtiene las sucursales de una empresa desde SAP (OCRD)
+ * @param {string} companyRut - RUT de la empresa
+ * @returns {Promise<{success: boolean, data: Array}>}
+ */
+export const getBranches = async (companyRut) => {
+  try {
+    const response = await api.get(`/api/certificate-builder/branches/${encodeURIComponent(companyRut)}`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : []
+    );
+  } catch (error) {
+    console.error("Error obteniendo sucursales:", error);
+    return returnResponse(false, error.message || "Error al obtener sucursales", 500, []);
+  }
+};

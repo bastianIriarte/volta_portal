@@ -36,6 +36,8 @@ const emptyForm = {
   primary_color: "#0284c7",
   secondary_color: "#64748b",
   data_source_id: "",
+  query_branches: false,
+  search_type: "range",
 };
 
 export default function CertificateBuilderView() {
@@ -131,6 +133,8 @@ export default function CertificateBuilderView() {
       filepath: template.filepath || "",
       status: template.status ?? 1,
       data_source_id: template.data_source_id || "",
+      query_branches: template.query_branches ?? false,
+      search_type: template.search_type || "range",
     });
     setFormModal({ open: true, mode: "edit", data: template });
   };
@@ -162,6 +166,8 @@ export default function CertificateBuilderView() {
           primary_color: formData.primary_color,
           secondary_color: formData.secondary_color,
           data_source_id: formData.data_source_id || null,
+          query_branches: formData.query_branches ?? false,
+          search_type: formData.search_type || "range",
           status: 1,
         });
 
@@ -179,6 +185,8 @@ export default function CertificateBuilderView() {
           description: formData.description,
           filepath: formData.filepath || null,
           data_source_id: formData.data_source_id || null,
+          query_branches: formData.query_branches ?? false,
+          search_type: formData.search_type || "range",
           status: formData.status,
         });
 

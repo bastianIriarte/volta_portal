@@ -4,7 +4,6 @@ import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { Loader2, SaveIcon, X } from "lucide-react";
 import { getProfiles } from "../../../services/profileService";
-import { getCompaniesList } from "../../../services/companyService";
 import { createUser, getUserById, updateUser } from "../../../services/userService";
 import { handleSnackbar } from "../../../utils/messageHelpers";
 import { validateField } from "../../../utils/validators";
@@ -16,37 +15,18 @@ const UserForm = ({ mode, register, onClose }) => {
     const isRoot = session?.user?.role === 'root';
 
     const [loading, setLoading] = useState(false);
-    const [companies, setCompanies] = useState([]);
     const [form, setForm] = useState({
         id: Math.random().toString(36).substring(2, 10),
         name: "",
         rut: "",
         email: "",
         profile: "",
-        company: "",
         status: true,
     });
 
     const [registers, setRegisters] = useState([]);
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState({});
-
-    // Cargar lista de empresas si es root
-    useEffect(() => {
-        if (isRoot) {
-            const fetchCompanies = async () => {
-                try {
-                    const response = await getCompaniesList();
-                    if (response.success) {
-                        setCompanies(response.data || []);
-                    }
-                } catch (error) {
-                    console.error("Error al cargar empresas:", error);
-                }
-            };
-            fetchCompanies();
-        }
-    }, [isRoot]);
 
     // 🔹 Validar un campo individual usando el validador unificado
     const validateSingleField = (field, value) => {
@@ -55,7 +35,7 @@ const UserForm = ({ mode, register, onClose }) => {
         let customMessage = "Campo requerido";
 
         // Definir campos requeridos
-        const requiredFields = ["name", "rut", "email", "profile", "company"];
+        const requiredFields = ["name", "rut", "email", "profile"];
         isRequired = requiredFields.includes(field);
 
         // Definir el tipo de validación según el campo
@@ -80,10 +60,6 @@ const UserForm = ({ mode, register, onClose }) => {
                 validationType = "status";
                 customMessage = "Seleccione un estado válido";
                 isRequired = mode === "edit";
-                break;
-            case "company":
-                validationType = "select";
-                customMessage = "Debe seleccionar una empresa";
                 break;
             default:
                 validationType = "text";
@@ -125,12 +101,6 @@ const UserForm = ({ mode, register, onClose }) => {
             }
         }
 
-        if (isRoot) {
-            const validationCompany = validateSingleField("company", form.company);
-            if (!validationCompany.isValid) {
-                newErrors.company = validationCompany.message;
-            }
-        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -178,7 +148,6 @@ const UserForm = ({ mode, register, onClose }) => {
                             rut: response.data.rut,
                             email: response.data.email,
                             profile: response.data.role,
-                            company: response.data.company_id || "",
                             status: response.data.status ? 1 : 0,
                         });
                     } else {
@@ -200,7 +169,6 @@ const UserForm = ({ mode, register, onClose }) => {
                     rut: "",
                     email: "",
                     profile: "",
-                    company: "",
                     status: true,
                 });
             }
@@ -247,27 +215,6 @@ const UserForm = ({ mode, register, onClose }) => {
             ) : (
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                        {/* Selector de Empresa (solo para root) */}
-                        {isRoot && (
-                            <div>
-                                <Select
-                                    required
-                                    label={'Empresa'}
-                                    height="h-37 py-2"
-                                    value={form.company}
-                                    onChange={(e) => handleChange("company", e.target.value)}
-                                    error={errors.company}
-                                >
-                                    <option value="">Seleccione...</option>
-                                    {companies.map((company) => (
-                                        <option key={company.id} value={company.id}>
-                                            {company.business_name} - {company.rut}
-                                        </option>
-                                    ))}
-                                </Select>
-                            </div>
-                        )}
                         <div>
                             <Input
                                 label="RUT"

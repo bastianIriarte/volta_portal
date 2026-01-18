@@ -1,10 +1,30 @@
 import { useState, useEffect } from "react";
-import { Award, Calendar, Loader2, Download, Building2 } from "lucide-react";
+import { Award, Calendar, Loader2, Download, Building2, ChevronDown, MapPin } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import { useAuth } from "../../context/auth";
-import { getCertificateTemplates, getCertificatesByCompany } from "../../services/companyService";
-import { generateCertificatePdfWithDates } from "../../services/certificateBuilderService";
+import { getCertificateTemplates, getCertificatesByCompany, getCompanies } from "../../services/companyService";
+import { generateCertificatePdfWithDates, getBranches } from "../../services/certificateBuilderService";
 import { handleSnackbar } from "../../utils/messageHelpers";
+
+// Meses para selector
+const MONTHS = [
+  { value: 1, label: "Enero" },
+  { value: 2, label: "Febrero" },
+  { value: 3, label: "Marzo" },
+  { value: 4, label: "Abril" },
+  { value: 5, label: "Mayo" },
+  { value: 6, label: "Junio" },
+  { value: 7, label: "Julio" },
+  { value: 8, label: "Agosto" },
+  { value: 9, label: "Septiembre" },
+  { value: 10, label: "Octubre" },
+  { value: 11, label: "Noviembre" },
+  { value: 12, label: "Diciembre" },
+];
+
+// Generar años (últimos 5 años)
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
 export default function ClientCertificatesView() {
   const { session } = useAuth();
@@ -15,16 +35,31 @@ export default function ClientCertificatesView() {
   const [selectedCert, setSelectedCert] = useState(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const [generating, setGenerating] = useState(false);
 
-  const baseURL = import.meta.env.VITE_API_BASE_URL;
+  // Sucursales
+  const [branches, setBranches] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState("");
+  const [loadingBranches, setLoadingBranches] = useState(false);
+
+  // Selector de empresa (para admin/root)
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+
   const userRole = session?.user?.role;
   const isAdmin = userRole === "root" || userRole === "admin";
   const companyId = session?.user?.company_id;
   const companyName = session?.user?.company?.business_name || "";
+  const companyRut = session?.user?.company?.rut || "";
 
   useEffect(() => {
     loadCertificates();
+    if (isAdmin) {
+      loadCompanies();
+    }
   }, [companyId, isAdmin]);
 
   const loadCertificates = async () => {
@@ -49,26 +84,116 @@ export default function ClientCertificatesView() {
     }
   };
 
+  const loadCompanies = async () => {
+    setLoadingCompanies(true);
+    try {
+      const response = await getCompanies();
+      if (response.success && response.data) {
+        setCompanies(response.data);
+      }
+    } catch (error) {
+      console.error("Error loading companies:", error);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
+
+  const loadBranches = async (rut) => {
+    if (!rut) {
+      setBranches([]);
+      return;
+    }
+
+    setLoadingBranches(true);
+    try {
+      const response = await getBranches(rut);
+      if (response.success && response.data) {
+        setBranches(response.data);
+      } else {
+        setBranches([]);
+      }
+    } catch (error) {
+      console.error("Error loading branches:", error);
+      setBranches([]);
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
+
   const handleOpenModal = (cert) => {
     setSelectedCert(cert);
-    // Valores por defecto: mes actual
+
+    // Reiniciar estados
+    setSelectedBranch("");
+    setBranches([]);
+
+    // Establecer fechas por defecto según tipo de búsqueda
     const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    setDateFrom(firstDay.toISOString().split("T")[0]);
-    setDateTo(lastDay.toISOString().split("T")[0]);
+    if (cert.search_type === "month") {
+      setSelectedMonth(now.getMonth() + 1);
+      setSelectedYear(now.getFullYear());
+    } else {
+      // Valores por defecto: mes actual para rango
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      setDateFrom(firstDay.toISOString().split("T")[0]);
+      setDateTo(lastDay.toISOString().split("T")[0]);
+    }
+
+    // Cargar sucursales si aplica
+    if (cert.query_branches) {
+      const rutToUse = isAdmin && selectedCompanyId
+        ? companies.find(c => c.id === parseInt(selectedCompanyId))?.rut
+        : companyRut;
+      if (rutToUse) {
+        loadBranches(rutToUse);
+      }
+    }
   };
 
   const handleCloseModal = () => {
     setSelectedCert(null);
     setDateFrom("");
     setDateTo("");
+    setSelectedBranch("");
+    setBranches([]);
+  };
+
+  // Cuando cambia la empresa seleccionada (para admin)
+  const handleCompanyChange = (e) => {
+    const newCompanyId = e.target.value;
+    setSelectedCompanyId(newCompanyId);
+    setSelectedBranch("");
+
+    // Si hay un certificado seleccionado y requiere sucursales, recargarlas
+    if (selectedCert?.query_branches && newCompanyId) {
+      const company = companies.find(c => c.id === parseInt(newCompanyId));
+      if (company?.rut) {
+        loadBranches(company.rut);
+      }
+    }
+  };
+
+  const getDateParams = () => {
+    if (selectedCert?.search_type === "month") {
+      // Calcular primer y último día del mes seleccionado
+      const firstDay = new Date(selectedYear, selectedMonth - 1, 1);
+      const lastDay = new Date(selectedYear, selectedMonth, 0);
+      return {
+        dateFrom: firstDay.toISOString().split("T")[0],
+        dateTo: lastDay.toISOString().split("T")[0],
+      };
+    }
+    return { dateFrom, dateTo };
   };
 
   const handleGeneratePDF = async () => {
     if (!selectedCert) return;
-    if (!dateFrom || !dateTo) {
-      handleSnackbar("Selecciona el rango de fechas", "error");
+
+    const { dateFrom: from, dateTo: to } = getDateParams();
+
+    if (!from || !to) {
+      handleSnackbar("Selecciona el periodo", "error");
       return;
     }
 
@@ -78,8 +203,8 @@ export default function ClientCertificatesView() {
       // Generar PDF con autenticación - descarga directa
       const result = await generateCertificatePdfWithDates(
         selectedCert.id,
-        dateFrom,
-        dateTo,
+        from,
+        to,
         true // true = descargar directamente
       );
 
@@ -98,24 +223,13 @@ export default function ClientCertificatesView() {
     }
   };
 
-  const handlePreview = async (cert) => {
-    try {
-      // Generar preview sin fechas (usará datos del mes actual por defecto)
-      const today = new Date();
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-      await generateCertificatePdfWithDates(
-        cert.id,
-        firstDay.toISOString().split("T")[0],
-        lastDay.toISOString().split("T")[0],
-        false
-      );
-    } catch (error) {
-      handleSnackbar("Error al generar preview", "error");
+  // Obtener empresa activa (la seleccionada o la del usuario)
+  const getActiveCompany = () => {
+    if (isAdmin && selectedCompanyId) {
+      return companies.find(c => c.id === parseInt(selectedCompanyId));
     }
+    return session?.user?.company;
   };
-
 
   if (loading) {
     return (
@@ -170,6 +284,19 @@ export default function ClientCertificatesView() {
               onClick={() => handleOpenModal(cert)}
               className="relative p-6 rounded-lg border-2 cursor-pointer transition-all duration-200 bg-blue-50 border-blue-200 hover:bg-blue-100 transform hover:scale-105 hover:shadow-lg"
             >
+              {/* Badge de tipo de búsqueda */}
+              {cert.search_type && (
+                <div className="absolute top-3 right-3">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    cert.search_type === "month"
+                      ? "bg-purple-100 text-purple-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}>
+                    {cert.search_type === "month" ? "Por mes" : "Por rango"}
+                  </span>
+                </div>
+              )}
+
               {/* Icono */}
               <div className="mb-4 text-blue-600">
                 <Award size={40} />
@@ -192,6 +319,16 @@ export default function ClientCertificatesView() {
                     Código: <span className="font-mono">{cert.code}</span>
                   </div>
                 )}
+
+                {/* Indicadores */}
+                <div className="flex items-center gap-2 mt-2">
+                  {cert.query_branches && (
+                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+                      <MapPin className="w-3 h-3" />
+                      Sucursales
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Footer */}
@@ -222,7 +359,7 @@ export default function ClientCertificatesView() {
             label: generating ? "Generando..." : "Generar PDF",
             variant: "primary",
             onClick: handleGeneratePDF,
-            disabled: generating || !dateFrom || !dateTo,
+            disabled: generating,
             icon: Download,
           },
         ]}
@@ -239,82 +376,194 @@ export default function ClientCertificatesView() {
             </div>
           </div>
 
-          {/* Rango de fechas */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Periodo del certificado
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Desde</label>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Hasta</label>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Accesos rápidos de periodo */}
-          <div>
-            <label className="block text-xs text-gray-500 mb-2">Accesos rápidos</label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: "Este mes", getValue: () => {
-                  const now = new Date();
-                  return {
-                    from: new Date(now.getFullYear(), now.getMonth(), 1),
-                    to: new Date(now.getFullYear(), now.getMonth() + 1, 0)
-                  };
-                }},
-                { label: "Mes anterior", getValue: () => {
-                  const now = new Date();
-                  return {
-                    from: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-                    to: new Date(now.getFullYear(), now.getMonth(), 0)
-                  };
-                }},
-                { label: "Últimos 3 meses", getValue: () => {
-                  const now = new Date();
-                  return {
-                    from: new Date(now.getFullYear(), now.getMonth() - 2, 1),
-                    to: new Date(now.getFullYear(), now.getMonth() + 1, 0)
-                  };
-                }},
-                { label: "Este año", getValue: () => {
-                  const now = new Date();
-                  return {
-                    from: new Date(now.getFullYear(), 0, 1),
-                    to: new Date(now.getFullYear(), 11, 31)
-                  };
-                }},
-              ].map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => {
-                    const { from, to } = preset.getValue();
-                    setDateFrom(from.toISOString().split("T")[0]);
-                    setDateTo(to.toISOString().split("T")[0]);
-                  }}
-                  className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+          {/* Selector de empresa (solo admin) */}
+          {isAdmin && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Empresa
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedCompanyId}
+                  onChange={handleCompanyChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm appearance-none bg-white"
                 >
-                  {preset.label}
-                </button>
-              ))}
+                  <option value="">Seleccionar empresa...</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.business_name} ({company.rut})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Selector de sucursal (si query_branches está activo) */}
+          {selectedCert?.query_branches && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4" />
+                  Sucursal
+                </div>
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm appearance-none bg-white"
+                  disabled={loadingBranches || branches.length === 0}
+                >
+                  <option value="">
+                    {loadingBranches
+                      ? "Cargando sucursales..."
+                      : branches.length === 0
+                        ? "Sin sucursales disponibles"
+                        : "Todas las sucursales"}
+                  </option>
+                  {branches.map((branch) => (
+                    <option key={branch.code} value={branch.code}>
+                      {branch.name} {branch.city ? `(${branch.city})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+              {loadingBranches && (
+                <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Cargando sucursales...
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Selector de periodo - CONDICIONAL según search_type */}
+          {selectedCert?.search_type === "month" ? (
+            /* Selector de mes y año */
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Periodo del certificado
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Mes</label>
+                  <div className="relative">
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm appearance-none bg-white"
+                    >
+                      {MONTHS.map((month) => (
+                        <option key={month.value} value={month.value}>
+                          {month.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Año</label>
+                  <div className="relative">
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm appearance-none bg-white"
+                    >
+                      {YEARS.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Rango de fechas (por defecto) */
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Periodo del certificado
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Desde</label>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Hasta</label>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Accesos rápidos de periodo */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">Accesos rápidos</label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "Este mes", getValue: () => {
+                      const now = new Date();
+                      return {
+                        from: new Date(now.getFullYear(), now.getMonth(), 1),
+                        to: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+                      };
+                    }},
+                    { label: "Mes anterior", getValue: () => {
+                      const now = new Date();
+                      return {
+                        from: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+                        to: new Date(now.getFullYear(), now.getMonth(), 0)
+                      };
+                    }},
+                    { label: "Últimos 3 meses", getValue: () => {
+                      const now = new Date();
+                      return {
+                        from: new Date(now.getFullYear(), now.getMonth() - 2, 1),
+                        to: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+                      };
+                    }},
+                    { label: "Este año", getValue: () => {
+                      const now = new Date();
+                      return {
+                        from: new Date(now.getFullYear(), 0, 1),
+                        to: new Date(now.getFullYear(), 11, 31)
+                      };
+                    }},
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        const { from, to } = preset.getValue();
+                        setDateFrom(from.toISOString().split("T")[0]);
+                        setDateTo(to.toISOString().split("T")[0]);
+                      }}
+                      className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Nota */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">

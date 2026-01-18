@@ -1,7 +1,6 @@
-// File: src/pages/companies/CompaniesView.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Pencil, Trash2 } from "lucide-react";
+import { Building2, Pencil, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import GenericFilters from "../../components/common/GenericFilters";
 import GenericTable from "../../components/common/GenericTable";
@@ -18,6 +17,8 @@ export default function CompaniesView() {
   const [loading, setLoading] = useState(true);
   const [trigger, setTrigger] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const { modals, openConfirm, closeModal } = useModals();
 
   // Configuración de la tabla
   const tableConfig = {
@@ -39,8 +40,6 @@ export default function CompaniesView() {
     totalPages,
     handleSort
   } = useTableLogic(companies, tableConfig);
-
-  const { modals, openConfirm, closeModal } = useModals();
 
   // Cargar empresas
   useEffect(() => {
@@ -67,6 +66,7 @@ export default function CompaniesView() {
 
   // Configuración de columnas
   const columns = [
+    { key: "id", label: "ID" },
     { key: "business_name", label: "Empresa" },
     { key: "sap_code", label: "Código SAP" },
     { key: "email", label: "Contacto" },
@@ -82,22 +82,31 @@ export default function CompaniesView() {
   const handleCreateModalClose = (shouldRefresh = false) => {
     setShowCreateModal(false);
     if (shouldRefresh) {
-      setTrigger(prev => prev + 1);
+      setTrigger((prev) => prev + 1);
     }
   };
 
-  const handleDelete = async (company) => {
+  const handleDelete = (company) => {
     openConfirm({
-      title: "Eliminar empresa",
-      msg: `¿Seguro que deseas eliminar la empresa <b>${company.business_name}</b>?<br/><br/><span class="text-sm text-gray-500">Esta acción no se puede deshacer. Los usuarios y documentos asociados podrían verse afectados.</span>`,
+      title: "Eliminar Empresa",
+      msg: (
+        <div>
+          <p>
+            ¿Está seguro que desea eliminar la empresa <strong>{company.business_name}</strong>?
+          </p>
+          <p className="text-sm text-red-600 mt-2">
+            Esta acción no se puede deshacer. Los usuarios y documentos asociados podrían verse afectados.
+          </p>
+        </div>
+      ),
       actionLabel: "Eliminar",
       variant: "danger",
       onConfirm: async () => {
         const response = await deleteCompany(company.id);
-        handleSnackbar(response.message, response.success ? 'success' : 'error');
-        closeModal('confirm');
+        handleSnackbar(response.message, response.success ? "success" : "error");
+        closeModal("confirm");
         if (response.success) {
-          setTrigger(prev => prev + 1);
+          setTrigger((prev) => prev + 1);
         }
       },
     });
@@ -106,50 +115,62 @@ export default function CompaniesView() {
   // Configuración de acciones por fila
   const getRowActions = () => [
     {
+      label: "",
       icon: Pencil,
       variant: "outline",
       onClick: (company) => handleEditCompany(company.id),
-      title: "Ver empresa"
+      title: "Editar empresa",
+      className: "text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50"
     },
     {
       icon: Trash2,
       variant: "danger",
       onClick: handleDelete,
-      title: "Eliminar empresa"
+      title: "Eliminar"
     }
   ];
 
   // Renderizado de filas
   const renderRow = (company) => (
     <tr key={company.id} className="border-t hover:bg-gray-50">
+      <td className="px-3 py-2 text-sm text-gray-500">{company.id}</td>
       <td className="px-3 py-2">
-        <div>
-          <div className="text-sm font-medium text-gray-900">{company.business_name}</div>
-          <div className="text-xs text-gray-500">{company.rut_formatted || company.rut}</div>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded flex items-center justify-center bg-amber-50">
+            <Building2 className="h-4 w-4 text-amber-600" />
+          </div>
+          <div>
+            <div className="font-medium text-gray-900">{company.business_name}</div>
+            <div className="text-xs text-gray-500 font-mono">
+              {company.rut_formatted || company.rut || "-"}
+            </div>
+          </div>
         </div>
       </td>
-      <td className="px-3 py-2 text-sm text-gray-500">
-        {company.sap_code || "-"}
+      <td className="px-3 py-2">
+        <span className="text-sm text-gray-500 font-mono">{company.sap_code || "-"}</span>
       </td>
       <td className="px-3 py-2">
-        <div className="text-sm text-gray-900">{company.email || "-"}</div>
-        <div className="text-xs text-gray-500">{company.phone || "-"}</div>
+        <div className="text-sm text-gray-600">{company.email || "-"}</div>
+        {company.phone && (
+          <div className="text-xs text-gray-500">{company.phone}</div>
+        )}
       </td>
       <td className="px-3 py-2">
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-          company.status
-            ? "bg-green-100 text-green-800"
-            : "bg-red-100 text-red-800"
-        }`}>
-          {company.status ? "Activa" : "Inactiva"}
-        </span>
+        {company.status ? (
+          <span className="inline-flex items-center text-green-600 text-sm">
+            <CheckCircle className="w-4 h-4 mr-1" />
+            Activa
+          </span>
+        ) : (
+          <span className="inline-flex items-center text-gray-400 text-sm">
+            <XCircle className="w-4 h-4 mr-1" />
+            Inactiva
+          </span>
+        )}
       </td>
       <td className="px-3 py-2">
-        <TableActions
-          actions={getRowActions()}
-          item={company}
-          className="space-x-1"
-        />
+        <TableActions actions={getRowActions()} item={company} className="justify-center" />
       </td>
     </tr>
   );
@@ -158,13 +179,13 @@ export default function CompaniesView() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-bold mb-2">Empresas</h2>
-        <p className="text-gray-500">Gestión de empresas registradas en el sistema</p>
+        <h2 className="text-3xl font-bold text-bradford-navy mb-2">Gestión de Empresas</h2>
+        <p className="text-bradford-navy/70">Administra las empresas registradas en el sistema</p>
       </div>
 
       {/* Filtros */}
       <GenericFilters
-        searchPlaceholder="Buscar por nombre, RUT, código SAP..."
+        searchPlaceholder="Buscar por nombre, RUT o código SAP..."
         searchValue={q}
         onSearchChange={setQ}
         resultsCount={filteredData.length}
@@ -192,7 +213,6 @@ export default function CompaniesView() {
         onPageChange={setPage}
         totalResults={filteredData.length}
         renderRow={renderRow}
-        perPage={tableConfig.pageSize}
       />
 
       {/* Modal Crear Empresa */}
@@ -204,19 +224,18 @@ export default function CompaniesView() {
       {/* Modal de confirmación */}
       <Modal
         open={!!modals.confirm}
-        onClose={() => closeModal('confirm')}
+        onClose={() => closeModal("confirm")}
         title={modals.confirm?.title}
         variant="warn"
-        isHtml={true}
         actions={[
           {
             label: "Cancelar",
             variant: "outline",
-            onClick: () => closeModal('confirm')
+            onClick: () => closeModal("confirm")
           },
           {
             label: modals.confirm?.actionLabel || "Confirmar",
-            variant: modals.confirm?.variant || "danger",
+            variant: modals.confirm?.variant || "primary",
             onClick: modals.confirm?.onConfirm,
           },
         ]}

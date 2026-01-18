@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../../components/ui/Button.jsx";
 import { Modal } from "../../components/ui/Modal.jsx";
 import { Input } from "../../components/ui/Input.jsx";
@@ -54,18 +54,18 @@ export default function TableProcessorsView() {
   const [previewing, setPreviewing] = useState(false);
   const [previewParams, setPreviewParams] = useState({});
 
+  const { modals, openConfirm, closeModal } = useModals();
+
   // Configuración de la tabla
   const tableConfig = {
-    defaultSort: "name",
-    defaultSortDir: "asc",
+    defaultSort: "id",
+    defaultSortDir: "desc",
     pageSize: 10,
-    searchFields: ["name", "code", "description"],
+    searchFields: ["id", "name", "code", "description"],
   };
 
   const { q, setQ, sortBy, sortDir, page, setPage, filteredData, pageData, totalPages, handleSort } =
     useTableLogic(processors, tableConfig);
-
-  const { modals, openConfirm, closeModal } = useModals();
 
   // Cargar datos
   const fetchData = async () => {
@@ -97,11 +97,12 @@ export default function TableProcessorsView() {
 
   // Columnas de la tabla
   const columns = [
-    { key: "name", label: "Nombre" },
+    { key: "id", label: "ID" },
+    { key: "name", label: "Procesador" },
     { key: "code", label: "Código" },
     { key: "data_source", label: "Origen de Datos", sortable: false },
     { key: "status", label: "Estado", sortable: false },
-    { key: "actions", label: "Acciones", sortable: false, headerClassName: "text-right" },
+    { key: "actions", label: "Acciones", sortable: false, headerClassName: "text-center" },
   ];
 
   // Abrir modal de crear
@@ -154,8 +155,17 @@ export default function TableProcessorsView() {
   // Eliminar
   const handleDelete = (processor) => {
     openConfirm({
-      title: "Eliminar procesador",
-      msg: `¿Estás seguro de eliminar "${processor.name}"?`,
+      title: "Eliminar Procesador",
+      msg: (
+        <div>
+          <p>
+            ¿Está seguro que desea eliminar el procesador <strong>{processor.name}</strong>?
+          </p>
+          <p className="text-sm text-red-600 mt-2">
+            Esta acción no se puede deshacer. Los certificados que usen este procesador podrían verse afectados.
+          </p>
+        </div>
+      ),
       variant: "danger",
       actionLabel: "Eliminar",
       onConfirm: async () => {
@@ -206,25 +216,26 @@ export default function TableProcessorsView() {
   // Acciones por fila
   const getRowActions = () => [
     {
-      label: "Preview",
+      label: "",
       icon: Eye,
       variant: "outline",
       onClick: handlePreview,
       title: "Ver preview",
+      className: "text-cyan-600 hover:text-cyan-900 hover:bg-cyan-50",
     },
     {
-      label: "Editar",
+      label: "",
       icon: Edit2,
       variant: "outline",
       onClick: handleEdit,
       title: "Editar procesador",
+      className: "text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50",
     },
     {
-      label: "Eliminar",
       icon: Trash2,
       variant: "danger",
       onClick: handleDelete,
-      title: "Eliminar procesador",
+      title: "Eliminar",
     },
   ];
 
@@ -232,22 +243,30 @@ export default function TableProcessorsView() {
   const renderRow = (processor) => {
     return (
       <tr key={processor.id} className="border-t hover:bg-gray-50">
+        <td className="px-3 py-2 text-sm text-gray-500">{processor.id}</td>
         <td className="px-3 py-2">
-          <div className="font-medium text-gray-900">{processor.name}</div>
-          {processor.description && (
-            <div className="text-xs text-gray-500 truncate max-w-xs">{processor.description}</div>
-          )}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded flex items-center justify-center bg-indigo-50">
+              <Table2 className="h-4 w-4 text-indigo-600" />
+            </div>
+            <div>
+              <div className="font-medium text-gray-900">{processor.name}</div>
+              {processor.description && (
+                <div className="text-xs text-gray-500 truncate max-w-xs">{processor.description}</div>
+              )}
+            </div>
+          </div>
         </td>
         <td className="px-3 py-2">
           <code className="text-sm font-mono text-sky-700 bg-sky-50 px-2 py-0.5 rounded">
             {processor.code}
           </code>
         </td>
-        <td className="px-3 py-2 text-sm text-gray-500">
+        <td className="px-3 py-2">
           {processor.data_source ? (
-            <span className="text-gray-700">{processor.data_source.name}</span>
+            <span className="text-sm text-gray-700">{processor.data_source.name}</span>
           ) : (
-            <span className="text-gray-300">Sin origen</span>
+            <span className="text-sm text-gray-400">Sin origen</span>
           )}
         </td>
         <td className="px-3 py-2">
@@ -264,7 +283,7 @@ export default function TableProcessorsView() {
           )}
         </td>
         <td className="px-3 py-2">
-          <TableActions actions={getRowActions()} item={processor} className="space-x-2" />
+          <TableActions actions={getRowActions()} item={processor} className="justify-center" />
         </td>
       </tr>
     );
@@ -276,7 +295,7 @@ export default function TableProcessorsView() {
       <div>
         <h2 className="text-3xl font-bold text-bradford-navy mb-2">Procesadores de Tablas</h2>
         <p className="text-bradford-navy/70">
-          Configura los procesadores que generan tablas HTML para certificados. Cada código debe tener su función correspondiente en el backend.
+          Configura los procesadores que generan tablas HTML para certificados
         </p>
       </div>
 
@@ -295,7 +314,7 @@ export default function TableProcessorsView() {
 
       {/* Filtros */}
       <GenericFilters
-        searchPlaceholder="Buscar por nombre, código..."
+        searchPlaceholder="Buscar por nombre o código..."
         searchValue={q}
         onSearchChange={setQ}
         resultsCount={filteredData.length}
@@ -417,7 +436,7 @@ export default function TableProcessorsView() {
               <span className="font-medium">Backend:</span> Crea la función correspondiente:
             </p>
             <code className="block mt-1.5 text-xs bg-amber-100 text-amber-900 px-2 py-1 rounded font-mono">
-              TableProcessorHelpers::{formData.code ? formData.code.replace(/_([a-z])/g, (_, c) => c.toUpperCase()) : 'codigo'}()
+              TableProcessorHelpers::{formData.code ? formData.code.replace(/_([a-z])/g, (_, c) => c.toUpperCase()) : "codigo"}()
             </code>
           </div>
         </div>

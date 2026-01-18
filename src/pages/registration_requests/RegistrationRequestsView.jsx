@@ -1,7 +1,7 @@
 // File: src/pages/registration_requests/RegistrationRequestsView.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardList, Clock, CheckCircle, XCircle, Settings, Trash2 } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle, XCircle, Settings, Trash2, Eye } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import GenericFilters from "../../components/common/GenericFilters";
 import GenericTable from "../../components/common/GenericTable";
@@ -99,12 +99,12 @@ export default function RegistrationRequestsView() {
     });
   };
 
-  const getRowActions = () => [
+  const getRowActions = (request) => [
     {
-      icon: Settings,
+      icon: request.request_status === "pending" ? Settings : Eye,
       variant: "outline",
-      onClick: (request) => handleManageRequest(request.id),
-      title: "Gestionar solicitud"
+      onClick: (req) => handleManageRequest(req.id),
+      title: request.request_status === "pending" ? "Gestionar solicitud" : "Ver solicitud"
     },
     {
       icon: Trash2,
@@ -148,7 +148,7 @@ export default function RegistrationRequestsView() {
         </td>
         <td className="px-3 py-2">
           <TableActions
-            actions={getRowActions()}
+            actions={getRowActions(request)}
             item={request}
             className="space-x-1"
           />
@@ -188,7 +188,7 @@ export default function RegistrationRequestsView() {
             onClick={() => setFilterStatus(status.value)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filterStatus === status.value
-                ? "bg-black text-white"
+                ? "bg-[var(--brand-primary)] text-white"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >

@@ -186,7 +186,7 @@ export default function AppShell() {
         }
       />
 
-      <main className="max-w-8xl mx-auto px-8 py-6 space-y-6">
+      <main className="max-w-8xl mx-auto px-4 md:px-8 py-6 space-y-6">
         <Routes>
           <Route
             path="/"

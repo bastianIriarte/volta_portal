@@ -5,15 +5,11 @@ import {
   Search,
   Edit2,
   Trash2,
-  ToggleLeft,
-  ToggleRight,
   X,
   Save,
   Loader2,
   Database,
   ExternalLink,
-  Eye,
-  EyeOff,
   Globe,
   Cloud,
   Layers,
@@ -21,15 +17,18 @@ import {
   MinusCircle,
   AlertCircle,
   CheckCircle,
+  XCircle,
   Settings,
   Table2,
   GripVertical,
-  Check,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import { Modal } from "../../components/ui/Modal";
+import TableActions from "../../components/common/TableActions";
 import { handleSnackbar } from "../../utils/messageHelpers";
+import { useModals } from "../../hooks/useModals";
 import {
   getReportTemplates,
   createReportTemplate,
@@ -96,10 +95,11 @@ export default function ReportTemplatesView() {
     status: true,
   });
 
-  // Delete modal
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // Selected template for edit
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+
+  // Delete confirmation modal
+  const { modals, openConfirm, closeModal } = useModals();
 
   // Preview
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -324,30 +324,72 @@ export default function ReportTemplatesView() {
     }
   };
 
-  const handleOpenDelete = (template) => {
-    setSelectedTemplate(template);
-    setShowDeleteModal(true);
+  const handleDeleteTemplate = (template) => {
+    openConfirm({
+      title: "Eliminar Plantilla",
+      msg: (
+        <div>
+          <p>
+            ¿Está seguro que desea eliminar la plantilla <strong>{template.name}</strong>?
+          </p>
+          <p className="text-sm text-red-600 mt-2">
+            Esta acción no se puede deshacer.
+          </p>
+        </div>
+      ),
+      variant: "danger",
+      actionLabel: "Eliminar",
+      onConfirm: async () => {
+        try {
+          const response = await deleteReportTemplate(template.id);
+          if (response.success) {
+            handleSnackbar("Plantilla eliminada", "success");
+            loadData();
+          } else {
+            handleSnackbar(response.message || "Error al eliminar", "error");
+          }
+        } catch (error) {
+          handleSnackbar("Error al eliminar", "error");
+        }
+        closeModal("confirm");
+      },
+    });
   };
 
-  const handleDelete = async () => {
-    if (!selectedTemplate) return;
+  // Acciones por fila
+  const getRowActions = (template) => {
+    const actions = [
+      {
+        label: "",
+        icon: Edit2,
+        variant: "outline",
+        onClick: handleOpenEdit,
+        title: "Editar plantilla",
+        className: "text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50",
+      },
+    ];
 
-    setDeleting(true);
-    try {
-      const response = await deleteReportTemplate(selectedTemplate.id);
-      if (response.success) {
-        handleSnackbar("Plantilla eliminada", "success");
-        setShowDeleteModal(false);
-        setSelectedTemplate(null);
-        loadData();
-      } else {
-        handleSnackbar(response.message || "Error al eliminar", "error");
-      }
-    } catch (error) {
-      handleSnackbar("Error al eliminar", "error");
-    } finally {
-      setDeleting(false);
+    // Agregar botón de configurar columnas solo para SQL con fuente de datos
+    if (template.origin_type === "sql" && template.data_source_id) {
+      actions.push({
+        label: "",
+        icon: Table2,
+        variant: "outline",
+        onClick: handleOpenColumns,
+        title: "Configurar columnas",
+        className: "text-cyan-600 hover:text-cyan-900 hover:bg-cyan-50",
+      });
     }
+
+    actions.push({
+      label: "",
+      icon: Trash2,
+      variant: "danger",
+      onClick: handleDeleteTemplate,
+      title: "Eliminar",
+    });
+
+    return actions;
   };
 
   // Funciones para configurar columnas
@@ -551,32 +593,32 @@ export default function ReportTemplatesView() {
   return (
     <div className="space-y-6 fade-in-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <BarChart3 className="w-7 h-7 text-indigo-600" />
-            Plantillas de Reportes
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Gestiona las plantillas de reportes disponibles para asignar a empresas
-          </p>
-        </div>
-        <Button onClick={handleOpenCreate} icon={Plus}>
-          Nueva Plantilla
-        </Button>
+      <div>
+        <h2 className="text-3xl font-bold text-bradford-navy mb-2">Plantillas de Reportes</h2>
+        <p className="text-bradford-navy/70">
+          Gestiona las plantillas de reportes disponibles para asignar a empresas
+        </p>
       </div>
 
-      {/* Search */}
+      {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre, codigo o descripcion..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, código o descripción..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <Button onClick={handleOpenCreate} icon={Plus}>
+            Nueva Plantilla
+          </Button>
+        </div>
+        <div className="mt-2 text-sm text-gray-500">
+          {filteredTemplates.length} resultado{filteredTemplates.length !== 1 ? "s" : ""}
         </div>
       </div>
 
@@ -586,19 +628,22 @@ export default function ReportTemplatesView() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Codigo
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Nombre
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Plantilla
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Código
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Tipo Origen
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Estado
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                   Acciones
                 </th>
               </tr>
@@ -609,76 +654,46 @@ export default function ReportTemplatesView() {
                 const OriginIcon = originInfo.icon;
                 return (
                   <tr key={template.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                        {template.code || "-"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-gray-900">{template.name}</p>
-                        {template.description && (
-                          <p className="text-sm text-gray-500 mt-0.5 truncate max-w-xs">
-                            {template.description}
-                          </p>
-                        )}
+                    <td className="px-3 py-2 text-sm text-gray-500">{template.id}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded flex items-center justify-center bg-indigo-50">
+                          <BarChart3 className="h-4 w-4 text-indigo-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{template.name}</div>
+                          {template.description && (
+                            <div className="text-xs text-gray-500 truncate max-w-xs">
+                              {template.description}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-2">
+                      <span className="text-sm text-gray-500 font-mono">{template.code || "-"}</span>
+                    </td>
+                    <td className="px-3 py-2">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-${originInfo.color}-100 text-${originInfo.color}-800`}>
                         <OriginIcon className="w-3.5 h-3.5" />
                         {originInfo.label.split(" ")[0]}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <span
-                        className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                          template.status
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {template.status ? "Activo" : "Inactivo"}
-                      </span>
+                    <td className="px-3 py-2">
+                      {template.status ? (
+                        <span className="inline-flex items-center text-green-600 text-sm">
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Activo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center text-gray-400 text-sm">
+                          <XCircle className="w-4 h-4 mr-1" />
+                          Inactivo
+                        </span>
+                      )}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {template.report_url && (
-                          <a
-                            href={template.report_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Abrir reporte"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                        )}
-                        {/* Botón configurar columnas - solo para SQL con fuente de datos */}
-                        {template.origin_type === "sql" && template.data_source_id && (
-                          <button
-                            onClick={() => handleOpenColumns(template)}
-                            className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                            title="Configurar columnas"
-                          >
-                            <Table2 className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleOpenEdit(template)}
-                          className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          title="Editar"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenDelete(template)}
-                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                    <td className="px-3 py-2">
+                      <TableActions actions={getRowActions(template)} item={template} className="justify-end mr-12" />
                     </td>
                   </tr>
                 );
@@ -1060,53 +1075,35 @@ export default function ReportTemplatesView() {
               )}
 
               {/* Opciones adicionales */}
-              <div className="flex flex-wrap items-center gap-6">
-                {/* Consulta sucursales */}
-                <div className="flex items-center gap-3">
-                  <label className="text-sm font-medium text-gray-700">Consulta sucursales:</label>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, query_branches: !formData.query_branches })}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                      formData.query_branches ? "bg-blue-100 text-blue-700" : "bg-gray-200 text-gray-600"
-                    }`}
-                  >
-                    {formData.query_branches ? (
-                      <>
-                        <ToggleRight className="w-4 h-4" />
-                        Sí
-                      </>
-                    ) : (
-                      <>
-                        <ToggleLeft className="w-4 h-4" />
-                        No
-                      </>
-                    )}
-                  </button>
-                </div>
+              <div className="space-y-3 pt-3 border-t border-gray-200">
+                {/* Consulta sucursales - Checkbox */}
+                <label className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={formData.query_branches || false}
+                    onChange={(e) => setFormData({ ...formData, query_branches: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <Database className="h-4 w-4 text-gray-400" />
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-gray-700">Consulta sucursales</span>
+                    <p className="text-xs text-gray-500">Permite filtrar por sucursal al consultar el reporte</p>
+                  </div>
+                </label>
 
-                {/* Estado */}
-                <div className="flex items-center gap-3">
-                  <label className="text-sm font-medium text-gray-700">Estado:</label>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, status: !formData.status })}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                      formData.status ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"
-                    }`}
+                {/* Estado - Select */}
+                <div>
+                  <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+                    Estado
+                  </label>
+                  <select
+                    value={formData.status ? "1" : "0"}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value === "1" })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    {formData.status ? (
-                      <>
-                        <ToggleRight className="w-4 h-4" />
-                        Activo
-                      </>
-                    ) : (
-                      <>
-                        <ToggleLeft className="w-4 h-4" />
-                        Inactivo
-                      </>
-                    )}
-                  </button>
+                    <option value="1">Activo</option>
+                    <option value="0">Inactivo</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -1123,49 +1120,23 @@ export default function ReportTemplatesView() {
         </div>
       )}
 
-      {/* Delete Modal */}
-      {showDeleteModal && selectedTemplate && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 top-[-30px]">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-red-100 rounded-full">
-                  <Trash2 className="w-6 h-6 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Eliminar Plantilla</h3>
-                  <p className="text-sm text-gray-500">Esta accion no se puede deshacer</p>
-                </div>
-              </div>
-
-              <p className="text-gray-600 mb-6">
-                ¿Estas seguro que deseas eliminar la plantilla{" "}
-                <strong>"{selectedTemplate.name}"</strong>?
-              </p>
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    setSelectedTemplate(null);
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  icon={deleting ? Loader2 : Trash2}
-                >
-                  {deleting ? "Eliminando..." : "Eliminar"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={!!modals.confirm}
+        onClose={() => closeModal("confirm")}
+        title={modals.confirm?.title}
+        variant="warn"
+        actions={[
+          { label: "Cancelar", variant: "outline", onClick: () => closeModal("confirm") },
+          {
+            label: modals.confirm?.actionLabel || "Confirmar",
+            variant: modals.confirm?.variant || "primary",
+            onClick: modals.confirm?.onConfirm,
+          },
+        ]}
+      >
+        {modals.confirm?.msg}
+      </Modal>
 
       {/* Modal Configurar Columnas */}
       {showColumnsModal && columnsTemplate && (

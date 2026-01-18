@@ -1,5 +1,4 @@
-// ProfilesManagement.jsx - Refactorizada
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Modal } from "../../components/ui/Modal.jsx";
 import GenericFilters from "../../components/common/GenericFilters.jsx";
@@ -14,9 +13,10 @@ import {
   Shield,
   Pencil,
   Trash2,
-  Search,
   Grid3X3,
-  Users
+  Lock,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 import { Button } from "../../components/ui/Button.jsx";
 
@@ -27,11 +27,13 @@ export default function ProfilesManagement() {
   const [trigger, setTrigger] = useState(0);
   const [modalForm, setModalForm] = useState(null);
 
+  const { modals, openConfirm, closeModal } = useModals();
+
   // Configuración de la tabla
   const tableConfig = {
     defaultSort: "profile",
     defaultSortDir: "asc",
-    pageSize: 8,
+    pageSize: 10,
     searchFields: [
       "profile",
       "code",
@@ -52,8 +54,6 @@ export default function ProfilesManagement() {
     totalPages,
     handleSort
   } = useTableLogic(profiles, tableConfig);
-
-  const { modals, openConfirm, closeModal } = useModals();
 
   // Cargar datos
   const fetchList = async () => {
@@ -78,6 +78,7 @@ export default function ProfilesManagement() {
 
   // Configuración de columnas
   const columns = [
+    { key: "id", label: "ID" },
     { key: "profile", label: "Perfil" },
     { key: "description", label: "Descripción" },
     { key: "permissions_count", label: "Permisos", sortable: false },
@@ -87,18 +88,27 @@ export default function ProfilesManagement() {
   ];
 
   // Funciones de acciones
-  const handleDelete = async (profile) => {
+  const handleDelete = (profile) => {
     openConfirm({
-      title: "Eliminar perfil",
-      msg: `¿Seguro que deseas eliminar el perfil <b>${profile.profile}</b>?`,
+      title: "Eliminar Perfil",
+      msg: (
+        <div>
+          <p>
+            ¿Está seguro que desea eliminar el perfil <strong>{profile.profile}</strong>?
+          </p>
+          <p className="text-sm text-red-600 mt-2">
+            Esta acción no se puede deshacer. Los usuarios con este perfil podrían verse afectados.
+          </p>
+        </div>
+      ),
       actionLabel: "Eliminar",
       variant: "danger",
       onConfirm: async () => {
         const response = await deleteProfile(profile.id);
-        handleSnackbar(response.message, response.success ? 'success' : 'error');
-        closeModal('confirm');
+        handleSnackbar(response.message, response.success ? "success" : "error");
+        closeModal("confirm");
         if (response.success) {
-          setTrigger(prev => prev + 1);
+          setTrigger((prev) => prev + 1);
         }
       },
     });
@@ -115,56 +125,66 @@ export default function ProfilesManagement() {
       icon: Pencil,
       variant: "outline",
       onClick: (profile) => setModalForm({ mode: "edit", profile }),
-      title: "Editar perfil"
+      title: "Editar perfil",
+      className: "text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50"
     },
     {
-      label: "",
       icon: Trash2,
       variant: "danger",
       onClick: handleDelete,
-      title: "Eliminar perfil"
+      title: "Eliminar"
     }
   ];
 
   // Renderizado de filas
   const renderRow = (profile) => {
     return (
-      <tr key={profile.id} className="border-t hover:bg-gray-50 text-[13px]">
+      <tr key={profile.id} className="border-t hover:bg-gray-50">
+        <td className="px-3 py-2 text-sm text-gray-500">{profile.id}</td>
         <td className="px-3 py-2">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Shield size={16} className="text-purple-600" />
+            <div className="w-8 h-8 rounded flex items-center justify-center bg-purple-50">
+              <Shield className="h-4 w-4 text-purple-600" />
             </div>
-            <span className="font-medium">{profile.profile}</span>
+            <div>
+              <div className="font-medium text-gray-900">{profile.profile}</div>
+              {profile.code && (
+                <div className="text-xs text-gray-500 font-mono">
+                  {profile.code}
+                </div>
+              )}
+            </div>
           </div>
         </td>
-        <td className="px-3 py-2 text-gray-600 max-w-xs truncate">
-          {profile.description || 'Sin descripción'}
-        </td>
         <td className="px-3 py-2">
-          <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs w-fit">
-            <Users size={12} />
-            {profile.permissions_count || 0} permisos
-          </div>
-        </td>
-        <td className="px-3 py-2">{profile.created_at}</td>
-        <td className="px-3 py-2">
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              profile.status
-                ? "bg-green-100 text-green-800 hover:bg-green-200"
-                : "bg-red-100 text-red-800 hover:bg-red-200"
-            }`}
-          >
-            {profile.status ? 'Activo' : 'Inactivo'}
+          <span className="text-sm text-gray-600 truncate max-w-xs block">
+            {profile.description || "Sin descripción"}
           </span>
         </td>
         <td className="px-3 py-2">
-          <TableActions
-            actions={getRowActions()}
-            item={profile}
-            className="space-x-2"
-          />
+          <div className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+            <Lock className="w-3 h-3" />
+            {profile.permissions_count || 0} permisos
+          </div>
+        </td>
+        <td className="px-3 py-2">
+          <span className="text-sm text-gray-500">{profile.created_at || "-"}</span>
+        </td>
+        <td className="px-3 py-2">
+          {profile.status ? (
+            <span className="inline-flex items-center text-green-600 text-sm">
+              <CheckCircle className="w-4 h-4 mr-1" />
+              Activo
+            </span>
+          ) : (
+            <span className="inline-flex items-center text-gray-400 text-sm">
+              <XCircle className="w-4 h-4 mr-1" />
+              Inactivo
+            </span>
+          )}
+        </td>
+        <td className="px-3 py-2">
+          <TableActions actions={getRowActions()} item={profile} className="justify-center" />
         </td>
       </tr>
     );
@@ -174,7 +194,7 @@ export default function ProfilesManagement() {
   const handleModalClose = (shouldRefresh = false) => {
     setModalForm(null);
     if (shouldRefresh) {
-      setTrigger(prev => prev + 1);
+      setTrigger((prev) => prev + 1);
     }
   };
 
@@ -182,17 +202,17 @@ export default function ProfilesManagement() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-bold mb-2">
-          Perfiles
+        <h2 className="text-3xl font-bold text-bradford-navy mb-2">
+          Gestión de Perfiles
         </h2>
-        <p className="/70">
-          Gestión de perfiles y roles del sistema
+        <p className="text-bradford-navy/70">
+          Administra los perfiles y roles del sistema
         </p>
       </div>
 
       {/* Filtros */}
       <GenericFilters
-        searchPlaceholder="Buscar perfiles..."
+        searchPlaceholder="Buscar por nombre o descripción..."
         searchValue={q}
         onSearchChange={setQ}
         resultsCount={filteredData.length}
@@ -206,7 +226,7 @@ export default function ProfilesManagement() {
           className="flex items-center gap-2"
         >
           <Grid3X3 size={18} />
-          Asignar Permisos
+          Matriz de Permisos
         </Button>
       </GenericFilters>
 
@@ -217,8 +237,8 @@ export default function ProfilesManagement() {
         columns={columns}
         data={filteredData}
         pageData={pageData}
-        emptyMessage="Aún no hay perfiles registrados"
-        emptyIcon={Search}
+        emptyMessage="No hay perfiles registrados"
+        emptyIcon={Shield}
         searchQuery={q}
         onClearSearch={() => setQ("")}
         sortBy={sortBy}
@@ -235,9 +255,7 @@ export default function ProfilesManagement() {
       <Modal
         open={!!modalForm}
         onClose={() => handleModalClose(false)}
-        title={
-          modalForm?.mode === "edit" ? "Editar perfil" : "Nuevo perfil"
-        }
+        title={modalForm?.mode === "edit" ? "Editar Perfil" : "Nuevo Perfil"}
         actions={[]}
       >
         {modalForm && (
@@ -252,21 +270,19 @@ export default function ProfilesManagement() {
       {/* Modal de confirmación */}
       <Modal
         open={!!modals.confirm}
-        onClose={() => closeModal('confirm')}
+        onClose={() => closeModal("confirm")}
         title={modals.confirm?.title}
         variant="warn"
-        isHtml={true}
         actions={[
           {
             label: "Cancelar",
             variant: "outline",
-            onClick: () => closeModal('confirm')
+            onClick: () => closeModal("confirm")
           },
           {
             label: modals.confirm?.actionLabel || "Confirmar",
-            variant: modals.confirm?.variant || "danger",
+            variant: modals.confirm?.variant || "primary",
             onClick: modals.confirm?.onConfirm,
-            autofocus: true,
           },
         ]}
       >

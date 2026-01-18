@@ -33,6 +33,8 @@ import {
   FileDown,
   Printer,
   RefreshCw,
+  Layers,
+  Settings,
 } from "lucide-react";
 import { handleSnackbar } from "../../utils/messageHelpers";
 import {
@@ -93,7 +95,13 @@ export default function CertificateBuilder({ templateId, onClose }) {
   const [showFieldConfig, setShowFieldConfig] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
-  const [scale, setScale] = useState(0.9);
+  // Zoom inicial: 50% en mobile, 90% en desktop
+  const [scale, setScale] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 1024 ? 0.4 : 0.9;
+    }
+    return 0.9;
+  });
   const [stylePanel, setStylePanel] = useState({ show: false, fieldId: null });
 
   // Estado para confirmación de eliminación
@@ -109,6 +117,13 @@ export default function CertificateBuilder({ templateId, onClose }) {
 
   // Modal de Preview PDF
   const [pdfPreview, setPdfPreview] = useState({ show: false, url: null, loading: false });
+
+  // Estados para Mobile
+  const [showMobileFields, setShowMobileFields] = useState(false);
+  const [showMobileConfig, setShowMobileConfig] = useState(false);
+
+  // Modal para "tap to add" en mobile
+  const [addFieldModal, setAddFieldModal] = useState({ show: false, field: null });
 
   // Procesadores de tabla disponibles
   const [tableProcessors, setTableProcessors] = useState([]);
@@ -249,6 +264,40 @@ export default function CertificateBuilder({ templateId, onClose }) {
     return candidateKey;
   };
 
+  // Función para agregar campo directamente (tap to add en mobile)
+  const handleAddFieldToSection = (field, section) => {
+    const sectionLabels = { header: "Encabezado", body: "Cuerpo", signature_area: "Área de Firma", footer: "Pie" };
+
+    const timestamp = Date.now();
+    const uniqueFieldKey = generateUniqueFieldKey(field.field_type, fields);
+    const autoLabel = field.field_label || `${field.field_type}_${timestamp}`;
+
+    const newField = {
+      ...field,
+      id: `temp_${timestamp}`,
+      field_key: uniqueFieldKey,
+      field_label: autoLabel,
+      section,
+      order_index: fields.filter((f) => f.section === section).length,
+      styles: field.styles || {},
+    };
+    setFields([...fields, newField]);
+    handleSnackbar(`"${autoLabel}" agregado a ${sectionLabels[section]}`, "success");
+    addLog("add", `Agregado "${autoLabel}" en ${sectionLabels[section]}`);
+    setHasInteracted(true);
+    setAddFieldModal({ show: false, field: null });
+    setShowMobileFields(false);
+  };
+
+  // Manejador de tap en campo (para mobile)
+  const handleFieldTap = (field) => {
+    // Solo mostrar modal en mobile (detectar por ancho o touch)
+    const isMobile = window.innerWidth < 1024;
+    if (isMobile) {
+      setAddFieldModal({ show: true, field });
+    }
+  };
+
   const handleDrop = (e, section) => {
     e.preventDefault();
     setDragOverSection(null);
@@ -341,6 +390,8 @@ export default function CertificateBuilder({ templateId, onClose }) {
   const handleConfigureField = (field) => {
     setSelectedField(field);
     setShowFieldConfig(true);
+    // En mobile, abrir el drawer de configuración
+    setShowMobileConfig(true);
   };
 
   // Referencia para debounce del log de configuración
@@ -441,24 +492,60 @@ export default function CertificateBuilder({ templateId, onClose }) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-120px)] bg-gray-100">
-      {/* Panel Izquierdo */}
-      <div className="w-56 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+    <div className="flex h-[calc(100vh-120px)] bg-gray-100 relative">
+      {/* Keyframes para animaciones */}
+      <style>{`
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+      `}</style>
+      {/* Overlay para cerrar drawers en mobile */}
+      {(showMobileFields || showMobileConfig) && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+          onClick={() => {
+            setShowMobileFields(false);
+            setShowMobileConfig(false);
+          }}
+        />
+      )}
+
+      {/* Panel Izquierdo - Desktop: sidebar fijo, Mobile: drawer */}
+      <div
+        className={`
+          fixed lg:relative inset-y-0 left-0 z-40
+          w-64 lg:w-56 bg-white border-r border-gray-200 flex flex-col
+          transform transition-transform duration-300 ease-in-out
+          ${showMobileFields ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+          lg:flex-shrink-0
+        `}
+      >
         <div className="p-3 border-b border-gray-200 flex items-center justify-between">
           <h3 className="font-semibold text-gray-900 text-sm">Campos</h3>
-          <button
-            onClick={() => setShowHelp(true)}
-            className="p-1 text-gray-400 hover:text-sky-600 rounded"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowHelp(true)}
+              className="p-1 text-gray-400 hover:text-sky-600 rounded"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
+            {/* Botón cerrar solo en mobile */}
+            <button
+              onClick={() => setShowMobileFields(false)}
+              className="p-1 text-gray-400 hover:text-gray-600 rounded lg:hidden"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {!hasInteracted && (
           <div className="mx-3 mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg flex gap-2">
             <Zap className="h-3.5 w-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-amber-700">
-              Arrastra campos hacia el certificado
+              <span className="hidden lg:inline">Arrastra campos hacia el certificado</span>
+              <span className="lg:hidden">Toca un campo para agregarlo</span>
             </p>
           </div>
         )}
@@ -503,9 +590,18 @@ export default function CertificateBuilder({ templateId, onClose }) {
                       true
                     )
                   }
+                  onClick={() =>
+                    handleFieldTap({
+                      field_key: `divider_${Date.now()}`,
+                      field_label: "Divisor",
+                      field_type: "divider",
+                      section: null,
+                      styles: {},
+                    })
+                  }
                   className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded cursor-move hover:border-sky-400 hover:bg-sky-50 group"
                 >
-                  <GripVertical className="h-3 w-3 text-gray-300 group-hover:text-sky-400" />
+                  <GripVertical className="h-3 w-3 text-gray-300 group-hover:text-sky-400 hidden lg:block" />
                   <Minus className="h-3 w-3 text-gray-500 group-hover:text-sky-600" />
                   <span className="text-xs text-gray-700 truncate">Divisor</span>
                 </div>
@@ -526,9 +622,18 @@ export default function CertificateBuilder({ templateId, onClose }) {
                       true
                     )
                   }
+                  onClick={() =>
+                    handleFieldTap({
+                      field_key: `spacer_${Date.now()}`,
+                      field_label: "Espacio",
+                      field_type: "spacer",
+                      section: null,
+                      styles: { spacerHeight: "40px" },
+                    })
+                  }
                   className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded cursor-move hover:border-sky-400 hover:bg-sky-50 group"
                 >
-                  <GripVertical className="h-3 w-3 text-gray-300 group-hover:text-sky-400" />
+                  <GripVertical className="h-3 w-3 text-gray-300 group-hover:text-sky-400 hidden lg:block" />
                   <Square className="h-3 w-3 text-gray-500 group-hover:text-sky-600" />
                   <span className="text-xs text-gray-700 truncate">Espacio</span>
                 </div>
@@ -579,9 +684,10 @@ export default function CertificateBuilder({ templateId, onClose }) {
                             key={field.field_key}
                             draggable
                             onDragStart={(e) => handleDragStart(e, field, true)}
+                            onClick={() => handleFieldTap(field)}
                             className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded cursor-move hover:border-sky-400 hover:bg-sky-50 group"
                           >
-                            <GripVertical className="h-3 w-3 text-gray-300 group-hover:text-sky-400" />
+                            <GripVertical className="h-3 w-3 text-gray-300 group-hover:text-sky-400 hidden lg:block" />
                             <FIcon className="h-3 w-3 text-gray-500 group-hover:text-sky-600" />
                             <span className="text-xs text-gray-700 truncate">
                               {field.field_label}
@@ -600,62 +706,77 @@ export default function CertificateBuilder({ templateId, onClose }) {
 
       {/* Panel Central */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Toolbar */}
-        <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <h2 className="font-semibold text-gray-900 text-sm truncate">
-              {template?.name || "Nueva Plantilla"}
+        {/* Toolbar - Compacto en mobile */}
+        <div className="bg-white border-b border-gray-200 px-2 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between flex-shrink-0">
+          {/* Lado izquierdo */}
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+            {/* Botón campos en mobile */}
+            <button
+              onClick={() => setShowMobileFields(true)}
+              className="p-1.5 text-gray-600 hover:text-sky-600 hover:bg-sky-50 rounded lg:hidden flex-shrink-0"
+              title="Campos"
+            >
+              <Layers className="h-4 w-4" />
+            </button>
+            {/* Nombre plantilla - oculto en mobile muy pequeño */}
+            <h2 className="font-semibold text-gray-900 text-xs sm:text-sm truncate hidden xs:block max-w-[80px] sm:max-w-none">
+              {template?.name || "Plantilla"}
             </h2>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Undo/Redo */}
+
+          {/* Centro - Controles de zoom (siempre visibles) */}
+          <div className="flex items-center gap-0.5 bg-gray-100 rounded-full px-1.5 py-0.5">
             <button
-              onClick={handleUndo}
-              disabled={!canUndo}
-              className={`p-1.5 rounded transition-colors ${
-                canUndo
-                  ? "text-gray-600 hover:text-sky-600 hover:bg-sky-50"
-                  : "text-gray-300 cursor-not-allowed"
-              }`}
-              title="Deshacer (Ctrl+Z)"
+              onClick={() => setScale(Math.max(0.3, scale - 0.1))}
+              className="p-1 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-200"
             >
-              <Undo2 className="h-4 w-4" />
+              <Minimize2 className="h-3.5 w-3.5" />
             </button>
-            <button
-              onClick={handleRedo}
-              disabled={!canRedo}
-              className={`p-1.5 rounded transition-colors ${
-                canRedo
-                  ? "text-gray-600 hover:text-sky-600 hover:bg-sky-50"
-                  : "text-gray-300 cursor-not-allowed"
-              }`}
-              title="Rehacer (Ctrl+Y)"
-            >
-              <Redo2 className="h-4 w-4" />
-            </button>
-            <div className="h-4 w-px bg-gray-200" />
-            <span className="text-xs text-gray-500">{fields.length} campos</span>
-            <div className="h-4 w-px bg-gray-200" />
-            <button
-              onClick={() => setScale(Math.max(0.5, scale - 0.1))}
-              className="p-1 text-gray-400 hover:text-gray-600"
-            >
-              <Minimize2 className="h-4 w-4" />
-            </button>
-            <span className="text-xs text-gray-500 w-10 text-center">
+            <span className="text-[10px] sm:text-xs text-gray-600 w-8 text-center font-medium">
               {Math.round(scale * 100)}%
             </span>
             <button
               onClick={() => setScale(Math.min(1.2, scale + 0.1))}
-              className="p-1 text-gray-400 hover:text-gray-600"
+              className="p-1 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-200"
             >
-              <Maximize2 className="h-4 w-4" />
+              <Maximize2 className="h-3.5 w-3.5" />
             </button>
-            <div className="h-4 w-px bg-gray-200" />
-            {/* Botones de PDF */}
+          </div>
+
+          {/* Lado derecho */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Undo/Redo - oculto en mobile muy pequeño */}
+            <div className="hidden sm:flex items-center gap-0.5">
+              <button
+                onClick={handleUndo}
+                disabled={!canUndo}
+                className={`p-1.5 rounded transition-colors ${
+                  canUndo
+                    ? "text-gray-600 hover:text-sky-600 hover:bg-sky-50"
+                    : "text-gray-300 cursor-not-allowed"
+                }`}
+                title="Deshacer (Ctrl+Z)"
+              >
+                <Undo2 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleRedo}
+                disabled={!canRedo}
+                className={`p-1.5 rounded transition-colors ${
+                  canRedo
+                    ? "text-gray-600 hover:text-sky-600 hover:bg-sky-50"
+                    : "text-gray-300 cursor-not-allowed"
+                }`}
+                title="Rehacer (Ctrl+Y)"
+              >
+                <Redo2 className="h-4 w-4" />
+              </button>
+              <div className="h-4 w-px bg-gray-200 mx-1" />
+            </div>
+
+            {/* Preview PDF */}
             <button
               onClick={async () => {
-                // Limpiar URL anterior si existe
                 if (pdfPreview.url) {
                   window.URL.revokeObjectURL(pdfPreview.url);
                 }
@@ -679,12 +800,14 @@ export default function CertificateBuilder({ templateId, onClose }) {
                 }
               }}
               disabled={pdfPreview.loading}
-              className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50 flex items-center gap-1"
               title="Vista previa PDF"
             >
-              <Printer className={`h-3.5 w-3.5 ${pdfPreview.loading ? 'animate-spin' : ''}`} />
-              {pdfPreview.loading ? 'Generando...' : 'Preview'}
+              <Printer className={`h-4 w-4 ${pdfPreview.loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">PDF</span>
             </button>
+
+            {/* Descargar - solo desktop */}
             <button
               onClick={async () => {
                 try {
@@ -709,21 +832,33 @@ export default function CertificateBuilder({ templateId, onClose }) {
                   handleSnackbar("Error al descargar PDF", "error");
                 }
               }}
-              className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
+              className="hidden md:flex items-center gap-1 px-2 py-1.5 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
               title="Descargar PDF"
             >
               <FileDown className="h-3.5 w-3.5" />
-              PDF
             </button>
-            <div className="h-4 w-px bg-gray-200" />
+            {/* Botón config en mobile cuando hay campo seleccionado */}
+            {selectedField && (
+              <button
+                onClick={() => setShowMobileConfig(true)}
+                className="p-1.5 text-sky-600 bg-sky-50 rounded lg:hidden"
+                title="Configurar campo"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+            )}
+
+            {/* Guardar */}
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-sky-600 text-white rounded hover:bg-sky-700 disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-sky-600 text-white rounded hover:bg-sky-700 disabled:opacity-50"
             >
-              <Save className="h-3.5 w-3.5" />
-              {saving ? "Guardando..." : "Guardar"}
+              <Save className="h-4 w-4" />
+              <span className="hidden sm:inline">{saving ? "..." : "Guardar"}</span>
             </button>
+
+            {/* Cerrar */}
             {onClose && (
               <button
                 onClick={onClose}
@@ -735,17 +870,24 @@ export default function CertificateBuilder({ templateId, onClose }) {
           </div>
         </div>
 
-        {/* Certificado */}
-        <div className="flex-1 overflow-auto p-6 flex items-start justify-center">
+        {/* Certificado - centrado con scroll horizontal */}
+        <div className="flex-1 overflow-auto p-2 sm:p-4 md:p-6">
           <div
-            className="bg-white shadow-xl overflow-hidden transition-transform origin-top flex flex-col"
+            className="flex justify-center"
             style={{
-              transform: `scale(${scale})`,
-              width: "900px",
-              minHeight: "297mm",
-              padding: "30px 100px 0 100px",
+              minWidth: `${900 * scale}px`,
+              paddingBottom: `${Math.max(0, (1 - scale) * 200)}px`
             }}
           >
+            <div
+              className="bg-white shadow-xl overflow-hidden transition-transform origin-top flex flex-col flex-shrink-0"
+              style={{
+                transform: `scale(${scale})`,
+                width: "900px",
+                minHeight: "297mm",
+                padding: "30px 100px 0 100px",
+              }}
+            >
             {/* Header */}
             <CertificateSection
               section="header"
@@ -835,22 +977,54 @@ export default function CertificateBuilder({ templateId, onClose }) {
               setStylePanel={setStylePanel}
             />
           </div>
+          </div>
         </div>
       </div>
 
-      {/* Panel Derecho - Configuración de Campo */}
+      {/* Botón flotante para agregar campos en mobile */}
+      <button
+        onClick={() => setShowMobileFields(true)}
+        className="fixed bottom-6 left-4 z-20 lg:hidden w-12 h-12 bg-sky-600 text-white rounded-full shadow-lg hover:bg-sky-700 active:bg-sky-800 flex items-center justify-center transition-all"
+        title="Agregar campos"
+      >
+        <Layers className="h-5 w-5" />
+      </button>
+
+      {/* Indicador de campo seleccionado en mobile */}
+      {selectedField && !showMobileConfig && (
+        <button
+          onClick={() => setShowMobileConfig(true)}
+          className="fixed bottom-6 right-4 z-20 lg:hidden flex items-center gap-1.5 px-3 py-2 bg-white border border-sky-200 rounded-full shadow-lg hover:shadow-xl transition-all"
+        >
+          <Settings className="h-4 w-4 text-sky-600" />
+          <span className="text-xs font-medium text-gray-700 max-w-[100px] truncate">
+            {selectedField.field_label}
+          </span>
+        </button>
+      )}
+
+      {/* Panel Derecho - Configuración de Campo - Desktop: sidebar, Mobile: drawer */}
       {showFieldConfig && selectedField && (
-        <FieldConfigPanel
-          field={selectedField}
-          config={config}
-          tableProcessors={tableProcessors}
-          availableVariables={availableVariables}
-          onSave={handleUpdateField}
-          onClose={() => {
-            setShowFieldConfig(false);
-            setSelectedField(null);
-          }}
-        />
+        <div
+          className={`
+            fixed lg:relative inset-y-0 right-0 z-40
+            transform transition-transform duration-300 ease-in-out
+            ${showMobileConfig ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
+          `}
+        >
+          <FieldConfigPanel
+            field={selectedField}
+            config={config}
+            tableProcessors={tableProcessors}
+            availableVariables={availableVariables}
+            onSave={handleUpdateField}
+            onClose={() => {
+              setShowFieldConfig(false);
+              setSelectedField(null);
+              setShowMobileConfig(false);
+            }}
+          />
+        </div>
       )}
 
       {/* Modales */}
@@ -873,6 +1047,93 @@ export default function CertificateBuilder({ templateId, onClose }) {
         onToggle={() => setShowActivityLog(!showActivityLog)}
         onClear={() => setActivityLogs([])}
       />
+
+      {/* Modal de selección de sección (tap to add en mobile) */}
+      {addFieldModal.show && addFieldModal.field && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 lg:hidden"
+          onClick={() => setAddFieldModal({ show: false, field: null })}
+        >
+          <div
+            className="bg-white rounded-t-2xl w-full max-w-lg transform transition-transform duration-300"
+            style={{ animation: "slideUp 0.3s ease-out" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">
+                  Agregar "{addFieldModal.field.field_label}"
+                </h3>
+                <button
+                  onClick={() => setAddFieldModal({ show: false, field: null })}
+                  className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">Selecciona dónde agregar el campo</p>
+            </div>
+            <div className="p-2 space-y-1">
+              <button
+                onClick={() => handleAddFieldToSection(addFieldModal.field, "header")}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg hover:bg-sky-50 transition-colors group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-sky-100 flex items-center justify-center group-hover:bg-sky-200">
+                  <PanelTop className="h-5 w-5 text-sky-600" />
+                </div>
+                <div>
+                  <span className="font-medium text-gray-900">Encabezado</span>
+                  <p className="text-xs text-gray-500">Aparece en todas las páginas (arriba)</p>
+                </div>
+              </button>
+              <button
+                onClick={() => handleAddFieldToSection(addFieldModal.field, "body")}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg hover:bg-emerald-50 transition-colors group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200">
+                  <FileText className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <span className="font-medium text-gray-900">Cuerpo</span>
+                  <p className="text-xs text-gray-500">Contenido principal del certificado</p>
+                </div>
+              </button>
+              <button
+                onClick={() => handleAddFieldToSection(addFieldModal.field, "signature_area")}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg hover:bg-violet-50 transition-colors group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-violet-100 flex items-center justify-center group-hover:bg-violet-200">
+                  <PenTool className="h-5 w-5 text-violet-600" />
+                </div>
+                <div>
+                  <span className="font-medium text-gray-900">Área de Firma</span>
+                  <p className="text-xs text-gray-500">Zona fija para firmas (sobre el pie)</p>
+                </div>
+              </button>
+              <button
+                onClick={() => handleAddFieldToSection(addFieldModal.field, "footer")}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg hover:bg-amber-50 transition-colors group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center group-hover:bg-amber-200">
+                  <PanelBottom className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <span className="font-medium text-gray-900">Pie de página</span>
+                  <p className="text-xs text-gray-500">Aparece en todas las páginas (abajo)</p>
+                </div>
+              </button>
+            </div>
+            <div className="p-4 border-t border-gray-100">
+              <button
+                onClick={() => setAddFieldModal({ show: false, field: null })}
+                className="w-full py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Preview PDF */}
       {pdfPreview.show && (
