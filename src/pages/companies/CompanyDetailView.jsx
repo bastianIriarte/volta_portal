@@ -20,6 +20,8 @@ import {
   updateCompanyReport,
 } from "../../services/companyService";
 import { handleSnackbar } from "../../utils/messageHelpers";
+import { useModals } from "../../hooks/useModals";
+import { Modal } from "../../components/ui/Modal";
 
 // Componentes de tabs
 import CompanyInfoTab from "./components/CompanyInfoTab";
@@ -71,6 +73,9 @@ export default function CompanyDetailView() {
   const [reportConfigModal, setReportConfigModal] = useState({ open: false, report: null });
   const [reportConfigFormData, setReportConfigFormData] = useState({ report_url: '' });
   const [savingReportConfig, setSavingReportConfig] = useState(false);
+
+  // Modales de confirmación
+  const { modals, openConfirm, closeModal } = useModals();
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -243,44 +248,39 @@ export default function CompanyDetailView() {
     }
   };
 
-  const handleDeleteDocument = async (doc) => {
-    if (!window.confirm(`¿Eliminar el documento "${doc.name}"?`)) return;
-    setDeletingDoc(doc.id);
-    try {
-      const response = await deleteCompanyDocument(doc.id);
-      if (response.success) {
-        handleSnackbar("Documento eliminado", "success");
-        await loadDocuments();
-      } else {
-        handleSnackbar(response.message || "Error al eliminar", "error");
+  const handleDeleteDocument = (doc) => {
+    openConfirm({
+      title: "Eliminar Documento",
+      msg: (
+        <div>
+          <p>
+            ¿Está seguro que desea eliminar el documento <strong>{doc.name}</strong>?
+          </p>
+          <p className="text-sm text-red-600 mt-2">
+            Esta acción no se puede deshacer.
+          </p>
+        </div>
+      ),
+      actionLabel: "Eliminar",
+      variant: "danger",
+      onConfirm: async () => {
+        closeModal("confirm");
+        setDeletingDoc(doc.id);
+        try {
+          const response = await deleteCompanyDocument(doc.id);
+          if (response.success) {
+            handleSnackbar("Documento eliminado", "success");
+            await loadDocuments();
+          } else {
+            handleSnackbar(response.message || "Error al eliminar", "error");
+          }
+        } catch (error) {
+          handleSnackbar("Error al eliminar documento", "error");
+        } finally {
+          setDeletingDoc(null);
+        }
       }
-    } catch (error) {
-      handleSnackbar("Error al eliminar documento", "error");
-    } finally {
-      setDeletingDoc(null);
-    }
-  };
-
-  const handleToggleDocumentStatus = async (doc) => {
-    setSavingDoc(doc.id);
-    try {
-      const response = await updateCompanyDocument(doc.id, {
-        ...doc,
-        status: !doc.status,
-      });
-      if (response.success) {
-        setCompanyDocuments(prev =>
-          prev.map(d => d.id === doc.id ? { ...d, status: !d.status } : d)
-        );
-        handleSnackbar("Estado actualizado", "success");
-      } else {
-        handleSnackbar(response.message || "Error al actualizar estado", "error");
-      }
-    } catch (error) {
-      handleSnackbar("Error al actualizar estado", "error");
-    } finally {
-      setSavingDoc(null);
-    }
+    });
   };
 
   // Handlers de certificados
@@ -474,10 +474,8 @@ export default function CompanyDetailView() {
             <CompanyDocumentsTab
               documents={companyDocuments}
               loading={loadingDocuments}
-              savingDoc={savingDoc}
               deletingDoc={deletingDoc}
               onOpenModal={handleOpenDocModal}
-              onToggleStatus={handleToggleDocumentStatus}
               onDelete={handleDeleteDocument}
             />
           )}
@@ -526,6 +524,28 @@ export default function CompanyDetailView() {
         onSave={handleSaveReportConfig}
         onClose={handleCloseReportConfigModal}
       />
+
+      {/* Modal de confirmación */}
+      <Modal
+        open={!!modals.confirm}
+        onClose={() => closeModal("confirm")}
+        title={modals.confirm?.title}
+        variant="warn"
+        actions={[
+          {
+            label: "Cancelar",
+            variant: "outline",
+            onClick: () => closeModal("confirm")
+          },
+          {
+            label: modals.confirm?.actionLabel || "Confirmar",
+            variant: modals.confirm?.variant || "primary",
+            onClick: modals.confirm?.onConfirm,
+          },
+        ]}
+      >
+        {modals.confirm?.msg}
+      </Modal>
     </div>
   );
 }

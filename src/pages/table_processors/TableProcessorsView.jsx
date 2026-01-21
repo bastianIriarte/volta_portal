@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "../../components/ui/Button.jsx";
 import { Modal } from "../../components/ui/Modal.jsx";
-import { Input } from "../../components/ui/Input.jsx";
 import GenericFilters from "../../components/common/GenericFilters.jsx";
 import GenericTable from "../../components/common/GenericTable.jsx";
 import TableActions from "../../components/common/TableActions.jsx";
 import { useModals } from "../../hooks/useModals.js";
 import { handleSnackbar } from "../../utils/messageHelpers.js";
+import TableProcessorFormModal from "./components/TableProcessorFormModal.jsx";
 import {
   Table2,
   Eye,
@@ -47,6 +47,7 @@ export default function TableProcessorsView() {
   const [formModal, setFormModal] = useState({ open: false, mode: "create", data: null });
   const [formData, setFormData] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [formApiError, setFormApiError] = useState(null);
 
   // Modal de preview
   const [previewModal, setPreviewModal] = useState({ open: false, processor: null });
@@ -108,6 +109,7 @@ export default function TableProcessorsView() {
   // Abrir modal de crear
   const handleCreate = () => {
     setFormData(emptyForm);
+    setFormApiError(null);
     setFormModal({ open: true, mode: "create", data: null });
   };
 
@@ -119,15 +121,19 @@ export default function TableProcessorsView() {
       description: processor.description || "",
       data_source_id: processor.data_source_id || "",
     });
+    setFormApiError(null);
     setFormModal({ open: true, mode: "edit", data: processor });
+  };
+
+  // Cerrar modal de formulario
+  const handleCloseForm = () => {
+    setFormModal({ open: false, mode: "create", data: null });
+    setFormApiError(null);
   };
 
   // Guardar
   const handleSave = async () => {
-    if (!formData.name?.trim() || !formData.code?.trim()) {
-      handleSnackbar("Nombre y código son requeridos", "error");
-      return;
-    }
+    setFormApiError(null);
 
     try {
       setSaving(true);
@@ -140,13 +146,13 @@ export default function TableProcessorsView() {
 
       if (response.success) {
         handleSnackbar(response.message || "Guardado exitosamente", "success");
-        setFormModal({ open: false, mode: "create", data: null });
+        handleCloseForm();
         setTrigger((prev) => prev + 1);
       } else {
-        handleSnackbar(response.message || "Error al guardar", "error");
+        setFormApiError(response.message || "Error al guardar");
       }
     } catch (error) {
-      handleSnackbar("Error al guardar", "error");
+      setFormApiError(error.message || "Error al guardar");
     } finally {
       setSaving(false);
     }
@@ -349,98 +355,18 @@ export default function TableProcessorsView() {
       />
 
       {/* Modal de Formulario */}
-      <Modal
+      <TableProcessorFormModal
         open={formModal.open}
-        onClose={() => setFormModal({ open: false, mode: "create", data: null })}
-        title={formModal.mode === "create" ? "Nuevo Procesador" : "Editar Procesador"}
-        size="sm"
-        actions={[
-          {
-            label: "Cancelar",
-            variant: "outline",
-            onClick: () => setFormModal({ open: false, mode: "create", data: null }),
-          },
-          {
-            label: saving ? "Guardando..." : "Guardar",
-            variant: "primary",
-            onClick: handleSave,
-            disabled: saving,
-          },
-        ]}
-      >
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 gap-3">
-            <Input
-              label="Nombre"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Tabla de Riles"
-            />
-            <div>
-              <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
-                Código <span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={formData.code}
-                  onChange={(e) =>
-                    setFormData({ ...formData, code: e.target.value.toLowerCase().replace(/\s/g, "_") })
-                  }
-                  placeholder="tabla_riles"
-                  className="flex-1 rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-indigo-200 h-[37px] font-mono"
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Este código se usará para invocar la función del backend
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
-                Origen de Datos
-              </label>
-              <select
-                value={formData.data_source_id}
-                onChange={(e) => setFormData({ ...formData, data_source_id: e.target.value })}
-                className="w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-indigo-200 h-[37px]"
-              >
-                <option value="">-- Sin origen de datos --</option>
-                {dataSources.map((ds) => (
-                  <option key={ds.id} value={ds.id}>
-                    {ds.name} ({ds.code})
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Opcional: selecciona el origen de datos que usará este procesador
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">Descripción</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full rounded border px-3 py-2 bg-white outline-none transition shadow-sm text-[13px] border-gray-300 focus:ring-2 focus:ring-indigo-200"
-              rows={2}
-              placeholder="Opcional: describe qué datos muestra esta tabla..."
-            />
-          </div>
-
-          {/* Info sobre implementación */}
-          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded">
-            <p className="text-xs text-amber-700">
-              <span className="font-medium">Backend:</span> Crea la función correspondiente:
-            </p>
-            <code className="block mt-1.5 text-xs bg-amber-100 text-amber-900 px-2 py-1 rounded font-mono">
-              TableProcessorHelpers::{formData.code ? formData.code.replace(/_([a-z])/g, (_, c) => c.toUpperCase()) : "codigo"}()
-            </code>
-          </div>
-        </div>
-      </Modal>
+        mode={formModal.mode}
+        formData={formData}
+        setFormData={setFormData}
+        dataSources={dataSources}
+        saving={saving}
+        onSave={handleSave}
+        onClose={handleCloseForm}
+        apiError={formApiError}
+        onClearApiError={() => setFormApiError(null)}
+      />
 
       {/* Modal de Preview */}
       <Modal

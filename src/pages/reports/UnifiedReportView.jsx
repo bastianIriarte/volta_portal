@@ -4,14 +4,17 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, FileText, Table, ExternalLink, Calendar,
   Download, Loader2, Building2, Search, Award, AlertCircle,
-  BarChart2, Image, X, Eye
+  BarChart2, Image, X, Eye, FileSpreadsheet
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../context/auth";
-import api from "../../services/api";
-import { executeReportByCode } from "../../services/reportTemplateService";
+import { executeReportByCode, getReportTemplateByCode } from "../../services/reportTemplateService";
+import { getCertificateTemplateByCode } from "../../services/certificateTemplateService";
+import { getCompanyReports } from "../../services/companyReportService";
+import { getLists, getListItems, getSharepointListConfig } from "../../services/microsoftGraphService";
 import { getCompaniesList } from "../../services/companyService";
 import { getTicketImage, checkTicketImages, bulkRegisterTicketImages } from "../../services/ticketImageService";
+import { exportReportToExcel } from "../../services/reportExportService";
 import { handleSnackbar } from "../../utils/messageHelpers";
 
 // Configuracion de columnas para la tabla SharePoint
@@ -64,6 +67,12 @@ export default function UnifiedReportView() {
   // Estado para loading del iframe
   const [iframeLoading, setIframeLoading] = useState(true);
 
+  // Estado para loader global (cambio de empresa)
+  const [globalLoading, setGlobalLoading] = useState(false);
+
+  // Estado para exportación a Excel
+  const [exporting, setExporting] = useState(false);
+
   // Estados para modal de imagen
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -107,6 +116,22 @@ export default function UnifiedReportView() {
     }
   }, [template, companyId]);
 
+  // Efecto para recargar companyReport y datos cuando admin cambia la empresa seleccionada
+  useEffect(() => {
+    if (!isClientUser && selectedCompanyId && template && templateType === "report") {
+      // Activar loader global
+      setGlobalLoading(true);
+      // Resetear datos e iframe cuando cambia la empresa
+      setItems([]);
+      setCompanyReport(null);
+      setIframeLoading(true);
+      // Cargar el companyReport para la nueva empresa
+      loadCompanyReport(template.id, selectedCompanyId);
+      // Cargar datos automáticamente cuando admin selecciona empresa
+      loadData();
+    }
+  }, [selectedCompanyId]);
+
   const loadCompanies = async () => {
     try {
       const response = await getCompaniesList();
@@ -142,11 +167,11 @@ export default function UnifiedReportView() {
 
       if (certCode) {
         // Cargar certificado por codigo
-        response = await api.get(`/api/certificate-templates/code/${certCode}`);
+        response = await getCertificateTemplateByCode(certCode);
         type = "certificate";
       } else if (reportCode) {
         // Cargar reporte por codigo
-        response = await api.get(`/api/report-templates/code/${reportCode}`);
+        response = await getReportTemplateByCode(reportCode);
         type = "report";
       } else {
         handleSnackbar("No se especificó un certificado o reporte", "error");
@@ -154,9 +179,9 @@ export default function UnifiedReportView() {
         return;
       }
 
-      // La API devuelve { data, message, code } - verificar si hay data
-      if (response.status === 200 && response.data?.data) {
-        const templateData = response.data.data;
+      // Verificar si la respuesta fue exitosa
+      if (response.success && response.data) {
+        const templateData = response.data;
         setTemplate(templateData);
         setTemplateType(type);
 
@@ -171,7 +196,7 @@ export default function UnifiedReportView() {
         }
       } else if (response.status === 403) {
         // Acceso denegado por falta de permisos
-        handleSnackbar(response.data?.error || "No tienes permiso para acceder a este recurso", "error");
+        handleSnackbar(response.message || "No tienes permiso para acceder a este recurso", "error");
         navigate("/dashboard");
       } else {
         // Plantilla no encontrada o no disponible - redirigir al dashboard
@@ -180,8 +205,8 @@ export default function UnifiedReportView() {
     } catch (error) {
       console.error("Error loading template:", error);
       // Manejar error 403 de la API
-      if (error?.response?.status === 403) {
-        handleSnackbar(error.response?.data?.error || "No tienes permiso para acceder a este recurso", "error");
+      if (error?.status === 403) {
+        handleSnackbar(error.message || "No tienes permiso para acceder a este recurso", "error");
       }
       // Cualquier error (404, 500, etc.) - redirigir al dashboard
       navigate("/dashboard");
@@ -190,13 +215,20 @@ export default function UnifiedReportView() {
     }
   };
 
-  const loadCompanyReport = async (reportId) => {
+  const loadCompanyReport = async (reportId, targetCompanyId = null) => {
+    // Usar empresa pasada como parámetro, o empresa del usuario
+    const effectiveCompanyId = targetCompanyId || companyId;
+    if (!effectiveCompanyId) {
+      setGlobalLoading(false);
+      return;
+    }
+
     try {
-      // Cargar los reportes asignados a la empresa del usuario
-      const response = await api.get(`/api/company-reports/company/${companyId}`);
-      if (response.status === 200 && response.data?.data) {
+      // Cargar los reportes asignados a la empresa
+      const response = await getCompanyReports(effectiveCompanyId);
+      if (response.success && response.data) {
         // Buscar la asignación específica para este reporte
-        const assignment = response.data.data.find(r => r.report_id === reportId);
+        const assignment = response.data.find(r => r.report_id === reportId);
         if (assignment) {
           console.log('[UnifiedReportView] Company report assignment found:', assignment);
           setCompanyReport(assignment);
@@ -204,10 +236,20 @@ export default function UnifiedReportView() {
           if (assignment.report_url) {
             setActiveTab("iframe");
           }
+        } else {
+          // No hay asignación para esta empresa, limpiar companyReport
+          console.log('[UnifiedReportView] No company report assignment for company:', effectiveCompanyId);
+          setCompanyReport(null);
         }
+      } else {
+        setCompanyReport(null);
       }
     } catch (error) {
       console.error("Error loading company report:", error);
+      setCompanyReport(null);
+    } finally {
+      // Desactivar loader global
+      setGlobalLoading(false);
     }
   };
 
@@ -306,9 +348,9 @@ export default function UnifiedReportView() {
       // Si es la primera carga, obtener configuración de columnas
       if (!loadMore && tableColumns.length === 0) {
         try {
-          const configResponse = await api.get(`/api/sharepoint/lists/${encodeURIComponent(listName)}/config`);
-          if (configResponse.data?.data?.columns) {
-            setTableColumns(configResponse.data.data.columns);
+          const configResponse = await getSharepointListConfig(listName);
+          if (configResponse.success && configResponse.data?.columns) {
+            setTableColumns(configResponse.data.columns);
           } else {
             setTableColumns(DEFAULT_COLUMNS);
           }
@@ -328,9 +370,9 @@ export default function UnifiedReportView() {
         // Primera carga: buscar el ID real de la lista en SharePoint
         listId = listName;
         try {
-          const listsResponse = await api.get("/api/microsoft-graph/lists");
-          if (listsResponse.data?.data?.value) {
-            const sharePointList = listsResponse.data.data.value.find(
+          const listsResponse = await getLists();
+          if (listsResponse.success && listsResponse.data?.value) {
+            const sharePointList = listsResponse.data.value.find(
               list => list.displayName === listName || list.name === listName
             );
             if (sharePointList) {
@@ -365,19 +407,16 @@ export default function UnifiedReportView() {
       // Calcular skip basado en items actuales
       const skipCount = loadMore ? items.length : 0;
 
-      // Construir URL con $skip para paginación (en lugar de skiptoken)
-      let url = `/api/microsoft-graph/lists/${listId}/items?expand=fields&top=${PAGE_SIZE}`;
-      if (skipCount > 0) {
-        url += `&skip=${skipCount}`;
-      }
-      if (odataFilter) {
-        url += `&filter=${encodeURIComponent(odataFilter)}`;
-      }
+      // Usar servicio para obtener items
+      const response = await getListItems(listId, {
+        expand: true,
+        top: PAGE_SIZE,
+        skip: skipCount > 0 ? skipCount : undefined,
+        filter: odataFilter,
+      });
 
-      const response = await api.get(url);
-
-      if (response.data?.data) {
-        const data = response.data.data;
+      if (response.success && response.data) {
+        const data = response.data;
         // Procesar items: aplanar fields para acceso directo
         const newItems = (data.value || []).map(item => ({
           ...item.fields,
@@ -439,6 +478,7 @@ export default function UnifiedReportView() {
     if (!isClientUser) {
       setSelectedCompanyId("");
       setItems([]);
+      setCompanyReport(null); // Limpiar también el reporte de empresa (iframe URL)
     }
   };
 
@@ -502,6 +542,47 @@ export default function UnifiedReportView() {
     link.href = URL.createObjectURL(blob);
     link.download = `${template?.name || "reporte"}_${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
+  };
+
+  // Exportar a Excel (genera archivo en servidor y descarga)
+  const handleExportExcel = async () => {
+    // Validar que hay empresa seleccionada
+    const effectiveCompanyId = isClientUser ? companyId : selectedCompanyId;
+    if (!effectiveCompanyId) {
+      handleSnackbar("Seleccione una empresa para exportar", "warning");
+      return;
+    }
+
+    // Solo funciona para reportes tipo SQL (no SharePoint ni iframe)
+    if (!reportCode || template?.origin_type === "iframe") {
+      handleSnackbar("La exportación a Excel solo está disponible para reportes SQL", "info");
+      return;
+    }
+
+    setExporting(true);
+    try {
+      const response = await exportReportToExcel(
+        reportCode,
+        effectiveCompanyId,
+        dateFrom,
+        dateTo
+      );
+
+      if (response.success && response.data) {
+        handleSnackbar(`Reporte exportado: ${response.data.rows_exported} registros`, "success");
+        // Abrir la URL del archivo en una nueva pestaña para descargar
+        if (response.data.file_url) {
+          window.open(response.data.file_url, "_blank");
+        }
+      } else {
+        handleSnackbar(response.message || "Error al exportar reporte", "error");
+      }
+    } catch (error) {
+      console.error("Error exporting to Excel:", error);
+      handleSnackbar("Error al exportar a Excel", "error");
+    } finally {
+      setExporting(false);
+    }
   };
 
   // Nombres de meses en español
@@ -656,6 +737,14 @@ export default function UnifiedReportView() {
 
   return (
     <div className="space-y-6">
+      {/* Loader global overlay */}
+      {globalLoading && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
+          <p className="mt-4 text-sm text-gray-600 font-medium">Cargando datos de empresa...</p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -673,10 +762,29 @@ export default function UnifiedReportView() {
           </div>
         </div>
 
-        {companyName && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg">
+        {/* Selector de empresa para admin / Nombre de empresa para cliente */}
+        {isClientUser ? (
+          companyName && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
+              <Building2 className="w-5 h-5 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">{companyName}</span>
+            </div>
+          )
+        ) : (
+          <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">{companyName}</span>
+            <select
+              value={selectedCompanyId}
+              onChange={(e) => setSelectedCompanyId(e.target.value)}
+              className="min-w-[250px] px-3 py-2 text-sm border border-blue-200 rounded-lg bg-blue-50 text-blue-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Seleccione una empresa</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.business_name} {company.rut ? `(${company.rut})` : ""}
+                </option>
+              ))}
+            </select>
           </div>
         )}
       </div>
@@ -724,6 +832,19 @@ export default function UnifiedReportView() {
               <Button variant="outline" size="sm" onClick={handleExportCSV} icon={Download}>
                 Exportar CSV
               </Button>
+              {/* Exportar a Excel (solo para reportes SQL) */}
+              {reportCode && template?.origin_type !== "iframe" && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleExportExcel}
+                  icon={FileSpreadsheet}
+                  loading={exporting}
+                  disabled={exporting}
+                >
+                  {exporting ? "Exportando..." : "Exportar Excel"}
+                </Button>
+              )}
             </div>
 
             <div className="relative flex-1 max-w-md">
@@ -748,27 +869,6 @@ export default function UnifiedReportView() {
             </div>
 
               <div className="flex flex-wrap items-end gap-4">
-                {/* Selector de empresa - solo para admin/super usuario */}
-                {!isClientUser && (
-                  <div className="flex-1 min-w-[250px]">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Empresa
-                    </label>
-                    <select
-                      value={selectedCompanyId}
-                      onChange={(e) => setSelectedCompanyId(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccione una empresa</option>
-                      {companies.map((company) => (
-                        <option key={company.id} value={company.id}>
-                          {company.business_name} {company.rut ? `(${company.rut})` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
                 <div className="flex-1 min-w-[150px]">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Desde
@@ -873,6 +973,32 @@ export default function UnifiedReportView() {
                             );
                           }
 
+                          // Renderizado especial para descarga - usa el valor de la celda como URL
+                          if (col.format === "download") {
+                            const downloadUrl = rawValue;
+                            return (
+                              <td
+                                key={`${col.key}-${colIndex}`}
+                                className="px-4 py-3 text-sm whitespace-nowrap"
+                              >
+                                {downloadUrl ? (
+                                  <a
+                                    href={downloadUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                    Descargar
+                                  </a>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                            );
+                          }
+
                           // Renderizado para date_split (ya expandido)
                           if (col.format === "date_split" && col.datePart) {
                             return (
@@ -964,6 +1090,7 @@ export default function UnifiedReportView() {
               <p className="mt-4 text-sm text-gray-600">Cargando reporte...</p>
             </div>
             <iframe
+              key={iframeUrl} // Key para forzar re-render cuando cambia URL
               src={iframeUrl}
               className="w-full border-0"
               style={{ height: 'calc(100% + 56px)' }}

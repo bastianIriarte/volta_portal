@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../context/auth";
-import { getCertificateTemplateById } from "../../services/companyService";
-import api from "../../services/api";
+import { getCertificateTemplateById } from "../../services/certificateTemplateService";
+import { getListItems } from "../../services/microsoftGraphService";
 import { handleSnackbar } from "../../utils/messageHelpers";
 
 // Configuracion de columnas para la tabla SharePoint
@@ -111,24 +111,16 @@ export default function CertificateReportView() {
         filters.push(`${dateFilterField} le '${dateTo}'`);
       }
 
-      const filterQuery = filters.length > 0 ? filters.join(" and ") : "";
+      const filterQuery = filters.length > 0 ? filters.join(" and ") : null;
 
-      const params = new URLSearchParams();
-      if (filterQuery) params.append("$filter", filterQuery);
-      params.append("$top", "100");
-      params.append("$orderby", `${dateFilterField} desc`);
+      const response = await getListItems(SHAREPOINT_LIST_ID, {
+        expand: true,
+        top: 100,
+        filter: filterQuery,
+      });
 
-      let url = `/api/microsoft-graph/lists/${SHAREPOINT_LIST_ID}/items`;
-      if (cursor) {
-        url = cursor;
-      } else if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-
-      const response = await api.get(url);
-
-      if (response.data?.success) {
-        const newItems = response.data.data || [];
+      if (response.success && response.data) {
+        const newItems = response.data.value || response.data || [];
         const newNextLink = response.data.nextLink || null;
 
         setItems(prev => cursor ? [...prev, ...newItems] : newItems);

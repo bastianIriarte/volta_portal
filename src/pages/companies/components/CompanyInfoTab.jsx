@@ -13,7 +13,7 @@ export default function CompanyInfoTab({
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-gray-900">Informacion de la Empresa</h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Input
           id="rut"
           label="RUT"
@@ -28,7 +28,6 @@ export default function CompanyInfoTab({
           onChange={(e) => onFormChange("sap_code", e.target.value)}
           disabled
         />
-        <div className="md:col-span-2">
           <Input
             id="business_name"
             label="Razon Social"
@@ -36,7 +35,6 @@ export default function CompanyInfoTab({
             onChange={(e) => onFormChange("business_name", e.target.value)}
             disabled
           />
-        </div>
         <Input
           id="email"
           label="Email de Contacto"

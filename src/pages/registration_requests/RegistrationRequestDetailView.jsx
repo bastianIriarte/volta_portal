@@ -337,32 +337,30 @@ export default function RegistrationRequestDetailView() {
         )}
       </div>
 
-      {showRejectModal && (
-        <RejectModal
-          request={request}
-          rejectionReason={rejectionReason}
-          setRejectionReason={setRejectionReason}
-          processing={processing}
-          onConfirm={handleReject}
-          onCancel={() => {
-            setShowRejectModal(false);
-            setRejectionReason("");
-          }}
-        />
-      )}
+      <RejectModal
+        open={showRejectModal}
+        request={request}
+        rejectionReason={rejectionReason}
+        setRejectionReason={setRejectionReason}
+        processing={processing}
+        onConfirm={handleReject}
+        onCancel={() => {
+          setShowRejectModal(false);
+          setRejectionReason("");
+        }}
+      />
 
-      {showApproveModal && (
-        <ApproveModal
-          request={request}
-          selectedPermissions={selectedPermissions}
-          reports={reports}
-          certificates={certificates}
-          documents={documents}
-          processing={processing}
-          onConfirm={handleApprove}
-          onCancel={() => setShowApproveModal(false)}
-        />
-      )}
+      <ApproveModal
+        open={showApproveModal}
+        request={request}
+        selectedPermissions={selectedPermissions}
+        reports={reports}
+        certificates={certificates}
+        documents={documents}
+        processing={processing}
+        onConfirm={handleApprove}
+        onCancel={() => setShowApproveModal(false)}
+      />
     </div>
   );
 }

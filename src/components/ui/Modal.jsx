@@ -1,5 +1,6 @@
 // File: src/components/ui/Modal.jsx
 import React, { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X, CheckCircle2, AlertTriangle, Info } from "lucide-react";
 import { Button } from "./Button";
 
@@ -36,12 +37,7 @@ export function Modal({
     full: "max-w-[90vw]"
   };
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => e.key === "Escape" && onClose?.();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  // Nota: Se eliminó el cierre con ESC para que solo se cierre desde X o Cancelar
 
   useEffect(() => {
     if (!open) return;
@@ -52,16 +48,16 @@ export function Modal({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
     >
-      <div className="absolute inset-0   bg-black/40 backdrop-blur-[2px] animate-fade-in  mt-[-40px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-fade-in" />
       <div
         ref={ref}
-        className={`relative w-full  ${sizeClasses[size]} rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 animate-scale-in`}
+        className={`relative z-10 w-full ${sizeClasses[size]} rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 animate-scale-in`}
       >
         <div className="flex items-start gap-3 p-4 border-b border-black/10">
           {showIcon && (
@@ -70,8 +66,8 @@ export function Modal({
             </div>
           )}
 
-          <div className="grow bg-gray-100 p-2">
-            <h3 className="text-[15px] font-bold uppercase mt-1">{title}</h3>
+          <div className="grow">
+            <h3 className="text-base font-bold text-gray-900">{title}</h3>
           </div>
           <button
             aria-label="Cerrar"
@@ -81,17 +77,16 @@ export function Modal({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className={`px-5 py-4 text-sm leading-relaxed  ${size !== 'default' ? 'max-h-[70vh]  overflow-y-auto ' : ''}`}>
+        <div className={`px-5 py-4 text-sm leading-relaxed ${size !== 'default' ? 'max-h-[70vh] overflow-y-auto' : ''}`}>
           {isHtml ? (
             <div
               dangerouslySetInnerHTML={{
                 __html: children || ""
               }}
             />
-          ) :
-            (
-              children
-            )}
+          ) : (
+            children
+          )}
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-black/10">
           {actions.map((a, i) => (
@@ -99,6 +94,9 @@ export function Modal({
               key={i}
               variant={a.variant || (variant === "error" || variant === "warn" ? "outline" : "primary")}
               onClick={a.onClick}
+              icon={a.icon}
+              disabled={a.disabled}
+              loading={a.loading}
               data-autofocus={a.autofocus ? "true" : undefined}
             >
               {a.label}
@@ -106,7 +104,8 @@ export function Modal({
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

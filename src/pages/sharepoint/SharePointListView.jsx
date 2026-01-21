@@ -14,7 +14,12 @@ import {
   Calendar,
 } from "lucide-react";
 import { handleSnackbar } from "../../utils/messageHelpers";
-import api from "../../services/api";
+import {
+  getSharepointLists,
+  getSharepointListConfig,
+  getLists,
+  getListItems,
+} from "../../services/microsoftGraphService";
 
 // Columnas por defecto (fallback si no hay configuración)
 const DEFAULT_COLUMNS = [
@@ -84,9 +89,9 @@ export default function SharePointListView() {
   const loadAllowedLists = async () => {
     setLoadingLists(true);
     try {
-      const response = await api.get("/api/sharepoint/lists");
-      if (response.data?.data) {
-        const lists = response.data.data;
+      const response = await getSharepointLists();
+      if (response.success && response.data) {
+        const lists = response.data;
         setAllowedLists(lists);
 
         if (lists.length > 0) {
@@ -118,12 +123,12 @@ export default function SharePointListView() {
     setError(null);
     try {
       // Obtener configuración de columnas desde el backend
-      const configResponse = await api.get(`/api/sharepoint/lists/${encodeURIComponent(listName)}/config`);
+      const configResponse = await getSharepointListConfig(listName);
 
-      console.log("Config response:", configResponse.data); // Debug
+      console.log("Config response:", configResponse); // Debug
 
-      if (configResponse.data?.data) {
-        const config = configResponse.data.data;
+      if (configResponse.success && configResponse.data) {
+        const config = configResponse.data;
         setListConfig(config);
 
         // Establecer columnas del backend
@@ -139,9 +144,9 @@ export default function SharePointListView() {
       }
 
       // Buscar el ID de la lista en SharePoint
-      const listsResponse = await api.get("/api/microsoft-graph/lists");
-      if (listsResponse.data?.data?.value) {
-        const sharePointList = listsResponse.data.data.value.find(
+      const listsResponse = await getLists();
+      if (listsResponse.success && listsResponse.data?.value) {
+        const sharePointList = listsResponse.data.value.find(
           list => list.displayName === listName || list.name === listName
         );
         if (sharePointList) {
@@ -221,23 +226,26 @@ export default function SharePointListView() {
       // Construir filtro OData (fechas + NombreCliente)
       const odataFilter = buildODataFilter();
 
-      let url;
+      // Extraer skiptoken del nextLink si existe
+      let skipToken = null;
       if (!reset && nextLink) {
-        const nextUrl = new URL(nextLink);
-        const skipToken = nextUrl.searchParams.get('$skiptoken');
-        url = `/api/microsoft-graph/lists/${selectedListId}/items?expand=fields&top=100${skipToken ? `&skiptoken=${encodeURIComponent(skipToken)}` : ''}`;
-        // El filtro ya está aplicado en la primera consulta, no lo re-aplicamos en paginación
-      } else {
-        url = `/api/microsoft-graph/lists/${selectedListId}/items?expand=fields&top=100`;
-        if (odataFilter) {
-          url += `&filter=${encodeURIComponent(odataFilter)}`;
+        try {
+          const nextUrl = new URL(nextLink);
+          skipToken = nextUrl.searchParams.get('$skiptoken');
+        } catch (e) {
+          console.warn("Error parsing nextLink:", e);
         }
       }
 
-      const response = await api.get(url);
+      const response = await getListItems(selectedListId, {
+        expand: true,
+        top: 100,
+        filter: reset ? odataFilter : undefined, // Solo aplicar filtro en primera carga
+        skiptoken: skipToken,
+      });
 
-      if (response.data?.data) {
-        const data = response.data.data;
+      if (response.success && response.data) {
+        const data = response.data;
         const newItems = (data.value || []).map(item => ({
           ...item.fields,
           _id: item.id,
@@ -319,10 +327,10 @@ export default function SharePointListView() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get(`/api/microsoft-graph/lists/${selectedListId}/items?all=true&expand=fields`);
+      const response = await getListItems(selectedListId, { all: true, expand: true });
 
-      if (response.data?.data?.value) {
-        const processedItems = response.data.data.value.map(item => ({
+      if (response.success && response.data?.value) {
+        const processedItems = response.data.value.map(item => ({
           ...item.fields,
           _id: item.id,
           _webUrl: item.webUrl,

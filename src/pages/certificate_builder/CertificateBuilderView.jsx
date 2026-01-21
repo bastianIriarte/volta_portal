@@ -1,47 +1,48 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  FileText,
-  Eye,
-  Edit2,
-  Trash2,
-  Settings,
-  History,
-  Database,
-  CheckCircle,
-  XCircle,
-} from "lucide-react";
-import { CertificateBuilder } from "../../components/certificate-builder";
+import { FileText } from "lucide-react";
 import { handleSnackbar } from "../../utils/messageHelpers";
-import api from "../../services/api";
-import { getTemplateLogs } from "../../services/certificateBuilderService";
+import { getCertificateTemplates } from "../../services/certificateTemplateService";
+import { getDataSources } from "../../services/dataSourceService";
 
 // Componentes reutilizables
 import GenericFilters from "../../components/common/GenericFilters";
 import GenericTable from "../../components/common/GenericTable";
-import TableActions from "../../components/common/TableActions";
 import { Modal } from "../../components/ui/Modal";
 import { useTableLogic } from "../../hooks/useTableLogic";
 import { useModals } from "../../hooks/useModals";
 
-// Componentes extraídos
-import TemplateFormModal from "./components/TemplateFormModal";
-import TemplateHistoryModal from "./components/TemplateHistoryModal";
+// Componentes de la lista
+import TemplateFormModal from "./components/list/TemplateFormModal";
+import TemplateHistoryModal from "./components/list/TemplateHistoryModal";
+import TemplateTableRow from "./components/list/TemplateTableRow";
+import PdfPreviewModal from "./components/list/PdfPreviewModal";
 
-const emptyForm = {
-  name: "",
-  code: "",
-  description: "",
-  filepath: "",
-  primary_color: "#0284c7",
-  secondary_color: "#64748b",
-  data_source_id: "",
-  query_branches: false,
-  search_type: "range",
+// Hook personalizado
+import { useTemplateHandlers } from "./hooks/useTemplateHandlers.jsx";
+import CertificateBuilder from "./CertificateBuilder.jsx";
+
+// Columnas de la tabla
+const columns = [
+  { key: "id", label: "ID" },
+  { key: "name", label: "Plantilla" },
+  { key: "data_source", label: "Fuente de Datos", sortable: false },
+  { key: "table_processor", label: "Procesador de Tabla", sortable: false },
+  { key: "search_type", label: "Filtro de Fecha", sortable: false },
+  { key: "query_branches", label: "Sucursal", sortable: false },
+  { key: "status", label: "Estado", sortable: false },
+  { key: "actions", label: "Acciones", sortable: false, headerClassName: "text-center" },
+];
+
+// Configuración de la tabla
+const tableConfig = {
+  defaultSort: "id",
+  defaultSortDir: "desc",
+  pageSize: 10,
+  searchFields: ["id", "name", "code", "description"],
 };
 
 export default function CertificateBuilderView() {
-  const baseURL = import.meta.env.VITE_API_BASE_URL;
   const { templateId } = useParams();
   const navigate = useNavigate();
 
@@ -49,45 +50,52 @@ export default function CertificateBuilderView() {
   const [loading, setLoading] = useState(true);
   const [trigger, setTrigger] = useState(0);
 
-  // Modal de formulario (crear/editar)
-  const [formModal, setFormModal] = useState({ open: false, mode: "create", data: null });
-  const [formData, setFormData] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
-
-  // Modal de historial
-  const [historyModal, setHistoryModal] = useState({ open: false, template: null });
-  const [historyLogs, setHistoryLogs] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-
   // Data sources disponibles
   const [dataSources, setDataSources] = useState([]);
-
-  // Configuración de la tabla
-  const tableConfig = {
-    defaultSort: "id",
-    defaultSortDir: "desc",
-    pageSize: 10,
-    searchFields: ["id", "name", "code", "description"],
-  };
 
   const { q, setQ, sortBy, sortDir, page, setPage, filteredData, pageData, totalPages, handleSort } =
     useTableLogic(templates, tableConfig);
 
   const { modals, openConfirm, closeModal } = useModals();
 
+  // Hook con handlers
+  const {
+    formModal,
+    formData,
+    setFormData,
+    saving,
+    historyModal,
+    historyLogs,
+    loadingHistory,
+    pdfPreview,
+    handleCreate,
+    handleEdit,
+    handleSave,
+    handleEditBuilder,
+    handlePreview,
+    handleRefreshPreview,
+    handleDownloadPdf,
+    handleClosePreview,
+    handleDelete,
+    handleOpenHistory,
+    handleCloseHistory,
+    handleCloseForm,
+    handleClone,
+  } = useTemplateHandlers({ templates, openConfirm, closeModal, setTrigger });
+
   // Cargar plantillas y data sources
   const fetchData = async () => {
     try {
       setLoading(true);
       const [templatesRes, dataSourcesRes] = await Promise.all([
-        api.get("/api/certificate-templates"),
-        api.get("/api/data-sources"),
+        getCertificateTemplates(),
+        getDataSources(),
       ]);
-      if (templatesRes.data?.data) {
-        setTemplates(templatesRes.data.data);
+      if (templatesRes.success && templatesRes.data) {
+        setTemplates(templatesRes.data);
       }
-      if (dataSourcesRes.data?.data) {
-        setDataSources(dataSourcesRes.data.data);
+      if (dataSourcesRes.success && dataSourcesRes.data) {
+        setDataSources(dataSourcesRes.data);
       }
     } catch (error) {
       handleSnackbar("Error cargando plantillas", "error");
@@ -105,178 +113,6 @@ export default function CertificateBuilderView() {
     }
   }, [trigger, templateId]);
 
-  // Columnas de la tabla
-  const columns = [
-    { key: "id", label: "ID" },
-    { key: "name", label: "Plantilla" },
-    { key: "code", label: "Código" },
-    { key: "status", label: "Estado", sortable: false },
-    { key: "actions", label: "Acciones", sortable: false, headerClassName: "text-center" },
-  ];
-
-  // === Handlers ===
-
-  // Crear plantilla
-  const handleCreate = () => {
-    setFormData(emptyForm);
-    setFormModal({ open: true, mode: "create", data: null });
-  };
-
-  // Editar configuración
-  const handleEdit = (template) => {
-    setFormData({
-      ...emptyForm,
-      id: template.id,
-      name: template.name || "",
-      code: template.code || "",
-      description: template.description || "",
-      filepath: template.filepath || "",
-      status: template.status ?? 1,
-      data_source_id: template.data_source_id || "",
-      query_branches: template.query_branches ?? false,
-      search_type: template.search_type || "range",
-    });
-    setFormModal({ open: true, mode: "edit", data: template });
-  };
-
-  // Guardar (crear o actualizar)
-  const handleSave = async () => {
-    if (!formData.name?.trim()) {
-      handleSnackbar("El nombre es requerido", "error");
-      return;
-    }
-
-    if (formModal.mode === "edit" && formData.filepath?.trim()) {
-      const url = formData.filepath.trim();
-      if (!url.startsWith("http://") && !url.startsWith("https://")) {
-        handleSnackbar("La URL debe comenzar con http:// o https://", "error");
-        return;
-      }
-    }
-
-    try {
-      setSaving(true);
-
-      if (formModal.mode === "create") {
-        const response = await api.post("/api/certificate-templates/store", {
-          name: formData.name,
-          code: formData.code || formData.name.toLowerCase().replace(/\s+/g, "_"),
-          description: formData.description,
-          filepath: formData.filepath || null,
-          primary_color: formData.primary_color,
-          secondary_color: formData.secondary_color,
-          data_source_id: formData.data_source_id || null,
-          query_branches: formData.query_branches ?? false,
-          search_type: formData.search_type || "range",
-          status: 1,
-        });
-
-        if (response.data?.data?.id) {
-          handleSnackbar("Plantilla creada correctamente", "success");
-          setFormModal({ open: false, mode: "create", data: null });
-          navigate(`/dashboard/certificate-builder/${response.data.data.id}`);
-        } else {
-          handleSnackbar("Error al crear plantilla", "error");
-        }
-      } else {
-        const response = await api.put(`/api/certificate-templates/${formData.id}`, {
-          name: formData.name,
-          code: formData.code,
-          description: formData.description,
-          filepath: formData.filepath || null,
-          data_source_id: formData.data_source_id || null,
-          query_branches: formData.query_branches ?? false,
-          search_type: formData.search_type || "range",
-          status: formData.status,
-        });
-
-        if (response.status === 200 || response.status === 204) {
-          handleSnackbar("Plantilla actualizada correctamente", "success");
-          setFormModal({ open: false, mode: "create", data: null });
-          setTrigger((prev) => prev + 1);
-        } else {
-          handleSnackbar(response.data?.error || "Error al actualizar", "error");
-        }
-      }
-    } catch (error) {
-      handleSnackbar(error.response?.data?.error || "Error al guardar plantilla", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Ir al diseñador
-  const handleEditBuilder = (template) => {
-    navigate(`/dashboard/certificate-builder/${template.id}`);
-  };
-
-  // Vista previa
-  const handlePreview = (template) => {
-    window.open(
-      `${baseURL}/api/certificate-builder/templates/${template.id}/pdf?data_type=transporte_residuos`,
-      "_blank"
-    );
-  };
-
-  // Eliminar
-  const handleDelete = (template) => {
-    openConfirm({
-      title: "Eliminar Plantilla",
-      msg: (
-        <div>
-          <p>
-            ¿Está seguro que desea eliminar la plantilla <strong>{template.name}</strong>?
-          </p>
-          <p className="text-sm text-red-600 mt-2">
-            Esta acción no se puede deshacer. Si la plantilla tiene certificados asignados a
-            empresas, no podrá ser eliminada.
-          </p>
-        </div>
-      ),
-      variant: "danger",
-      actionLabel: "Eliminar",
-      onConfirm: async () => {
-        try {
-          const response = await api.delete(`/api/certificate-templates/${template.id}`);
-          if (response.status === 200) {
-            handleSnackbar("Plantilla eliminada correctamente", "success");
-            setTrigger((prev) => prev + 1);
-          } else {
-            handleSnackbar(response.data?.error || "Error al eliminar", "error");
-          }
-        } catch (error) {
-          handleSnackbar(error.response?.data?.error || "Error al eliminar plantilla", "error");
-        }
-        closeModal("confirm");
-      },
-    });
-  };
-
-  // Ver historial
-  const handleOpenHistory = async (template) => {
-    setHistoryModal({ open: true, template });
-    setLoadingHistory(true);
-    setHistoryLogs([]);
-
-    try {
-      const response = await getTemplateLogs(template.id, 100);
-      if (response.success && response.data) {
-        setHistoryLogs(response.data);
-      } else {
-        handleSnackbar("Error cargando historial", "error");
-      }
-    } catch (error) {
-      handleSnackbar("Error cargando historial", "error");
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
-
-  // Ir a fuentes de datos
-  const handleOpenDataSources = () => {
-    navigate("/dashboard/fuentes-datos");
-  };
-
   // Volver
   const handleBack = () => {
     if (templateId) {
@@ -286,95 +122,20 @@ export default function CertificateBuilderView() {
     }
   };
 
-  // Acciones por fila
-  const getRowActions = () => [
-    {
-      label: "",
-      icon: Edit2,
-      variant: "outline",
-      onClick: handleEdit,
-      title: "Editar plantilla",
-      className: "text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50",
-    },
-    {
-      label: "",
-      icon: Settings,
-      variant: "outline",
-      onClick: handleEditBuilder,
-      title: "Configurar plantilla",
-      className: "text-sky-600 hover:text-sky-900 hover:bg-sky-50",
-    },
-    {
-      icon: Eye,
-      variant: "ghost",
-      onClick: handlePreview,
-      title: "Vista Previa",
-      className: "text-gray-500 hover:text-gray-700 hover:bg-gray-100",
-    },
-    {
-      icon: History,
-      variant: "ghost",
-      onClick: handleOpenHistory,
-      title: "Historial de cambios",
-      className: "text-violet-500 hover:text-violet-700 hover:bg-violet-50",
-    },
-    {
-      icon: Database,
-      variant: "ghost",
-      onClick: handleOpenDataSources,
-      title: "Ir a Fuentes de Datos",
-      className: "text-cyan-500 hover:text-cyan-700 hover:bg-cyan-50",
-    },
-    {
-      icon: Trash2,
-      variant: "danger",
-      onClick: handleDelete,
-      title: "Eliminar",
-    },
-  ];
-
   // Renderizado de filas
-  const renderRow = (template) => {
-    return (
-      <tr key={template.id} className="border-t hover:bg-gray-50">
-        <td className="px-3 py-2 text-sm text-gray-500">{template.id}</td>
-        <td className="px-3 py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded flex items-center justify-center bg-sky-50">
-              <FileText className="h-4 w-4 text-sky-600" />
-            </div>
-            <div>
-              <div className="font-medium text-gray-900">{template.name}</div>
-              {template.description && (
-                <div className="text-xs text-gray-500 truncate max-w-xs">
-                  {template.description}
-                </div>
-              )}
-            </div>
-          </div>
-        </td>
-        <td className="px-3 py-2">
-          <span className="text-sm text-gray-500 font-mono">{template.code || "-"}</span>
-        </td>
-        <td className="px-3 py-2">
-          {template.status == 1 ? (
-            <span className="inline-flex items-center text-green-600 text-sm">
-              <CheckCircle className="w-4 h-4 mr-1" />
-              Activo
-            </span>
-          ) : (
-            <span className="inline-flex items-center text-gray-400 text-sm">
-              <XCircle className="w-4 h-4 mr-1" />
-              Inactivo
-            </span>
-          )}
-        </td>
-        <td className="px-3 py-2">
-          <TableActions actions={getRowActions()} item={template} className="justify-center" />
-        </td>
-      </tr>
-    );
-  };
+  const renderRow = (template) => (
+    <TemplateTableRow
+      key={template.id}
+      template={template}
+      dataSources={dataSources}
+      onEdit={handleEdit}
+      onEditBuilder={handleEditBuilder}
+      onClone={handleClone}
+      onPreview={handlePreview}
+      onOpenHistory={handleOpenHistory}
+      onDelete={handleDelete}
+    />
+  );
 
   // Si hay templateId, mostrar el builder
   if (templateId) {
@@ -437,7 +198,7 @@ export default function CertificateBuilderView() {
         dataSources={dataSources}
         saving={saving}
         onSave={handleSave}
-        onClose={() => setFormModal({ open: false, mode: "create", data: null })}
+        onClose={handleCloseForm}
       />
 
       {/* Modal de Historial */}
@@ -446,10 +207,7 @@ export default function CertificateBuilderView() {
         template={historyModal.template}
         logs={historyLogs}
         loading={loadingHistory}
-        onClose={() => {
-          setHistoryModal({ open: false, template: null });
-          setHistoryLogs([]);
-        }}
+        onClose={handleCloseHistory}
       />
 
       {/* Modal de confirmación */}
@@ -469,6 +227,17 @@ export default function CertificateBuilderView() {
       >
         {modals.confirm?.msg}
       </Modal>
+
+      {/* Modal de Preview PDF */}
+      <PdfPreviewModal
+        show={pdfPreview.show}
+        url={pdfPreview.url}
+        loading={pdfPreview.loading}
+        template={pdfPreview.template}
+        onRefresh={handleRefreshPreview}
+        onDownload={handleDownloadPdf}
+        onClose={handleClosePreview}
+      />
     </div>
   );
 }

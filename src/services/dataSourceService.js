@@ -319,3 +319,26 @@ export const previewTableProcessor = async (id, params = {}) => {
     return error;
   }
 };
+
+/**
+ * Ejecutar query SQL raw (para SQL Runner)
+ * @param {string} query - SQL query a ejecutar
+ */
+export const runRawQuery = async (query) => {
+  try {
+    const response = await api.post("/api/data-sources/run-raw", { query });
+    let success = response.status === 200 && response.data?.code === 200;
+    return returnResponse(
+      success,
+      success ? "Query ejecutada exitosamente" : response.data?.error || response.data?.message,
+      response.status,
+      success ? {
+        data: response.data.data || [],
+        columns: response.data.columns || [],
+        total: response.data.total || 0
+      } : null
+    );
+  } catch (error) {
+    return error;
+  }
+};

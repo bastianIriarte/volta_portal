@@ -1,35 +1,14 @@
-import React, { useState } from "react";
-import {
-  FileText, Plus, Link2, Eye, EyeOff, ExternalLink,
-  ToggleLeft, ToggleRight, Pencil, Trash2, Loader2, X
-} from "lucide-react";
+import React from "react";
+import { FileText, Plus, Link2, ExternalLink, Pencil, Trash2, Loader2 } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 
 export default function CompanyDocumentsTab({
   documents,
   loading,
-  savingDoc,
   deletingDoc,
   onOpenModal,
-  onToggleStatus,
   onDelete
 }) {
-  const [previewDoc, setPreviewDoc] = useState(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-
-  const handleTogglePreview = (docId) => {
-    if (previewDoc === docId) {
-      setPreviewDoc(null);
-      setPreviewLoading(false);
-    } else {
-      setPreviewDoc(docId);
-      setPreviewLoading(true);
-    }
-  };
-
-  const handleIframeLoad = () => {
-    setPreviewLoading(false);
-  };
 
   return (
     <div className="space-y-6">
@@ -71,49 +50,18 @@ export default function CompanyDocumentsTab({
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0">
                   {doc.file_path && (
-                    <>
-                      <button
-                        onClick={() => handleTogglePreview(doc.id)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          previewDoc === doc.id
-                            ? 'text-cyan-800 bg-cyan-100'
-                            : 'text-gray-500 hover:text-cyan-600 hover:bg-cyan-50'
-                        }`}
-                        title={previewDoc === doc.id ? "Cerrar preview" : "Ver preview"}
-                      >
-                        {previewDoc === doc.id ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                      <a
-                        href={doc.file_path}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 text-gray-500 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors"
-                        title="Abrir en nueva pestaña"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    </>
+                    <a
+                      href={doc.file_path}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 text-gray-500 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors"
+                      title="Abrir en nueva pestaña"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
                   )}
-                  <button
-                    onClick={() => onToggleStatus(doc)}
-                    disabled={savingDoc === doc.id}
-                    className={`p-2 rounded-lg transition-colors ${
-                      doc.status
-                        ? 'text-green-600 hover:bg-green-50'
-                        : 'text-gray-400 hover:bg-gray-100'
-                    }`}
-                    title={doc.status ? "Desactivar" : "Activar"}
-                  >
-                    {savingDoc === doc.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : doc.status ? (
-                      <ToggleRight className="w-4 h-4" />
-                    ) : (
-                      <ToggleLeft className="w-4 h-4" />
-                    )}
-                  </button>
                   <button
                     onClick={() => onOpenModal('edit', doc)}
                     className="p-2 text-gray-500 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors"
@@ -135,41 +83,6 @@ export default function CompanyDocumentsTab({
                   </button>
                 </div>
               </div>
-
-              {/* Preview iframe */}
-              {previewDoc === doc.id && doc.file_path && (
-                <div className="mt-4 relative">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-gray-500">Vista previa</span>
-                    <button
-                      onClick={() => setPreviewDoc(null)}
-                      className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
-                      title="Cerrar preview"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div
-                    className="relative border border-gray-200 rounded-lg overflow-hidden bg-white"
-                    style={{ height: '500px' }}
-                  >
-                    {previewLoading && (
-                      <div className="absolute inset-0 bg-white flex flex-col items-center justify-center z-10">
-                        <div className="w-10 h-10 border-4 border-gray-200 border-t-cyan-500 rounded-full animate-spin"></div>
-                        <p className="mt-3 text-sm text-gray-500">Cargando documento...</p>
-                      </div>
-                    )}
-                    <iframe
-                      src={doc.file_path}
-                      title={doc.name}
-                      className="w-full border-0"
-                      style={{ height: 'calc(100% + 56px)' }}
-                      onLoad={handleIframeLoad}
-                      allowFullScreen
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           ))}
         </div>

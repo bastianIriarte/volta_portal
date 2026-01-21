@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Pencil, Trash2, CheckCircle, XCircle } from "lucide-react";
+import { Building2, Pencil, Trash2, CheckCircle, XCircle, Settings } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import GenericFilters from "../../components/common/GenericFilters";
 import GenericTable from "../../components/common/GenericTable";
@@ -116,17 +116,17 @@ export default function CompaniesView() {
   const getRowActions = () => [
     {
       label: "",
-      icon: Pencil,
+      icon: Settings,
       variant: "outline",
       onClick: (company) => handleEditCompany(company.id),
-      title: "Editar empresa",
-      className: "text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50"
+      title: "Configurar empresa",
+      className: "text-blue-600 hover:text-blue-900 hover:bg-blue-50"
     },
     {
       icon: Trash2,
       variant: "danger",
       onClick: handleDelete,
-      title: "Eliminar"
+      title: "Eliminar",
     }
   ];
 

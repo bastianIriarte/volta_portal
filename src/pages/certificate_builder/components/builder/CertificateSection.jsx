@@ -159,6 +159,15 @@ export default function CertificateSection({
           />
         );
 
+      case "break_page":
+        return (
+          <div className="border-t-2 border-dashed border-sky-300 my-4 relative">
+            <span className="absolute left-1/2 -translate-x-1/2 -top-2.5 bg-white px-2 text-xs text-sky-500 font-medium">
+              Salto de Página
+            </span>
+          </div>
+        );
+
       default:
         return <span>{value || field.default_value || field.field_label}</span>;
     }
@@ -311,6 +320,7 @@ export default function CertificateSection({
                   "paragraph",
                   "divider",
                   "spacer",
+                  "break_page",
                 ].includes(field.field_type) &&
                   field.styles?.showLabel === true && (
                     <p

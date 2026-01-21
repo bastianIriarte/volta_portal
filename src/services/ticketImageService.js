@@ -1,5 +1,90 @@
 import api, { returnResponse } from "./api";
 
+// Listar todas las imágenes con paginación y filtros
+export const getTicketImages = async (params = {}) => {
+  try {
+    const response = await api.get("/api/ticket-images", { params });
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? { data: response.data.data, pagination: response.data.pagination } : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Obtener registros desde SharePoint por rango de fecha
+export const fetchTicketImagesFromSap = async (companyId, dateFrom, dateTo, rut = null) => {
+  try {
+    const payload = {
+      company_id: companyId,
+      date_from: dateFrom,
+      date_to: dateTo,
+    };
+    // Solo agregar rut si tiene valor
+    if (rut) {
+      payload.rut = rut;
+    }
+    const response = await api.post("/api/ticket-images/fetch-sap", payload);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Subir imagen para un ticket existente
+export const uploadTicketImage = async (id, file) => {
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+    const response = await api.post(`/api/ticket-images/${id}/upload`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Crear registro manual con imagen
+export const createManualTicketImage = async (companyId, docNum, file) => {
+  try {
+    const formData = new FormData();
+    formData.append("company_id", companyId);
+    formData.append("doc_num", docNum);
+    if (file) {
+      formData.append("image", file);
+    }
+    const response = await api.post("/api/ticket-images/create-manual", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    let success = response.status === 201 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
 // Obtener imagen por empresa y número de documento
 export const getTicketImage = async (companyId, docNum) => {
   try {

@@ -71,11 +71,16 @@ export default function AppShell() {
     // Para clientes: filtrar por permisos específicos del usuario
     // El backend ya filtra por empresa, aquí filtramos por permisos asignados
     return reports.filter(report => {
-      // Para clientes: campo es report_code, para admins: code
+      // ID-based permission: reports.report_{id} (nuevo patrón)
+      const reportId = report.report_id || report.id;
+      const permCodeById = `reports.report_${reportId}`;
+
+      // También verificar permisos legacy basados en código (compatibilidad)
       const code = report.report_code || report.code;
-      // Verificar permiso específico del reporte (front_code: reports.{code})
-      const permCode = `reports.${code?.toLowerCase()}`;
-      return userPermissions.includes(permCode) ||
+      const permCodeByCode = code ? `reports.${code.toLowerCase()}` : null;
+
+      return userPermissions.includes(permCodeById) ||
+             (permCodeByCode && userPermissions.includes(permCodeByCode)) ||
              userPermissions.includes('reports.*');
     });
   }, [reports, userPermissions, isAdmin]);

@@ -79,3 +79,37 @@ export const deleteUser = async (id) => {
     return error;
   }
 };
+
+// Obtener empresas asignadas a un usuario comercial
+export const getUserCompanies = async (userId) => {
+  try {
+    const response = await api.get(`/api/users/${userId}/companies`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : []
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Sincronizar empresas asignadas a un usuario comercial
+export const syncUserCompanies = async (userId, companyIds) => {
+  try {
+    const response = await api.post(`/api/users/${userId}/companies`, {
+      company_ids: companyIds,
+    });
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};

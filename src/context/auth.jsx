@@ -60,8 +60,22 @@ export function AuthProvider({ children }) {
     setSession(null);
   };
 
+  const refreshSession = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await getUser();
+      if (response.success) {
+        setSession({ user: response.data });
+      }
+    } catch (error) {
+      console.error("Error refreshing session:", error);
+    }
+  };
+
   return (
-    <AuthCtx.Provider value={{ session, login, logout, loading }}>
+    <AuthCtx.Provider value={{ session, login, logout, loading, refreshSession }}>
       {children}
     </AuthCtx.Provider>
   );

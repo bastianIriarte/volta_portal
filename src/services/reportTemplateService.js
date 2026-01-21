@@ -78,6 +78,22 @@ export const deleteReportTemplate = async (id) => {
   }
 };
 
+// Obtener plantilla de reporte por código
+export const getReportTemplateByCode = async (code) => {
+  try {
+    const response = await api.get(`/api/report-templates/code/${code}`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
 // Ejecutar reporte por código con parámetros de empresa
 // GET /api/reports/data/{code}?company_id=X&date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
 export const executeReportByCode = async (code, params = {}) => {

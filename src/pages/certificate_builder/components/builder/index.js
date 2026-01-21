@@ -4,3 +4,7 @@ export { default as ConfirmDialog } from "./ConfirmDialog";
 export { default as ActivityLog } from "./ActivityLog";
 export { default as FieldConfigPanel } from "./FieldConfigPanel";
 export { default as CertificateSection } from "./CertificateSection";
+export { default as FieldsPanel } from "./FieldsPanel";
+export { default as BuilderToolbar } from "./BuilderToolbar";
+export { default as AddFieldModal } from "./AddFieldModal";
+export { default as BuilderPdfPreviewModal } from "./BuilderPdfPreviewModal";

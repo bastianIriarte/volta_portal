@@ -1,83 +1,69 @@
-// File: src/components/dashboard/StatCard.jsx
-import React from "react";
-import { Card } from "../../../../components/ui/Card";
-import { ArrowRightCircle } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export const StatCard = ({
   label,
+  description,
   value,
   icon: Icon,
-  actionLabel,
-  onAction,
-  description,
-  variant,
-  className
+  trend,
+  trendValue,
+  trendLabel,
+  onClick
 }) => {
-  // Colores Volta: negro y celeste
-  const getVariantStyles = () => {
-    switch (variant) {
-      case "warning":
-        return {
-          valueColor: "text-amber-600",
-          iconBg: "bg-amber-500",
-        };
-      case "success":
-        return {
-          valueColor: "text-cyan-600",
-          iconBg: "bg-gradient-to-br from-cyan-500 to-cyan-600",
-        };
-      case "danger":
-        return {
-          valueColor: "text-red-600",
-          iconBg: "bg-red-500",
-        };
-      default:
-        return {
-          valueColor: "text-gray-900",
-          iconBg: "bg-gradient-to-br from-gray-800 to-black",
-        };
-    }
-  };
-
-  const styles = getVariantStyles();
+  const isPositive = trend === "up";
 
   return (
-    <Card
-      className={`hover-lift transition-all duration-300 ${className || ""}`}
-      variant="premium"
-    >
-      <div className="space-y-4">
-        {/* Header con icono */}
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-600 mb-1">
-              {label}
-            </p>
-            <p className={`text-3xl font-bold ${styles.valueColor}`}>
-              {value}
-            </p>
-            {description && (
-              <p className="text-xs text-gray-400 mt-1">{description}</p>
-            )}
-          </div>
+    <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+      {/* Header: Icon + Title */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
           {Icon && (
-            <div className={`w-12 h-12 ${styles.iconBg} rounded-xl flex items-center justify-center shadow-lg`}>
-              <Icon className="w-6 h-6 text-white" />
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ backgroundColor: 'rgba(0, 102, 158, 0.1)' }}
+            >
+              <Icon className="w-5 h-5" style={{ color: '#00669e' }} strokeWidth={1.5} />
             </div>
           )}
+          <div>
+            <p className="text-sm font-semibold text-gray-900">{label}</p>
+            {description && (
+              <p className="text-xs text-gray-400">{description}</p>
+            )}
+          </div>
         </div>
+      </div>
 
-        {/* Boton de accion */}
-        {actionLabel && onAction && (
+      {/* Value + Details Button */}
+      <div className="flex items-end justify-between">
+        <p className="text-3xl font-bold text-gray-900">
+          {typeof value === 'number' ? value.toLocaleString() : value}
+        </p>
+        {onClick && (
           <button
-            onClick={onAction}
-            className="w-full border border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 rounded-lg px-3 py-2 flex items-center justify-between text-sm font-medium text-gray-700 hover:text-cyan-600 transition-all duration-200"
+            onClick={onClick}
+            className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all"
+            style={{ color: '#00669e' }}
           >
-            <span>{actionLabel}</span>
-            <ArrowRightCircle className="w-4 h-4" />
+            Detalles <ArrowRight className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
-    </Card>
+
+      {/* Trend */}
+      {trendValue && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <span
+            className="text-xs font-semibold"
+            style={{ color: isPositive ? '#00669e' : '#f4b000' }}
+          >
+            {trendValue}
+          </span>
+          {trendLabel && (
+            <span className="text-xs text-gray-400 ml-1">{trendLabel}</span>
+          )}
+        </div>
+      )}
+    </div>
   );
 };

@@ -32,12 +32,12 @@ import {
   Link2,
   Search,
 } from "lucide-react";
-import { handleSnackbar } from "../../../utils/messageHelpers";
+import { handleSnackbar } from "../../../../utils/messageHelpers";
 import {
   uploadBuilderImage,
   listBuilderImages,
-} from "../../../services/certificateBuilderService";
-import { previewTableProcessor } from "../../../services/dataSourceService";
+} from "../../../../services/certificateBuilderService";
+import { previewTableProcessor } from "../../../../services/dataSourceService";
 
 // Mapeo de iconos
 const iconMap = {
@@ -578,7 +578,7 @@ export default function FieldConfigPanel({
                                   className="px-1.5 py-0.5 text-[10px] bg-sky-100 text-sky-700 rounded hover:bg-sky-200 transition-colors"
                                   title={v.label}
                                 >
-                                  {v.key.split('.').pop()}
+                                  {v.label.split('.').pop()}
                                 </button>
                               ))}
                           </div>
@@ -609,7 +609,7 @@ export default function FieldConfigPanel({
                                   className="px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-700 rounded hover:bg-violet-200 transition-colors"
                                   title={v.label}
                                 >
-                                  {v.key.split('.').pop()}
+                                  {v.label.split('.').pop()}
                                 </button>
                               ))}
                           </div>
@@ -640,7 +640,37 @@ export default function FieldConfigPanel({
                                   className="px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition-colors"
                                   title={v.label}
                                 >
-                                  {v.key.split('.').pop()}
+                                  {v.label.split('.').pop()}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    {/* Variables de Certificado */}
+                    {(availableVariables.system?.filtros || [])
+                      .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
+                      .length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-medium text-amber-600 mb-1">Filtros de Ejecución</p>
+                          <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+                            {(availableVariables.system?.filtros || [])
+                              .filter((v) => !variableSearch || v.key.toLowerCase().includes(variableSearch.toLowerCase()) || v.label.toLowerCase().includes(variableSearch.toLowerCase()))
+                              .map((v) => (
+                                <button
+                                  key={v.key}
+                                  type="button"
+                                  onClick={() => {
+                                    const textarea = document.getElementById(`textarea-${field.id}`);
+                                    const start = textarea?.selectionStart || (editedField.default_value || "").length;
+                                    const currentValue = editedField.default_value || "";
+                                    const newValue = currentValue.slice(0, start) + `{${v.key}}` + currentValue.slice(start);
+                                    handleChange("default_value", newValue);
+                                    handleSnackbar(`{${v.key}} insertado`, "info");
+                                  }}
+                                  className="px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition-colors"
+                                  title={v.label}
+                                >
+                                  {v.label.split('.').pop()}
                                 </button>
                               ))}
                           </div>
@@ -987,7 +1017,7 @@ export default function FieldConfigPanel({
               )}
 
             {/* Ancho del campo */}
-            {field.field_type !== "spacer" && field.field_type !== "divider" && (
+            {field.field_type !== "spacer" && field.field_type !== "divider" && field.field_type !== "break_page" && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Ancho campo

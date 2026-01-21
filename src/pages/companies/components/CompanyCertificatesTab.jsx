@@ -31,7 +31,6 @@ export default function CompanyCertificatesTab({
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12"></th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Codigo</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Certificado</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
               </tr>
@@ -55,9 +54,6 @@ export default function CompanyCertificatesTab({
                           : <Square className="w-5 h-5 text-gray-400" />
                       }
                     </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="font-mono text-sm bg-gray-100 px-2 py-0.5 rounded">{template.code}</span>
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-sm font-medium text-gray-900">{template.name}</p>

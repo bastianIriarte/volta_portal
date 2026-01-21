@@ -1,17 +1,13 @@
-// File: src/pages/dashboard/admin/DashboardAdminView.jsx
-import React from "react";
 import {
   Building2,
   Users,
   ClipboardList,
   Award,
   ArrowRight,
-  Clock,
   CheckCircle,
-  Database,
-  Settings,
-  Table2,
-  Webhook,
+  FileText,
+  Download,
+  Calendar,
   BarChart3
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -21,7 +17,6 @@ import { WelcomeBanner } from "../WelcomeBanner";
 export default function DashboardAdminView({ dataDashboard }) {
   const navigate = useNavigate();
 
-  // Datos del dashboard (usar dataDashboard cuando venga del backend)
   const stats = dataDashboard || {
     companies: 0,
     users: 0,
@@ -30,181 +25,244 @@ export default function DashboardAdminView({ dataDashboard }) {
     reports: 0
   };
 
-  // KPIs principales - coherentes con el menu de administracion
   const kpis = [
     {
       label: "Empresas",
+      description: "Empresas registradas",
       value: stats.companies || 0,
       icon: Building2,
-      actionLabel: "Gestionar",
       url: "/dashboard/empresas",
-      description: "Empresas registradas"
+      trend: "up",
+      trendValue: "Total activas en el sistema",
+      trendLabel: ""
     },
-    {
-      label: "Usuarios",
-      value: stats.users || 0,
-      icon: Users,
-      actionLabel: "Gestionar",
-      url: "/dashboard/usuarios",
-      description: "Usuarios del sistema"
-    },
+    // {
+    //   label: "Usuarios",
+    //   description: "Usuarios del sistema",
+    //   value: stats.users || 0,
+    //   icon: Users,
+    //   url: "/dashboard/usuarios",
+    //   trend: "up",
+    //   trendValue: "Usuarios con acceso activo",
+    //   trendLabel: ""
+    // },
     {
       label: "Solicitudes",
+      description: "Pendientes de revision",
       value: stats.pendingRequests || 0,
       icon: ClipboardList,
-      actionLabel: "Revisar",
       url: "/dashboard/solicitudes",
-      description: "Pendientes de revision",
-      variant: stats.pendingRequests > 0 ? "warning" : "default"
+      trend: stats.pendingRequests > 0 ? "down" : "up",
+      trendValue: stats.pendingRequests > 0 ? "Requieren atencion" : "Sin pendientes",
+      trendLabel: ""
     },
     {
       label: "Certificados",
+      description: "Plantillas activas",
       value: stats.certificates || 0,
       icon: Award,
-      actionLabel: "Gestionar",
       url: "/dashboard/certificate-builder",
-      description: "Plantillas activas",
-      variant: "success"
+      trend: "up",
+      trendValue: "Plantillas disponibles",
+      trendLabel: ""
     },
     {
       label: "Reportes",
+      description: "Plantillas de reportes",
       value: stats.reports || 0,
       icon: BarChart3,
-      actionLabel: "Gestionar",
-      url: "/dashboard/reports",
-      description: "Reportes configurados"
-    },
+      url: "/dashboard/report-builder",
+      trend: "up",
+      trendValue: "Reportes configurados",
+      trendLabel: ""
+    }
   ];
 
-  // Solicitudes recientes
   const recentRequests = dataDashboard?.recentRequests || [];
+  const recentCertificateDownloads = dataDashboard?.recentCertificateDownloads || [];
 
-  // Certificados recientes
-  const recentCertificates = dataDashboard?.recentCertificates || [];
-
-  const statusColors = {
-    pending: "bg-amber-100 text-amber-800",
-    approved: "bg-green-100 text-green-800",
-    rejected: "bg-red-100 text-red-800",
-    expiring: "bg-orange-100 text-orange-800"
-  };
-
-  const statusLabels = {
-    pending: "Pendiente",
-    approved: "Aprobado",
-    rejected: "Rechazado",
-    expiring: "Por vencer"
+  const statusConfig = {
+    pending: { color: "text-amber-600", bg: "bg-amber-50", label: "Pendiente" },
+    approved: { color: "text-emerald-600", bg: "bg-emerald-50", label: "Aprobado" },
+    rejected: { color: "text-red-600", bg: "bg-red-50", label: "Rechazado" },
+    expiring: { color: "text-amber-600", bg: "bg-amber-50", label: "Por vencer" },
+    completed: { color: "text-emerald-600", bg: "bg-emerald-50", label: "Completado" }
   };
 
   return (
-    <div className="space-y-6 fade-in-up lg:px-10">
+    <div className="space-y-6 fade-in-up">
+      {/* Header con saludo */}
       <WelcomeBanner />
 
-      {/* KPIs Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      {/* KPIs Grid - 4 cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((k) => (
           <StatCard
             key={k.label}
             label={k.label}
+            description={k.description}
             value={k.value}
             icon={k.icon}
-            actionLabel={k.actionLabel}
-            onAction={() => navigate(k.url)}
-            description={k.description}
-            variant={k.variant}
+            trend={k.trend}
+            trendValue={k.trendValue}
+            trendLabel={k.trendLabel}
+            onClick={() => navigate(k.url)}
           />
         ))}
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Two Column Layout - Lists */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Solicitudes Recientes */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <ClipboardList className="w-5 h-5 text-gray-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Solicitudes Recientes</h3>
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="px-5 py-4 flex items-center justify-between border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: 'rgba(0, 102, 158, 0.1)' }}
+              >
+                <ClipboardList className="w-4 h-4" style={{ color: '#00669e' }} />
+              </div>
+              <div>
+                <span className="text-sm font-semibold text-gray-900">Solicitudes Recientes</span>
+                <p className="text-xs text-gray-400">Ultimas solicitudes de registro</p>
+              </div>
             </div>
             <button
               onClick={() => navigate("/dashboard/solicitudes")}
-              className="text-sm text-cyan-600 hover:text-cyan-800 flex items-center gap-1 transition-colors"
+              className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all"
+              style={{ color: '#00669e' }}
             >
-              Ver todas <ArrowRight className="w-4 h-4" />
+              Ver todas <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
+
           <div className="divide-y divide-gray-100">
             {recentRequests.length > 0 ? (
-              recentRequests.map((request) => (
-                <div key={request.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{request.company}</p>
-                      <p className="text-sm text-gray-500">{request.requester}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[request.status]}`}>
-                        {statusLabels[request.status]}
-                      </span>
-                      <p className="text-xs text-gray-400 mt-1">{request.date}</p>
+              recentRequests.map((request) => {
+                const status = statusConfig[request.status] || statusConfig.pending;
+                return (
+                  <div
+                    key={request.id}
+                    className="px-5 py-3.5 hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/dashboard/solicitudes/${request.id}/gestionar`)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
+                        style={{ backgroundColor: '#00669e' }}
+                      >
+                        {request.company?.charAt(0) || "?"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{request.company}</p>
+                        <p className="text-xs text-gray-500 truncate">{request.requester}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={`text-xs font-semibold ${status.color}`}>{status.label}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">{request.date}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
-              <div className="px-6 py-8 text-center text-gray-500">
-                <CheckCircle className="w-12 h-12 mx-auto text-green-400 mb-2" />
-                <p>No hay solicitudes pendientes</p>
+              <div className="px-5 py-12 text-center">
+                <CheckCircle className="w-12 h-12 mx-auto text-gray-200 mb-3" />
+                <p className="text-sm font-medium text-gray-500">No hay solicitudes pendientes</p>
+                <p className="text-xs text-gray-400 mt-1">Las nuevas solicitudes apareceran aqui</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Certificados Recientes */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-gray-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Actividad de Certificados</h3>
+        {/* Descargas de Certificados */}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="px-5 py-4 flex items-center justify-between border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: 'rgba(244, 176, 0, 0.15)' }}
+              >
+                <Download className="w-4 h-4" style={{ color: '#f4b000' }} />
+              </div>
+              <div>
+                <span className="text-sm font-semibold text-gray-900">Descargas de Certificados</span>
+                <p className="text-xs text-gray-400">Ultimas descargas registradas</p>
+              </div>
             </div>
             <button
               onClick={() => navigate("/dashboard/certificate-builder")}
-              className="text-sm text-cyan-600 hover:text-cyan-800 flex items-center gap-1 transition-colors"
+              className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all"
+              style={{ color: '#00669e' }}
             >
-              Ver todos <ArrowRight className="w-4 h-4" />
+              Ver todos <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="divide-y divide-gray-100">
-            {recentCertificates.length > 0 ? (
-              recentCertificates.map((cert) => (
-                <div key={cert.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{cert.company}</p>
-                      <p className="text-sm text-gray-500">{cert.certificate}</p>
-                    </div>
-                    <div className="text-right">
-                      {cert.status === 'expiring' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          <Clock className="w-3 h-3" />
-                          {cert.expires}
-                        </span>
-                      ) : (
-                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[cert.status]}`}>
-                          {statusLabels[cert.status]}
-                        </span>
-                      )}
-                      {cert.date && <p className="text-xs text-gray-400 mt-1">{cert.date}</p>}
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="px-6 py-8 text-center text-gray-500">
-                <CheckCircle className="w-12 h-12 mx-auto text-green-400 mb-2" />
-                <p>No hay actividad reciente</p>
-              </div>
-            )}
-          </div>
+
+          {recentCertificateDownloads.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/50">
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Certificado</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Empresa</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Periodo</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Estado</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Usuario</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Fecha</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {recentCertificateDownloads.map((download) => {
+                    const status = statusConfig[download.status] || statusConfig.completed;
+                    return (
+                      <tr key={download.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-gray-400" />
+                            <div>
+                              <p className="font-medium text-gray-900">{download.certificateName}</p>
+                              <p className="text-xs text-gray-400">{download.certificateCode}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900">{download.companyName}</p>
+                          <p className="text-xs text-gray-400">{download.companyRut}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                            <span className="text-xs">{download.period}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
+                            <CheckCircle className="w-3 h-3" />
+                            {status.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900">{download.userName}</p>
+                          <p className="text-xs text-gray-400">{download.userEmail}</p>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">
+                          {download.date}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-5 py-12 text-center">
+              <Download className="w-12 h-12 mx-auto text-gray-200 mb-3" />
+              <p className="text-sm font-medium text-gray-500">No hay descargas recientes</p>
+              <p className="text-xs text-gray-400 mt-1">Las descargas de certificados apareceran aqui</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

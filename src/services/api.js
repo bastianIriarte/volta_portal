@@ -78,9 +78,14 @@ api.interceptors.response.use(
       `[RESPONSE] Error en la API (${error.response?.status || "Desconocido"}):`,
       error.response?.data
     );
+
+    // Extraer mensaje de error (soporta mayúsculas y minúsculas del backend)
+    const data = error.response?.data;
     let errorMessage =
-      error.response?.data?.message ||
-      error.response?.data?.error ||
+      data?.message ||
+      data?.Message ||
+      data?.error ||
+      data?.Error ||
       "Error en la solicitud";
 
     return Promise.reject(

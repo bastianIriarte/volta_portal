@@ -1,5 +1,5 @@
 import React from "react";
-import { BarChart3, CheckCircle, CheckSquare, Square, Loader2, Settings } from "lucide-react";
+import { BarChart3, CheckCircle, CheckSquare, Square, Loader2, Settings, Database } from "lucide-react";
 
 export default function CompanyReportsTab({
   templates,
@@ -16,6 +16,17 @@ export default function CompanyReportsTab({
   const hasCustomReportUrl = (templateId) => {
     const companyReport = companyReports.find(r => r.report_id === templateId && !['revoked'].includes(r.assignment_status));
     return companyReport?.report_url ? true : false;
+  };
+
+  // Helper para verificar si el reporte necesita configuración (Iframe, SharePoint, o Mixto con Iframe/SharePoint)
+  const needsConfiguration = (template) => {
+    if (template.origin_type === 'iframe' || template.origin_type === 'sharepoint') {
+      return true;
+    }
+    if (template.origin_type === 'mixed' && Array.isArray(template.origins)) {
+      return template.origins.some(origin => origin.type === 'iframe' || origin.type === 'sharepoint');
+    }
+    return false;
   };
 
   // Handler para abrir configuracion
@@ -48,7 +59,6 @@ export default function CompanyReportsTab({
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12"></th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Codigo</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reporte</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-24">Configurar</th>
@@ -58,7 +68,7 @@ export default function CompanyReportsTab({
               {templates.map((template) => (
                 <tr
                   key={template.id}
-                  className={`hover:bg-gray-50 ${toggling === template.id ? 'opacity-50' : ''} ${assignedReports[template.id] ? 'bg-indigo-50' : ''}`}
+                  className={`hover:bg-gray-50 ${toggling === template.id ? 'opacity-50' : ''} ${assignedReports[template.id] ? 'bg-cyan-50' : ''}`}
                 >
                   <td className="px-4 py-3">
                     <button
@@ -69,23 +79,15 @@ export default function CompanyReportsTab({
                       {toggling === template.id
                         ? <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
                         : assignedReports[template.id]
-                          ? <CheckSquare className="w-5 h-5 text-indigo-600" />
+                          ? <CheckSquare className="w-5 h-5 text-cyan-600" />
                           : <Square className="w-5 h-5 text-gray-400" />
                       }
                     </button>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="font-mono text-sm bg-gray-100 px-2 py-0.5 rounded">{template.code || '-'}</span>
-                  </td>
-                  <td className="px-4 py-3">
                     <p className="text-sm font-medium text-gray-900">{template.name}</p>
                     {template.description && (
                       <p className="text-xs text-gray-500 mt-0.5">{template.description}</p>
-                    )}
-                    {template.data_source_name && (
-                      <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded mt-1 inline-block">
-                        DS: {template.data_source_name}
-                      </span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -99,7 +101,7 @@ export default function CompanyReportsTab({
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {assignedReports[template.id] && (
+                    {assignedReports[template.id] && needsConfiguration(template) && (
                       <button
                         onClick={(e) => handleOpenConfig(e, template.id)}
                         className={`p-2 rounded-lg transition-colors ${

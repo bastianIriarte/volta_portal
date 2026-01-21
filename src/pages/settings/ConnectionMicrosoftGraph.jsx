@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
 import { handleSnackbar } from "../../utils/messageHelpers";
 import { getConfigurations, storeOrUpdate } from "../../services/configurationService";
+import { testConnectionWithCredentials } from "../../services/microsoftGraphService";
 import { Button } from "../../components/ui/Button";
-import api from "../../services/api";
 
 export default function ConnectionMicrosoftGraph() {
   const navigate = useNavigate();
@@ -106,25 +106,31 @@ export default function ConnectionMicrosoftGraph() {
     setTestResult(null);
 
     try {
-      const response = await api.post("/api/microsoft-graph/test-connection", {
+      const response = await testConnectionWithCredentials({
         tenant_id: formData.tenant_id.trim(),
         client_id: formData.client_id.trim(),
         client_secret: formData.client_secret.trim(),
         site_id: formData.site_id.trim() || null,
       });
 
-      if (response.data?.data) {
-        setTestResult(response.data.data);
-        if (response.data.data.success) {
+      if (response.success && response.data) {
+        setTestResult(response.data);
+        if (response.data.success) {
           handleSnackbar("Conexión exitosa a Microsoft Graph", "success");
         } else {
-          handleSnackbar(response.data.data.message || "Error en la conexión", "error");
+          handleSnackbar(response.data.message || "Error en la conexión", "error");
         }
+      } else {
+        setTestResult({
+          success: false,
+          message: response.message || "Error al probar conexión",
+        });
+        handleSnackbar(response.message || "Error al probar conexión", "error");
       }
     } catch (err) {
       setTestResult({
         success: false,
-        message: err.response?.data?.error || err.message || "Error al probar conexión",
+        message: err.message || "Error al probar conexión",
       });
       handleSnackbar("Error al probar conexión", "error");
     } finally {

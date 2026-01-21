@@ -1,5 +1,5 @@
 import { History, Clock, User } from "lucide-react";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../../components/ui/Modal";
 
 export default function TemplateHistoryModal({ open, template, logs, loading, onClose }) {
   const getActionColor = (action) => {

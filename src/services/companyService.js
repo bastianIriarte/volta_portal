@@ -32,10 +32,10 @@ export const getCompaniesList = async () => {
   }
 };
 
-// Buscar empresa en SAP por RUT
-export const searchCompanyInSap = async (rut) => {
+// Buscar empresa en SAP por RUT y código SAP
+export const searchCompanyInSap = async (rut, sapCode) => {
   try {
-    const response = await api.post("/api/companies/search-sap", { rut });
+    const response = await api.post("/api/companies/search-sap", { rut, sap_code: sapCode });
     let success = response.status === 200 && !response.error;
     return returnResponse(
       success,

@@ -1,7 +1,8 @@
-import { Modal } from "../../../components/ui/Modal";
-import { Input } from "../../../components/ui/Input";
-import { Select } from "../../../components/ui/Select";
-import { Building2, Calendar } from "lucide-react";
+import { Modal } from "../../../../components/ui/Modal";
+import { Input } from "../../../../components/ui/Input";
+import { Select } from "../../../../components/ui/Select";
+import { Building2, Calendar, XCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export default function TemplateFormModal({
   open,
@@ -12,7 +13,68 @@ export default function TemplateFormModal({
   saving,
   onSave,
   onClose,
+  apiError,
+  onClearApiError,
 }) {
+  const [errors, setErrors] = useState({});
+
+  // Limpiar errores cuando se abre el modal o cambia el modo
+  useEffect(() => {
+    if (open) {
+      setErrors({});
+    }
+  }, [open, mode]);
+
+  // Validar un campo específico
+  const validateField = (field, value) => {
+    switch (field) {
+      case "name":
+        if (!value || !value.trim()) {
+          return "El nombre es requerido";
+        }
+        if (value.trim().length < 3) {
+          return "El nombre debe tener al menos 3 caracteres";
+        }
+        if (value.trim().length > 100) {
+          return "El nombre no puede exceder 100 caracteres";
+        }
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  // Validar todo el formulario
+  const validateForm = () => {
+    const newErrors = {};
+
+    const nameError = validateField("name", formData.name);
+    if (nameError) newErrors.name = nameError;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Manejar cambio de campo con validación en tiempo real
+  const handleFieldChange = (field, value) => {
+    setFormData({ ...formData, [field]: value });
+
+    // Validar el campo si ya tiene error
+    if (errors[field]) {
+      const error = validateField(field, value);
+      setErrors((prev) => ({
+        ...prev,
+        [field]: error,
+      }));
+    }
+  };
+
+  // Manejar el guardado con validación
+  const handleSave = () => {
+    if (validateForm()) {
+      onSave();
+    }
+  };
   // Componente compartido para configuración de búsqueda
   const SearchConfigFields = () => (
     <div className="space-y-2 pt-2 border-t border-gray-200">
@@ -80,25 +142,47 @@ export default function TemplateFormModal({
               ? "Crear y Diseñar"
               : "Guardar Cambios",
           variant: "primary",
-          onClick: onSave,
+          onClick: handleSave,
           disabled: saving,
         },
       ]}
     >
       <div className="space-y-3">
+        {/* Error de API persistente */}
+        {apiError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-800">Error al guardar</p>
+                <p className="text-sm text-red-700 mt-1">{apiError}</p>
+              </div>
+              {onClearApiError && (
+                <button
+                  onClick={onClearApiError}
+                  className="text-red-400 hover:text-red-600 transition-colors"
+                >
+                  <XCircle className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {mode === "create" ? (
           <>
             <Input
               label="Nombre certificado"
               required
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => handleFieldChange("name", e.target.value)}
               placeholder="Ej: Certificado de Transporte"
+              error={errors.name}
             />
             <Input
               label="Descripción"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => handleFieldChange("description", e.target.value)}
               placeholder="Descripción de la plantilla..."
             />
             <Select
@@ -112,7 +196,7 @@ export default function TemplateFormModal({
               <option value="">Sin origen de datos</option>
               {dataSources.map((ds) => (
                 <option key={ds.id} value={ds.id}>
-                  {ds.name} ({ds.code})
+                  {ds.name}
                 </option>
               ))}
             </Select>
@@ -124,13 +208,14 @@ export default function TemplateFormModal({
               label="Nombre"
               required
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => handleFieldChange("name", e.target.value)}
               placeholder="Ej: Certificado de Transporte"
+              error={errors.name}
             />
             <Input
               label="Descripción"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => handleFieldChange("description", e.target.value)}
               placeholder="Descripción de la plantilla..."
             />
             <Select

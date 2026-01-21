@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Select } from "../../../components/ui/Select";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
-import { Loader2, SaveIcon, X } from "lucide-react";
+import { Loader2, SaveIcon, X, Building2, Check } from "lucide-react";
 import { getProfiles } from "../../../services/profileService";
-import { createUser, getUserById, updateUser } from "../../../services/userService";
+import { createUser, getUserById, updateUser, getUserCompanies, syncUserCompanies } from "../../../services/userService";
+import { getCompaniesList } from "../../../services/companyService";
 import { handleSnackbar } from "../../../utils/messageHelpers";
 import { validateField } from "../../../utils/validators";
 import Loading from "../../../components/ui/Loading";
@@ -27,6 +28,14 @@ const UserForm = ({ mode, register, onClose }) => {
     const [registers, setRegisters] = useState([]);
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState({});
+
+    // Estados para empresas asignadas (commercial)
+    const [companies, setCompanies] = useState([]);
+    const [selectedCompanyIds, setSelectedCompanyIds] = useState([]);
+    const [loadingCompanies, setLoadingCompanies] = useState(false);
+
+    // Verificar si el perfil seleccionado es "commercial"
+    const isComercial = form.profile === "commercial";
 
     // 🔹 Validar un campo individual usando el validador unificado
     const validateSingleField = (field, value) => {
@@ -133,10 +142,49 @@ const UserForm = ({ mode, register, onClose }) => {
         }
     };
 
+    // Obtener lista de empresas
+    const fetchCompanies = async () => {
+        try {
+            setLoadingCompanies(true);
+            const response = await getCompaniesList();
+            if (response.success) {
+                setCompanies(response.data || []);
+            }
+        } catch (error) {
+            console.error("Error al obtener empresas:", error);
+        } finally {
+            setLoadingCompanies(false);
+        }
+    };
+
+    // Obtener empresas asignadas al usuario
+    const fetchUserCompanies = async (userId) => {
+        try {
+            const response = await getUserCompanies(userId);
+            if (response.success) {
+                setSelectedCompanyIds(response.data.map(c => c.id));
+            }
+        } catch (error) {
+            console.error("Error al obtener empresas del usuario:", error);
+        }
+    };
+
+    // Toggle selección de empresa
+    const toggleCompany = (companyId) => {
+        setSelectedCompanyIds(prev => {
+            if (prev.includes(companyId)) {
+                return prev.filter(id => id !== companyId);
+            }
+            return [...prev, companyId];
+        });
+    };
+
     // sincronizar al abrir modal
     useEffect(() => {
         const loadData = async () => {
             fetchProfiles();
+            fetchCompanies();
+
             if (mode === "edit" && register) {
                 setLoading(true);
                 try {
@@ -150,6 +198,11 @@ const UserForm = ({ mode, register, onClose }) => {
                             profile: response.data.role,
                             status: response.data.status ? 1 : 0,
                         });
+
+                        // Si es commercial, cargar empresas asignadas
+                        if (response.data.role === "commercial") {
+                            await fetchUserCompanies(response.data.id);
+                        }
                     } else {
                         handleSnackbar(response.message, "error");
                         onClose(false);
@@ -171,10 +224,18 @@ const UserForm = ({ mode, register, onClose }) => {
                     profile: "",
                     status: true,
                 });
+                setSelectedCompanyIds([]);
             }
         };
         loadData();
     }, [mode, register, onClose]);
+
+    // Cuando cambia el perfil a commercial, limpiar las empresas si es nuevo
+    useEffect(() => {
+        if (mode === "new" && form.profile !== "commercial") {
+            setSelectedCompanyIds([]);
+        }
+    }, [form.profile, mode]);
 
     const submit = async () => {
         if (!validateAll()) return;
@@ -185,8 +246,18 @@ const UserForm = ({ mode, register, onClose }) => {
             let response;
             if (mode === "edit") {
                 response = await updateUser(form.id, form);
+
+                // Si es commercial, sincronizar empresas
+                if (response.success && form.profile === "commercial") {
+                    await syncUserCompanies(form.id, selectedCompanyIds);
+                }
             } else {
                 response = await createUser(form);
+
+                // Si es commercial y se creó exitosamente, sincronizar empresas
+                if (response.success && form.profile === "commercial" && response.data?.id) {
+                    await syncUserCompanies(response.data.id, selectedCompanyIds);
+                }
             }
 
             handleSnackbar(response.message, response.success ? "success" : "error");
@@ -285,6 +356,73 @@ const UserForm = ({ mode, register, onClose }) => {
                                     <option value={1}>Activo</option>
                                     <option value={0}>Inactivo</option>
                                 </Select>
+                            </div>
+                        )}
+
+                        {/* Selector de empresas para usuarios commerciales */}
+                        {isComercial && (
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-neutral-600 uppercase mb-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <Building2 size={14} />
+                                        Empresas Asignadas
+                                    </div>
+                                </label>
+                                <p className="text-xs text-gray-500 mb-2">
+                                    Seleccione las empresas a las que este usuario commercial tendrá acceso
+                                </p>
+
+                                {loadingCompanies ? (
+                                    <div className="flex items-center justify-center py-4">
+                                        <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                                        <span className="ml-2 text-sm text-gray-500">Cargando empresas...</span>
+                                    </div>
+                                ) : companies.length === 0 ? (
+                                    <p className="text-sm text-gray-500 py-4 text-center">
+                                        No hay empresas disponibles
+                                    </p>
+                                ) : (
+                                    <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
+                                        {companies.map((company) => {
+                                            const isSelected = selectedCompanyIds.includes(company.id);
+                                            return (
+                                                <div
+                                                    key={company.id}
+                                                    onClick={() => toggleCompany(company.id)}
+                                                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors border-b last:border-b-0 ${
+                                                        isSelected
+                                                            ? "bg-blue-50 hover:bg-blue-100"
+                                                            : "hover:bg-gray-50"
+                                                    }`}
+                                                >
+                                                    <div
+                                                        className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                                                            isSelected
+                                                                ? "bg-blue-600 border-blue-600"
+                                                                : "border-gray-300"
+                                                        }`}
+                                                    >
+                                                        {isSelected && <Check size={14} className="text-white" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium text-gray-900 truncate">
+                                                            {company.business_name}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                            {company.rut}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {selectedCompanyIds.length > 0 && (
+                                    <p className="text-xs text-blue-600 mt-2">
+                                        {selectedCompanyIds.length} empresa{selectedCompanyIds.length !== 1 ? "s" : ""} seleccionada{selectedCompanyIds.length !== 1 ? "s" : ""}
+                                    </p>
+                                )}
                             </div>
                         )}
 
