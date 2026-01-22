@@ -6,8 +6,10 @@ import { ToastContainer } from "react-toastify";
 
 import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PublicRoute from "./components/PublicRoute";
 import RecoveryPassword from "./components/RecoveryPassword";
 import ActivateAccount from "./components/ActivateAccount";
+import ValidateCertificate from "./components/ValidateCertificate";
 import AppShell from "./web_routes/AppShell";
 import { AuthProvider, useAuth } from "./context/auth";
 import ReportFullscreenView from "./pages/reports/ReportFullscreenView";
@@ -21,10 +23,12 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            {/* Login siempre público */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/recuperar-password" element={<RecoveryPassword />} />
-            <Route path="/primera-vez" element={<ActivateAccount />} />
+            {/* Rutas publicas - redirigen al dashboard si ya hay sesion */}
+            <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+            <Route path="/recuperar-password" element={<PublicRoute><RecoveryPassword /></PublicRoute>} />
+            <Route path="/primera-vez" element={<PublicRoute><ActivateAccount /></PublicRoute>} />
+            {/* Validacion de certificados - siempre publico */}
+            <Route path="/validar-certificado" element={<ValidateCertificate />} />
             {/* Reporte fullscreen sin menú (protegido pero sin AppShell) */}
             <Route
               path="/report-fullscreen"

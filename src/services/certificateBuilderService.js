@@ -36,23 +36,6 @@ export const getDataTypes = async () => {
   }
 };
 
-/**
- * Obtiene datos simulados para preview
- */
-export const getSimulatedData = async (type = "transporte_residuos") => {
-  try {
-    const response = await api.get(`/api/certificate-builder/simulated-data/${type}`);
-    let success = response.status === 200 && !response.error;
-    return returnResponse(
-      success,
-      success ? response.data.message : response.error,
-      response.status,
-      success ? response.data.data : null
-    );
-  } catch (error) {
-    return error;
-  }
-};
 
 /**
  * Obtiene los campos de una plantilla
@@ -92,25 +75,6 @@ export const saveTemplateFields = async (templateId, fields) => {
   }
 };
 
-/**
- * Genera un preview del certificado
- */
-export const generatePreview = async (templateId, dataType = "transporte_residuos") => {
-  try {
-    const response = await api.get(
-      `/api/certificate-builder/templates/${templateId}/preview?data_type=${dataType}`
-    );
-    let success = response.status === 200 && !response.error;
-    return returnResponse(
-      success,
-      success ? response.data.message : response.error,
-      response.status,
-      success ? response.data.data : null
-    );
-  } catch (error) {
-    return error;
-  }
-};
 
 /**
  * Lista las imágenes subidas disponibles
@@ -199,15 +163,26 @@ export const getCertificatePdfUrl = (templateId, dataType = "transporte_residuos
  * @param {string} dateFrom - Fecha desde (YYYY-MM-DD)
  * @param {string} dateTo - Fecha hasta (YYYY-MM-DD)
  * @param {boolean} download - Si es true, descarga el archivo. Si es false, lo muestra en preview
- * @param {boolean} preview - Si es true, usa datos de ejemplo para tablas (modo builder)
+ * @param {object} options - Opciones adicionales
+ * @param {boolean} options.preview - Si es true, usa datos de ejemplo para tablas (modo builder)
+ * @param {number} options.companyId - ID de la empresa (para admin)
+ * @param {string} options.branchCode - Código de sucursal
+ * @param {number} options.month - Mes (1-12)
+ * @param {number} options.year - Año
  */
-export const generateCertificatePdfWithDates = async (templateId, dateFrom, dateTo, download = false, preview = false) => {
+export const generateCertificatePdfWithDates = async (templateId, dateFrom, dateTo, download = false, options = {}) => {
   try {
     const params = new URLSearchParams();
     if (dateFrom) params.append("date_from", dateFrom);
     if (dateTo) params.append("date_to", dateTo);
     if (download) params.append("download", "true");
-    if (preview) params.append("preview", "true");
+
+    // Opciones adicionales
+    if (options.preview) params.append("preview", "true");
+    if (options.companyId) params.append("company_id", options.companyId);
+    if (options.branchCode) params.append("branch_code", options.branchCode);
+    if (options.month) params.append("month", options.month);
+    if (options.year) params.append("year", options.year);
 
     const response = await api.get(
       `/api/certificate-builder/templates/${templateId}/pdf?${params.toString()}`,

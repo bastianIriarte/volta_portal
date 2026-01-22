@@ -196,6 +196,14 @@ export default function Login() {
                   {errors.pass}
                 </p>
               )}
+              <div className="text-right mt-1">
+                <Link
+                  to="/recuperar-password"
+                  className="text-xs text-[var(--brand-primary)] hover:text-[var(--brand-primary-600)] transition-colors"
+                >
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
             </div>
 
             {/* Botón siempre habilitado */}
@@ -213,10 +221,10 @@ export default function Login() {
           <div className="space-y-2 pt-2">
             <div className="text-center">
               <Link
-                to="/recuperar-password"
+                to="/primera-vez"
                 className="text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-600)] transition-colors"
               >
-                ¿Olvidaste tu contraseña?
+                ¿Primera vez? Registrate aquí
               </Link>
             </div>
 
@@ -231,10 +239,10 @@ export default function Login() {
 
             <div className="text-center">
               <Link
-                to="/primera-vez"
+                to="/validar-certificado"
                 className="text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-600)] transition-colors"
               >
-                ¿Primera vez? Registrate aquí
+                Validar certificado
               </Link>
             </div>
           </div>

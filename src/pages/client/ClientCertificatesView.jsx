@@ -1,10 +1,14 @@
-import { useState, useEffect } from "react";
-import { Award, Calendar, Loader2, Download, Building2, ChevronDown, MapPin } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Award, Calendar, Loader2, Download, Building2, MapPin, Eye, RefreshCw, X, FileText } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
+import { Select } from "../../components/ui/Select";
+import { Input } from "../../components/ui/Input";
 import { useAuth } from "../../context/auth";
 import { getCertificateTemplates, getCertificatesByCompany, getCompanies } from "../../services/companyService";
 import { generateCertificatePdfWithDates, getBranches } from "../../services/certificateBuilderService";
+import { getToken } from "../../services/api";
 import { handleSnackbar } from "../../utils/messageHelpers";
+import { validateField } from "../../utils/validators";
 
 // Meses para selector
 const MONTHS = [
@@ -48,6 +52,12 @@ export default function ClientCertificatesView() {
   const [companies, setCompanies] = useState([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [loadingCompanies, setLoadingCompanies] = useState(false);
+
+  // Errores de validación
+  const [errors, setErrors] = useState({});
+
+  // Estado del preview PDF (incluye datos del certificado para mostrar después de cerrar el modal de generación)
+  const [pdfPreview, setPdfPreview] = useState({ show: false, url: null, loading: false, cert: null, dateFrom: null, dateTo: null, options: null });
 
   const userRole = session?.user?.role;
   const isAdmin = userRole === "root" || userRole === "admin";
@@ -157,6 +167,51 @@ export default function ClientCertificatesView() {
     setDateTo("");
     setSelectedBranch("");
     setBranches([]);
+    setErrors({});
+  };
+
+  // Validar todos los campos del formulario
+  const validateAll = () => {
+    const newErrors = {};
+    const { dateFrom: from, dateTo: to } = getDateParams();
+
+    // Validar empresa (solo admin)
+    if (isAdmin) {
+      const companyValidation = validateField(selectedCompanyId, "select", true, "Seleccione una empresa");
+      if (!companyValidation.validate) {
+        newErrors.company = companyValidation.msg;
+      }
+    }
+
+    // Validar sucursal si el certificado requiere sucursal
+    if (selectedCert?.query_branches) {
+      const branchValidation = validateField(selectedBranch, "select", true, "Seleccione una sucursal");
+      if (!branchValidation.validate) {
+        newErrors.branch = branchValidation.msg;
+      }
+    }
+
+    // Validar periodo (solo para tipo rango)
+    if (selectedCert?.search_type !== "month") {
+      const dateFromValidation = validateField(from, "date", true, "Seleccione fecha desde");
+      if (!dateFromValidation.validate) {
+        newErrors.dateFrom = dateFromValidation.msg;
+      }
+
+      const dateToValidation = validateField(to, "date", true, "Seleccione fecha hasta");
+      if (!dateToValidation.validate) {
+        newErrors.dateTo = dateToValidation.msg;
+      }
+    }
+
+    setErrors(newErrors);
+
+    const hasErrors = Object.keys(newErrors).length > 0;
+    if (hasErrors) {
+      handleSnackbar("Complete los campos requeridos", "error");
+    }
+
+    return !hasErrors;
   };
 
   // Cuando cambia la empresa seleccionada (para admin)
@@ -190,22 +245,40 @@ export default function ClientCertificatesView() {
   const handleGeneratePDF = async () => {
     if (!selectedCert) return;
 
-    const { dateFrom: from, dateTo: to } = getDateParams();
+    // Validar todos los campos usando el validador unificado
+    if (!validateAll()) return;
 
-    if (!from || !to) {
-      handleSnackbar("Selecciona el periodo", "error");
-      return;
-    }
+    const { dateFrom: from, dateTo: to } = getDateParams();
 
     setGenerating(true);
 
     try {
+      // Construir opciones con todos los parámetros necesarios
+      const options = {};
+
+      // company_id: solo enviar si es admin y seleccionó una empresa
+      if (isAdmin && selectedCompanyId) {
+        options.companyId = selectedCompanyId;
+      }
+
+      // branch_code: solo enviar si hay sucursal seleccionada
+      if (selectedBranch) {
+        options.branchCode = selectedBranch;
+      }
+
+      // month y year: solo enviar si el certificado es tipo mes
+      if (selectedCert.search_type === "month") {
+        options.month = selectedMonth;
+        options.year = selectedYear;
+      }
+
       // Generar PDF con autenticación - descarga directa
       const result = await generateCertificatePdfWithDates(
         selectedCert.id,
         from,
         to,
-        true // true = descargar directamente
+        true, // true = descargar directamente
+        options
       );
 
       if (result.success) {
@@ -213,6 +286,7 @@ export default function ClientCertificatesView() {
         setSelectedCert(null);
         setDateFrom("");
         setDateTo("");
+        setSelectedBranch("");
       } else {
         handleSnackbar(result.error || "Error al generar certificado", "error");
       }
@@ -230,6 +304,188 @@ export default function ClientCertificatesView() {
     }
     return session?.user?.company;
   };
+
+  // Construir opciones para generación de PDF
+  const buildPdfOptions = useCallback(() => {
+    const options = {};
+
+    if (isAdmin && selectedCompanyId) {
+      options.companyId = selectedCompanyId;
+    }
+
+    if (selectedBranch) {
+      options.branchCode = selectedBranch;
+    }
+
+    if (selectedCert?.search_type === "month") {
+      options.month = selectedMonth;
+      options.year = selectedYear;
+    }
+
+    return options;
+  }, [isAdmin, selectedCompanyId, selectedBranch, selectedCert, selectedMonth, selectedYear]);
+
+  // Generar vista previa del PDF
+  const handlePreviewPdf = useCallback(async () => {
+    if (!selectedCert) return;
+
+    // Validar todos los campos
+    if (!validateAll()) return;
+
+    const { dateFrom: from, dateTo: to } = getDateParams();
+    const options = buildPdfOptions();
+
+    // Limpiar URL anterior si existe
+    if (pdfPreview.url) {
+      window.URL.revokeObjectURL(pdfPreview.url);
+    }
+
+    // Guardar datos del certificado y cerrar modal de generación
+    const certData = { ...selectedCert };
+    setPdfPreview({ show: true, url: null, loading: true, cert: certData, dateFrom: from, dateTo: to, options });
+    setSelectedCert(null); // Cerrar modal de generación
+
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+      const token = getToken();
+
+      // Construir URL con parámetros
+      const params = new URLSearchParams();
+      params.append("date_from", from);
+      params.append("date_to", to);
+      if (options.companyId) params.append("company_id", options.companyId);
+      if (options.branchCode) params.append("branch_code", options.branchCode);
+      if (options.month) params.append("month", options.month);
+      if (options.year) params.append("year", options.year);
+
+      const response = await fetch(
+        `${baseUrl}/api/certificate-builder/templates/${selectedCert.id}/pdf?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/pdf")) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          setPdfPreview(prev => ({ ...prev, url, loading: false }));
+        } else {
+          // La respuesta no es un PDF, probablemente es un error JSON
+          const errorData = await response.json().catch(() => ({}));
+          handleSnackbar(errorData.error || "Error al generar PDF", "error");
+          setPdfPreview({ show: false, url: null, loading: false, cert: null, dateFrom: null, dateTo: null, options: null });
+        }
+      } else {
+        // Intentar leer el error del blob si es JSON
+        const blob = await response.blob();
+        try {
+          const text = await blob.text();
+          const errorData = JSON.parse(text);
+          handleSnackbar(errorData.error || `Error ${response.status}`, "error");
+        } catch {
+          handleSnackbar(`Error al generar vista previa (${response.status})`, "error");
+        }
+        setPdfPreview({ show: false, url: null, loading: false, cert: null, dateFrom: null, dateTo: null, options: null });
+      }
+    } catch (error) {
+      console.error("Error generating preview:", error);
+      handleSnackbar("Error de conexión al generar vista previa", "error");
+      setPdfPreview({ show: false, url: null, loading: false, cert: null, dateFrom: null, dateTo: null, options: null });
+    }
+  }, [selectedCert, pdfPreview.url, buildPdfOptions]);
+
+  // Refrescar vista previa
+  const handleRefreshPreview = useCallback(async () => {
+    // Usar datos almacenados del preview
+    if (!pdfPreview.cert) {
+      handleSnackbar("No hay certificado seleccionado", "error");
+      return;
+    }
+
+    if (pdfPreview.url) {
+      window.URL.revokeObjectURL(pdfPreview.url);
+    }
+    setPdfPreview(prev => ({ ...prev, url: null, loading: true }));
+
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+    const token = getToken();
+
+    // Usar las fechas y opciones almacenadas
+    const { dateFrom: from, dateTo: to, options, cert } = pdfPreview;
+
+    // Construir URL con parámetros
+    const params = new URLSearchParams();
+    params.append("date_from", from);
+    params.append("date_to", to);
+    if (options?.companyId) params.append("company_id", options.companyId);
+    if (options?.branchCode) params.append("branch_code", options.branchCode);
+    if (options?.month) params.append("month", options.month);
+    if (options?.year) params.append("year", options.year);
+
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/certificate-builder/templates/${cert.id}/pdf?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/pdf")) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          setPdfPreview(prev => ({ ...prev, url, loading: false }));
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          handleSnackbar(errorData.error || "Error al refrescar", "error");
+          setPdfPreview(prev => ({ ...prev, loading: false }));
+        }
+      } else {
+        const blob = await response.blob();
+        try {
+          const text = await blob.text();
+          const errorData = JSON.parse(text);
+          handleSnackbar(errorData.error || `Error ${response.status}`, "error");
+        } catch {
+          handleSnackbar(`Error al refrescar (${response.status})`, "error");
+        }
+        setPdfPreview(prev => ({ ...prev, loading: false }));
+      }
+    } catch (error) {
+      console.error("Error refreshing preview:", error);
+      handleSnackbar("Error de conexión al refrescar", "error");
+      setPdfPreview(prev => ({ ...prev, loading: false }));
+    }
+  }, [pdfPreview]);
+
+  // Descargar PDF desde preview
+  const handleDownloadFromPreview = useCallback(() => {
+    if (!pdfPreview.url) return;
+
+    const link = document.createElement("a");
+    link.href = pdfPreview.url;
+    const { cert, dateFrom, dateTo } = pdfPreview;
+    link.download = `certificado_${cert?.code || cert?.id}_${dateFrom}_${dateTo}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    handleSnackbar("Certificado descargado correctamente", "success");
+  }, [pdfPreview]);
+
+  // Cerrar modal de preview
+  const handleClosePreview = useCallback(() => {
+    if (pdfPreview.url) {
+      window.URL.revokeObjectURL(pdfPreview.url);
+    }
+    setPdfPreview({ show: false, url: null, loading: false, cert: null, dateFrom: null, dateTo: null, options: null });
+  }, [pdfPreview.url]);
 
   if (loading) {
     return (
@@ -356,10 +612,17 @@ export default function ClientCertificatesView() {
             onClick: handleCloseModal,
           },
           {
-            label: generating ? "Generando..." : "Generar PDF",
+            label: "Vista Previa",
+            variant: "secondary",
+            onClick: handlePreviewPdf,
+            disabled: generating || pdfPreview.loading,
+            icon: Eye,
+          },
+          {
+            label: generating ? "Generando..." : "Descargar",
             variant: "primary",
             onClick: handleGeneratePDF,
-            disabled: generating,
+            disabled: generating || pdfPreview.loading,
             icon: Download,
           },
         ]}
@@ -378,65 +641,55 @@ export default function ClientCertificatesView() {
 
           {/* Selector de empresa (solo admin) */}
           {isAdmin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Empresa
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedCompanyId}
-                  onChange={handleCompanyChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm appearance-none bg-white"
-                >
-                  <option value="">Seleccionar empresa...</option>
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.business_name} ({company.rut})
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
+            <Select
+              id="company"
+              label="Empresa"
+              required
+              value={selectedCompanyId}
+              onChange={(e) => {
+                handleCompanyChange(e);
+                if (errors.company) setErrors(prev => ({ ...prev, company: null }));
+              }}
+              error={errors.company}
+            >
+              <option value="">Seleccionar empresa...</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.business_name} ({company.rut})
+                </option>
+              ))}
+            </Select>
           )}
 
           {/* Selector de sucursal (si query_branches está activo) */}
           {selectedCert?.query_branches && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4" />
-                  Sucursal
-                </div>
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedBranch}
-                  onChange={(e) => setSelectedBranch(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm appearance-none bg-white"
-                  disabled={loadingBranches || branches.length === 0}
-                >
-                  <option value="">
-                    {loadingBranches
-                      ? "Cargando sucursales..."
-                      : branches.length === 0
-                        ? "Sin sucursales disponibles"
-                        : "Todas las sucursales"}
+              <Select
+                id="branch"
+                label="Sucursal"
+                required
+                value={selectedBranch}
+                onChange={(e) => {
+                  setSelectedBranch(e.target.value);
+                  if (errors.branch) setErrors(prev => ({ ...prev, branch: null }));
+                }}
+                error={errors.branch}
+                disabled={loadingBranches || branches.length === 0}
+                helper={loadingBranches ? "Cargando sucursales..." : undefined}
+              >
+                <option value="">
+                  {loadingBranches
+                    ? "Cargando sucursales..."
+                    : branches.length === 0
+                      ? "Sin sucursales disponibles"
+                      : "Seleccionar sucursal..."}
+                </option>
+                {branches.map((branch) => (
+                  <option key={branch.code} value={branch.code}>
+                    {branch.name} {branch.city ? `(${branch.city})` : ""}
                   </option>
-                  {branches.map((branch) => (
-                    <option key={branch.code} value={branch.code}>
-                      {branch.name} {branch.city ? `(${branch.city})` : ""}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              </div>
-              {loadingBranches && (
-                <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Cargando sucursales...
-                </p>
-              )}
+                ))}
+              </Select>
             </div>
           )}
 
@@ -444,72 +697,68 @@ export default function ClientCertificatesView() {
           {selectedCert?.search_type === "month" ? (
             /* Selector de mes y año */
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
                 Periodo del certificado
               </label>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Mes</label>
-                  <div className="relative">
-                    <select
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm appearance-none bg-white"
-                    >
-                      {MONTHS.map((month) => (
-                        <option key={month.value} value={month.value}>
-                          {month.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Año</label>
-                  <div className="relative">
-                    <select
-                      value={selectedYear}
-                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm appearance-none bg-white"
-                    >
-                      {YEARS.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
+                <Select
+                  id="month"
+                  label="Mes"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                >
+                  {MONTHS.map((month) => (
+                    <option key={month.value} value={month.value}>
+                      {month.label}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  id="year"
+                  label="Año"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                >
+                  {YEARS.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </Select>
               </div>
             </div>
           ) : (
             /* Rango de fechas (por defecto) */
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">
                   Periodo del certificado
                 </label>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Desde</label>
-                    <input
-                      type="date"
-                      value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Hasta</label>
-                    <input
-                      type="date"
-                      value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    />
-                  </div>
+                  <Input
+                    id="dateFrom"
+                    label="Desde"
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => {
+                      setDateFrom(e.target.value);
+                      if (errors.dateFrom) setErrors(prev => ({ ...prev, dateFrom: null }));
+                    }}
+                    error={errors.dateFrom}
+                    required
+                  />
+                  <Input
+                    id="dateTo"
+                    label="Hasta"
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => {
+                      setDateTo(e.target.value);
+                      if (errors.dateTo) setErrors(prev => ({ ...prev, dateTo: null }));
+                    }}
+                    error={errors.dateTo}
+                    required
+                  />
                 </div>
               </div>
 
@@ -568,12 +817,85 @@ export default function ClientCertificatesView() {
           {/* Nota */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-xs text-blue-700">
-              El certificado se generará con los datos correspondientes al periodo seleccionado
-              y se descargará automáticamente.
+              El certificado se generará con los datos correspondientes al periodo seleccionado.
+              Puede ver una vista previa antes de descargar.
             </p>
           </div>
         </div>
       </Modal>
+
+      {/* Modal de Vista Previa PDF */}
+      {pdfPreview.show && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" style={{ top: "-30px" }}>
+          <div className="bg-white rounded-lg shadow-2xl w-[90vw] h-[90vh] max-w-6xl flex flex-col mt-8">
+            {/* Header del modal */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-900">
+                Vista Previa - {pdfPreview.cert?.name || "Certificado"}
+              </h3>
+              <div className="flex items-center gap-2">
+                {/* Botón de refrescar */}
+                <button
+                  onClick={handleRefreshPreview}
+                  disabled={pdfPreview.loading}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-50"
+                  title="Refrescar"
+                >
+                  <RefreshCw className={`h-4 w-4 ${pdfPreview.loading ? "animate-spin" : ""}`} />
+                </button>
+                {/* Botón de descargar */}
+                <button
+                  onClick={handleDownloadFromPreview}
+                  disabled={pdfPreview.loading || !pdfPreview.url}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-50"
+                  title="Descargar PDF"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+                {/* Botón de cerrar */}
+                <button
+                  onClick={handleClosePreview}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                  title="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Contenido del PDF */}
+            <div className="flex-1 p-4 bg-gray-100 overflow-hidden">
+              {pdfPreview.loading ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-600"></div>
+                    <span className="text-gray-600">Generando PDF...</span>
+                  </div>
+                </div>
+              ) : pdfPreview.url ? (
+                <iframe
+                  src={pdfPreview.url}
+                  className="w-full h-full rounded border border-gray-300"
+                  title="Vista previa del certificado"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-center text-gray-500">
+                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No se pudo cargar el preview</p>
+                    <button
+                      onClick={handleRefreshPreview}
+                      className="mt-3 px-4 py-2 text-sm text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded"
+                    >
+                      Reintentar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

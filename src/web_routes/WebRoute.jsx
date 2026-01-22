@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   Shield,
   Image,
+  History,
 } from "lucide-react";
 
 
@@ -51,6 +52,7 @@ import TicketImagesView from "../pages/ticket_images/TicketImagesView";
 // Vistas de Cliente
 import ClientDocumentsView from "../pages/client/ClientDocumentsView";
 import ClientCertificatesView from "../pages/client/ClientCertificatesView";
+import CertificateExportsView from "../pages/client/CertificateExportsView";
 import ProfilesManagement from "../pages/profiles/ProfilesManagement";
 import ProfilePermissionsMatrix from "../pages/profiles/ProfilePermissionsMatrix";
 import ProfileView from "../pages/profile/ProfileView";
@@ -94,7 +96,8 @@ export const APP_ROUTES = [
   { path: "/dashboard/certificate-builder/:templateId", element: <CertificateBuilderView />, permission: null, roles: ["admin", "root"] },
   { path: "/dashboard/procesadores", element: <TableProcessorsView />, permission: null, label: "Procesadores", id: "procesadores", isMenu: true, section: "administracion", icon: Table2, roles: ["admin", "root"] },
   { path: "/dashboard/reports", element: <ReportTemplatesView />, permission: null, label: "Gestión de Reportes", id: "reports", isMenu: true, section: "administracion", icon: FileText, roles: ["admin", "root"] },
-  { path: "/dashboard/report-exports", element: <ReportExportsView />, permission: null, label: "Exportaciones", id: "report-exports", isMenu: true, section: "administracion", icon: FileSpreadsheet },
+  { path: "/dashboard/report-exports", element: <ReportExportsView />, permission: null, label: "Exportaciones Reportes", id: "report-exports", isMenu: true, section: "administracion", icon: FileSpreadsheet },
+  { path: "/dashboard/certificate-exports", element: <CertificateExportsView />, permission: null, label: "Historial Certificados", id: "certificate-exports", isMenu: true, section: "administracion", icon: History },
   { path: "/dashboard/ticket-images", element: <TicketImagesView />, permission: null, label: "Imágenes de Tickets", id: "ticket-images", isMenu: true, section: "administracion", icon: Image, roles: ["admin", "root"] },
 
   // ========================================

@@ -1,17 +1,10 @@
 import api, { returnResponse } from "./api";
 
-const encodeBase64 = (text) => {
-  const encoder = new TextEncoder(); // Crear un TextEncoder
-  const bytes = encoder.encode(text); // Convertir el texto a bytes
-  const binaryString = String.fromCharCode(...bytes); // Convertir los bytes a una cadena binaria
-  return btoa(binaryString); // Codificar en Base64
-};
-
-// Función para obtener todos los registros
 export const getConfigurations = async (code) => {
   try {
-    const response = await api.get(`api/configuration?code=${code}`);
-    // console.log(`response getTags ${JSON.stringify(response)}`);
+    const response = await api.get(`/api/configuration`, {
+      params: { code }
+    });
     let success = response.status != 200 || response.error ? false : true;
     return returnResponse(
       success,
@@ -24,16 +17,9 @@ export const getConfigurations = async (code) => {
   }
 };
 
-export const storeOrUpdate = async (code, data) => {
+export const storeOrUpdate = async (data) => {
   try {
-    const encodedData = encodeBase64(JSON.stringify(data));
-    console.log(data)
-    // Enviar solicitud POST para ejecutar la query
-    const response = await api.post("api/configuration", {
-      code,
-      data: encodedData,
-    });
-    // console.log(`response storeOrUpdate ${JSON.stringify(response)}`);
+    const response = await api.post(`/api/configuration`, data);
     let success = response.status != 200 || response.error ? false : true;
     return returnResponse(
       success,

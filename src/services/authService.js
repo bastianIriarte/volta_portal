@@ -45,20 +45,6 @@ export const getUser = async () => {
 
 };
 
-export const activateAccount = async (registerData) => {
-  try {
-    const response = await api.post(`/api/activate-account`, registerData);
-    let success = response.status != 200 || response.error ? false : true;
-    return returnResponse(
-      success,
-      success ? response.data.message : response.error,
-      response.status,
-      success ? response.data.data : null
-    );
-  } catch (error) {
-    return error;
-  }
-};
 export const validateCodeActivation = async (registerData) => {
   try {
     const response = await api.post(`/api/validate-code-account`, registerData);
@@ -74,20 +60,6 @@ export const validateCodeActivation = async (registerData) => {
   }
 };
 
-export const activatePasswordWithCode = async (registerData) => {
-  try {
-    const response = await api.post(`/api/activate-password`, registerData);
-    let success = response.status != 200 || response.error ? false : true;
-    return returnResponse(
-      success,
-      success ? response.data.message : response.error,
-      response.status,
-      success ? response.data.data : null
-    );
-  } catch (error) {
-    return error;
-  }
-};
 
 export const recoveryPassword = async (registerData) => {
   try {
