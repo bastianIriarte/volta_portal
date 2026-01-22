@@ -136,12 +136,29 @@ export const cloneCertificateTemplate = async (id) => {
 /**
  * Genera preview PDF de una plantilla (modo builder)
  * @param {number} templateId - ID de la plantilla
+ * @param {Object} filters - Filtros opcionales para el preview
+ * @param {string} filters.date_from - Fecha desde (YYYY-MM-DD)
+ * @param {string} filters.date_to - Fecha hasta (YYYY-MM-DD)
+ * @param {string} filters.branch_code - Código de sucursal
+ * @param {number} filters.month - Mes (1-12)
+ * @param {number} filters.year - Año
+ * @param {number} filters.company_id - ID de empresa
  * @returns {Promise<{success: boolean, url?: string, error?: string}>}
  */
-export const generatePreviewPdf = async (templateId) => {
+export const generatePreviewPdf = async (templateId, filters = {}) => {
   try {
+    // Construir query params
+    const params = new URLSearchParams({ preview: "true" });
+
+    if (filters.date_from) params.append("date_from", filters.date_from);
+    if (filters.date_to) params.append("date_to", filters.date_to);
+    if (filters.branch_code) params.append("branch_code", filters.branch_code);
+    if (filters.month) params.append("month", filters.month);
+    if (filters.year) params.append("year", filters.year);
+    if (filters.company_id) params.append("company_id", filters.company_id);
+
     const response = await api.get(
-      `/api/certificate-builder/templates/${templateId}/pdf?preview=true`,
+      `/api/certificate-builder/templates/${templateId}/pdf?${params.toString()}`,
       { responseType: "blob" }
     );
 
@@ -164,11 +181,22 @@ export const generatePreviewPdf = async (templateId) => {
  * Descarga PDF de una plantilla (modo builder)
  * @param {number} templateId - ID de la plantilla
  * @param {string} templateName - Nombre para el archivo descargado
+ * @param {Object} filters - Filtros opcionales
  */
-export const downloadPreviewPdf = async (templateId, templateName = "certificado") => {
+export const downloadPreviewPdf = async (templateId, templateName = "certificado", filters = {}) => {
   try {
+    // Construir query params
+    const params = new URLSearchParams({ preview: "true", download: "true" });
+
+    if (filters.date_from) params.append("date_from", filters.date_from);
+    if (filters.date_to) params.append("date_to", filters.date_to);
+    if (filters.branch_code) params.append("branch_code", filters.branch_code);
+    if (filters.month) params.append("month", filters.month);
+    if (filters.year) params.append("year", filters.year);
+    if (filters.company_id) params.append("company_id", filters.company_id);
+
     const response = await api.get(
-      `/api/certificate-builder/templates/${templateId}/pdf?preview=true&download=true`,
+      `/api/certificate-builder/templates/${templateId}/pdf?${params.toString()}`,
       { responseType: "blob" }
     );
 

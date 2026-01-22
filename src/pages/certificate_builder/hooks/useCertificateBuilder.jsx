@@ -42,6 +42,16 @@ export function useCertificateBuilder(templateId) {
   // Modal de Preview PDF
   const [pdfPreview, setPdfPreview] = useState({ show: false, url: null, loading: false });
 
+  // Filtros para Preview PDF
+  const [previewFilters, setPreviewFilters] = useState({
+    date_from: "",
+    date_to: "",
+    branch_code: "",
+    month: "",
+    year: "",
+    company_id: "",
+  });
+
   // Estados para Mobile
   const [showMobileFields, setShowMobileFields] = useState(false);
   const [showMobileConfig, setShowMobileConfig] = useState(false);
@@ -409,13 +419,15 @@ export function useCertificateBuilder(templateId) {
   };
 
   // Handlers para PDF Preview
-  const handleOpenPdfPreview = async () => {
+  const handleOpenPdfPreview = async (filters = null) => {
     if (pdfPreview.url) {
       window.URL.revokeObjectURL(pdfPreview.url);
     }
     setPdfPreview({ show: true, url: null, loading: true });
 
-    const result = await generatePreviewPdf(templateId);
+    // Usar filtros pasados o los del estado
+    const filtersToUse = filters || previewFilters;
+    const result = await generatePreviewPdf(templateId, filtersToUse);
     if (result.success) {
       setPdfPreview({ show: true, url: result.url, loading: false });
     } else {
@@ -430,7 +442,7 @@ export function useCertificateBuilder(templateId) {
     }
     setPdfPreview({ show: true, url: null, loading: true });
 
-    const result = await generatePreviewPdf(templateId);
+    const result = await generatePreviewPdf(templateId, previewFilters);
     if (result.success) {
       setPdfPreview({ show: true, url: result.url, loading: false });
     } else {
@@ -441,10 +453,15 @@ export function useCertificateBuilder(templateId) {
 
   const handleDownloadPdf = async () => {
     const templateName = template?.code || templateId;
-    const result = await downloadPreviewPdf(templateId, `certificado_${templateName}`);
+    const result = await downloadPreviewPdf(templateId, `certificado_${templateName}`, previewFilters);
     if (!result.success) {
       handleSnackbar(result.error || "Error al descargar PDF", "error");
     }
+  };
+
+  // Handler para actualizar filtros de preview
+  const handleUpdatePreviewFilters = (newFilters) => {
+    setPreviewFilters((prev) => ({ ...prev, ...newFilters }));
   };
 
   const handleClosePdfPreview = () => {
@@ -482,6 +499,7 @@ export function useCertificateBuilder(templateId) {
     availableVariables,
     canUndo,
     canRedo,
+    previewFilters,
 
     // Setters
     setScale,
@@ -523,5 +541,6 @@ export function useCertificateBuilder(templateId) {
     handleRefreshPdfPreview,
     handleDownloadPdf,
     handleClosePdfPreview,
+    handleUpdatePreviewFilters,
   };
 }

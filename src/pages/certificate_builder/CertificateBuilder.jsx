@@ -84,6 +84,8 @@ export default function CertificateBuilder({ templateId, onClose }) {
     handleRefreshPdfPreview,
     handleDownloadPdf,
     handleClosePdfPreview,
+    handleUpdatePreviewFilters,
+    previewFilters,
   } = useCertificateBuilder(templateId);
 
   if (loading) {
@@ -345,6 +347,9 @@ export default function CertificateBuilder({ templateId, onClose }) {
         onRefresh={handleRefreshPdfPreview}
         onDownload={handleDownloadPdf}
         onClose={handleClosePdfPreview}
+        filters={previewFilters}
+        onFiltersChange={handleUpdatePreviewFilters}
+        template={template}
       />
     </div>
   );
