@@ -829,9 +829,9 @@ export default function UnifiedReportView() {
           {/* Barra de herramientas */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-4 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={handleExportCSV} icon={Download}>
+              {/* <Button variant="outline" size="sm" onClick={handleExportCSV} icon={Download}>
                 Exportar CSV
-              </Button>
+              </Button> */}
               {/* Exportar a Excel (solo para reportes SQL) */}
               {reportCode && template?.origin_type !== "iframe" && (
                 <Button
@@ -937,7 +937,7 @@ export default function UnifiedReportView() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredItems.map((item, index) => (
-                      <tr key={item._id || item.id || index} className="hover:bg-gray-50">
+                      <tr key={`row-${index}-${item._id || item.id || ''}`} className="hover:bg-gray-50">
                         {activeColumns.map((col, colIndex) => {
                           const rawValue = item.fields?.[col.key] || item[col.key];
 
@@ -1176,10 +1176,10 @@ export default function UnifiedReportView() {
                   href={selectedImage}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                  Abrir en nueva pestaña
+                  <Download className="w-4 h-4" />
+                  Descargar
                 </a>
               )}
             </div>

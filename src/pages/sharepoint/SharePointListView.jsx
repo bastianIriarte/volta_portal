@@ -41,6 +41,7 @@ export default function SharePointListView() {
   const navigate = useNavigate();
   const tableContainerRef = useRef(null);
   const scrollPositionRef = useRef(0);
+  const isLoadingRef = useRef(false); // Ref para evitar cargas duplicadas
 
   // Estados
   const [items, setItems] = useState([]);
@@ -72,6 +73,7 @@ export default function SharePointListView() {
 
   // Paginación con nextLink (como SharePoint)
   const [nextLink, setNextLink] = useState(null);
+  const nextLinkRef = useRef(null); // Ref para evitar stale closures
   const [hasMore, setHasMore] = useState(false);
   const [totalLoaded, setTotalLoaded] = useState(0);
 
@@ -208,10 +210,20 @@ export default function SharePointListView() {
   const loadItems = async (reset = false) => {
     if (!selectedListId) return Promise.resolve();
 
+    // Prevenir cargas duplicadas usando ref (sincrónico)
+    if (!reset && isLoadingRef.current) {
+      console.log("Carga en progreso, ignorando solicitud duplicada");
+      return Promise.resolve();
+    }
+
+    // Marcar como cargando inmediatamente (sincrónico)
+    isLoadingRef.current = true;
+
     if (reset) {
       setLoading(true);
       setItems([]);
       setNextLink(null);
+      nextLinkRef.current = null;
       setTotalLoaded(0);
     } else {
       setLoadingMore(true);
@@ -226,12 +238,13 @@ export default function SharePointListView() {
       // Construir filtro OData (fechas + NombreCliente)
       const odataFilter = buildODataFilter();
 
-      // Extraer skiptoken del nextLink si existe
+      // Extraer skiptoken del nextLink usando el ref (evita stale closures)
       let skipToken = null;
-      if (!reset && nextLink) {
+      if (!reset && nextLinkRef.current) {
         try {
-          const nextUrl = new URL(nextLink);
+          const nextUrl = new URL(nextLinkRef.current);
           skipToken = nextUrl.searchParams.get('$skiptoken');
+          console.log("Using skipToken:", skipToken);
         } catch (e) {
           console.warn("Error parsing nextLink:", e);
         }
@@ -258,12 +271,21 @@ export default function SharePointListView() {
           setItems(newItems);
           setTotalLoaded(newItems.length);
         } else {
-          setItems(prev => [...prev, ...newItems]);
+          // Deduplicar items al agregar usando _id como identificador único
+          setItems(prev => {
+            const existingIds = new Set(prev.map(item => item._id));
+            const uniqueNewItems = newItems.filter(item => !existingIds.has(item._id));
+            if (newItems.length !== uniqueNewItems.length) {
+              console.log(`Deduplicación: ${newItems.length} recibidos, ${uniqueNewItems.length} únicos, ${newItems.length - uniqueNewItems.length} duplicados ignorados`);
+            }
+            return [...prev, ...uniqueNewItems];
+          });
           setTotalLoaded(prev => prev + newItems.length);
         }
 
         const newNextLink = data['@odata.nextLink'];
         setNextLink(newNextLink || null);
+        nextLinkRef.current = newNextLink || null; // Actualizar ref también
         setHasMore(!!newNextLink);
       }
     } catch (err) {
@@ -273,6 +295,7 @@ export default function SharePointListView() {
     } finally {
       setLoading(false);
       setLoadingMore(false);
+      isLoadingRef.current = false; // Permitir nuevas cargas
     }
   };
 
@@ -740,7 +763,7 @@ export default function SharePointListView() {
               ) : (
                 <>
                   {filteredItems.map((item, idx) => (
-                    <tr key={item._id || item.id || idx} className="hover:bg-gray-50">
+                    <tr key={`row-${idx}-${item._id || item.id || ''}`} className="hover:bg-gray-50">
                       {visibleColumns.map(col => (
                         <td
                           key={col.key}

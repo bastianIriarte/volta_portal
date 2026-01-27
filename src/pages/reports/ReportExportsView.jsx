@@ -251,12 +251,6 @@ export default function ReportExportsView() {
         title: "Descargar",
         className: "text-green-600 hover:text-green-900 hover:bg-green-50",
       });
-      actions.push({
-        icon: ExternalLink,
-        onClick: () => window.open(record.file_url, "_blank"),
-        title: "Abrir en nueva pestaña",
-        className: "text-blue-600 hover:text-blue-900 hover:bg-blue-50",
-      });
     }
 
     actions.push({

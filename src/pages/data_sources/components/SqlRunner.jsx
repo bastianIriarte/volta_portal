@@ -2,32 +2,28 @@ import { useState, useRef, useEffect } from "react";
 import { Play, Loader2, Database, XCircle, AlertTriangle, Code2, CheckCircle } from "lucide-react";
 import { Modal } from "../../../components/ui/Modal.jsx";
 import { runRawQuery } from "../../../services/dataSourceService";
-import { highlightSQL } from "../utils/sqlHighlighter";
+import { handleSnackbar } from "../../../utils/messageHelpers";
 
 /**
  * Editor SQL con syntax highlighting para SqlRunner
  */
 const SqlEditor = ({ value, onChange, placeholder }) => {
   const textareaRef = useRef(null);
-  const highlightRef = useRef(null);
+  const lineNumbersRef = useRef(null);
 
   const lines = (value || "").split("\n");
   const lineCount = lines.length || 1;
 
-  // Sincronizar scroll entre textarea y highlight
+  // Sincronizar scroll de números de línea con textarea
   const handleScroll = () => {
-    if (highlightRef.current && textareaRef.current) {
-      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
-      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    if (lineNumbersRef.current && textareaRef.current) {
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
     }
   };
 
-  useEffect(() => {
-    handleScroll();
-  }, [value]);
-
   return (
     <div className="rounded-lg overflow-hidden border border-gray-300 shadow-sm">
+
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center gap-2">
@@ -48,14 +44,18 @@ const SqlEditor = ({ value, onChange, placeholder }) => {
       </div>
 
       {/* Editor */}
-      <div className="relative bg-white min-h-[150px] max-h-[200px]">
+      <div className="relative bg-white min-h-[150px] max-h-[250px]">
         <div className="flex h-full">
-          {/* Números de línea */}
-          <div className="flex-shrink-0 py-3 px-3 bg-gray-50 border-r border-gray-200 select-none overflow-hidden">
+          {/* Números de línea - sincronizado con scroll del textarea */}
+          <div
+            ref={lineNumbersRef}
+            className="flex-shrink-0 py-3 px-3 bg-gray-50 border-r border-gray-200 select-none overflow-hidden min-h-[150px] max-h-[250px]"
+          >
             {Array.from({ length: lineCount }, (_, i) => (
               <div
                 key={i}
-                className="text-right text-xs font-mono text-gray-400 leading-6 pr-2"
+                className="text-right text-xs font-mono text-gray-400 pr-2"
+                style={{ lineHeight: '1.5rem', height: '1.5rem' }}
               >
                 {i + 1}
               </div>
@@ -63,54 +63,31 @@ const SqlEditor = ({ value, onChange, placeholder }) => {
           </div>
 
           {/* Container del editor */}
-          <div className="relative flex-1 overflow-hidden">
-            {/* Capa de highlighting (detrás) */}
-            <div
-              ref={highlightRef}
-              className="absolute inset-0 overflow-auto pointer-events-none"
-              aria-hidden="true"
-            >
-              <pre
-                style={{
-                  margin: 0,
-                  padding: '0.75rem',
-                  background: 'transparent',
-                  fontSize: '0.875rem',
-                  lineHeight: '1.5rem',
-                  fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  overflow: 'visible',
-                }}
-              >
-                {value ? (
-                  <code dangerouslySetInnerHTML={{ __html: highlightSQL(value, { theme: "light" }) }} />
-                ) : (
-                  <span className="text-gray-400">{placeholder || ""}</span>
-                )}
-              </pre>
-            </div>
-
-            {/* Textarea transparente (encima) */}
+          <div className="relative flex-1">
             <textarea
               ref={textareaRef}
               value={value || ""}
               onChange={(e) => onChange(e.target.value)}
               onScroll={handleScroll}
-              className="relative w-full h-full min-h-[150px] max-h-[200px] bg-transparent text-transparent caret-gray-800 resize-none outline-none focus:outline-none focus:ring-0 focus:border-0 border-0"
+              className="w-full h-full min-h-[150px] max-h-[250px] bg-transparent resize-none outline-none focus:outline-none focus:ring-0 border-0"
               style={{
                 padding: '0.75rem',
                 fontSize: '0.875rem',
                 lineHeight: '1.5rem',
                 fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
+                whiteSpace: 'pre',
+                overflowWrap: 'normal',
+                overflowX: 'auto',
+                color: '#1e293b',
               }}
-              placeholder=""
+              placeholder={placeholder || "SELECT * FROM tabla WHERE ..."}
               spellCheck="false"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
+              data-gramm="false"
+              data-gramm_editor="false"
+              data-enable-grammarly="false"
             />
           </div>
         </div>
@@ -124,6 +101,16 @@ export default function SqlRunner({ open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const resultsRef = useRef(null);
+
+  // Scroll automático hacia los resultados cuando hay resultado o error
+  useEffect(() => {
+    if ((result || error) && resultsRef.current) {
+      setTimeout(() => {
+        resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [result, error]);
 
   const executeQuery = async () => {
     if (!query.trim()) return;
@@ -137,11 +124,14 @@ export default function SqlRunner({ open, onClose }) {
 
       if (response.success && response.data) {
         setResult(response.data);
+        handleSnackbar(`Consulta ejecutada: ${response.data.total || 0} registros`, "success");
       } else {
         setError(response.message || "Error al ejecutar");
+        handleSnackbar(response.message || "Error al ejecutar la consulta", "error");
       }
     } catch (err) {
       setError(err.message || "Error de conexión");
+      handleSnackbar(err.message || "Error de conexión", "error");
     } finally {
       setLoading(false);
     }
@@ -194,9 +184,11 @@ export default function SqlRunner({ open, onClose }) {
           />
         </div>
 
-        {/* Error persistente */}
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+        {/* Contenedor de resultados con ref para scroll automático */}
+        <div ref={resultsRef} className="space-y-4">
+          {/* Error persistente */}
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
@@ -226,7 +218,7 @@ export default function SqlRunner({ open, onClose }) {
 
             <div className="bg-white">
               {result.data?.length > 0 ? (
-                <div className="overflow-auto max-h-64">
+                <div className="overflow-auto max-h-[400px]">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 sticky top-0">
                       <tr>
@@ -241,7 +233,7 @@ export default function SqlRunner({ open, onClose }) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {result.data.slice(0, 50).map((row, i) => (
+                      {result.data.slice(0, 1000).map((row, i) => (
                         <tr key={i} className="hover:bg-slate-50">
                           {result.columns?.map((col, j) => {
                             const key = typeof col === "string" ? col : col.key;
@@ -258,9 +250,9 @@ export default function SqlRunner({ open, onClose }) {
                       ))}
                     </tbody>
                   </table>
-                  {result.data.length > 50 && (
+                  {result.data.length > 1000 && (
                     <div className="px-4 py-2 bg-slate-50 text-xs text-slate-500 text-center border-t">
-                      Mostrando 50 de {result.data.length} registros
+                      Mostrando 1000 de {result.data.length} registros
                     </div>
                   )}
                 </div>
@@ -272,6 +264,7 @@ export default function SqlRunner({ open, onClose }) {
             </div>
           </div>
         )}
+        </div>
 
         {/* Estado inicial */}
         {!error && !result && !loading && (

@@ -1,11 +1,6 @@
 // utils/uploadConstants.js
 
 import { 
-  Users, 
-  GraduationCap, 
-  BookOpen, 
-  FileText, 
-  DollarSign,
   Loader2,
   CheckCircle,
   AlertCircle,
@@ -13,29 +8,6 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
-export const UPLOAD_TYPES = {
-  PARENTS: {
-    code: 'PARENTS',
-    label: 'Apoderados',
-    description: 'Carga masiva de apoderados',
-    icon: Users,
-    colorClass: 'bg-blue-100 text-blue-600'
-  },
-  STUDENTS: {
-    code: 'STUDENTS',
-    label: 'Estudiantes',
-    description: 'Carga masiva de estudiantes',
-    icon: GraduationCap,
-    colorClass: 'bg-green-100 text-green-600'
-  },
-  DEBTS: {
-    code: 'DEBTS',
-    label: 'Deudas',
-    description: 'Carga masiva de deudas',
-    icon: DollarSign,
-    colorClass: 'bg-red-100 text-red-600'
-  }
-};
 
 export const UPLOAD_STATUS = {
   PENDING: {

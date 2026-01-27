@@ -20,6 +20,7 @@ const emptyForm = {
   secondary_color: "#64748b",
   data_source_id: "",
   query_branches: false,
+  branch_data_source_id: null,
   search_type: "range",
 };
 
@@ -57,6 +58,7 @@ export function useTemplateHandlers({ templates, openConfirm, closeModal, setTri
       status: template.status ?? 1,
       data_source_id: template.data_source_id || "",
       query_branches: template.query_branches ?? false,
+      branch_data_source_id: template.branch_data_source_id || null,
       search_type: template.search_type || "range",
     });
     setFormModal({ open: true, mode: "edit", data: template });
@@ -90,6 +92,7 @@ export function useTemplateHandlers({ templates, openConfirm, closeModal, setTri
           secondary_color: formData.secondary_color,
           data_source_id: formData.data_source_id || null,
           query_branches: formData.query_branches ?? false,
+          branch_data_source_id: formData.branch_data_source_id || null,
           search_type: formData.search_type || "range",
           status: 1,
         });
@@ -109,6 +112,7 @@ export function useTemplateHandlers({ templates, openConfirm, closeModal, setTri
           filepath: formData.filepath || null,
           data_source_id: formData.data_source_id || null,
           query_branches: formData.query_branches ?? false,
+          branch_data_source_id: formData.branch_data_source_id || null,
           search_type: formData.search_type || "range",
           status: formData.status,
         });
@@ -325,6 +329,7 @@ export function useTemplateHandlers({ templates, openConfirm, closeModal, setTri
             secondary_color: template.secondary_color || "#64748b",
             data_source_id: template.data_source_id || null,
             query_branches: template.query_branches ?? false,
+            branch_data_source_id: template.branch_data_source_id || null,
             search_type: template.search_type || "range",
             status: 1,
           });

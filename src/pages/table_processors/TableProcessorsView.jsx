@@ -19,6 +19,7 @@ import {
   XCircle,
   Code2,
   Info,
+  Database,
 } from "lucide-react";
 import {
   getTableProcessors,
@@ -270,9 +271,12 @@ export default function TableProcessorsView() {
         </td>
         <td className="px-3 py-2">
           {processor.data_source ? (
-            <span className="text-sm text-gray-700">{processor.data_source.name}</span>
+            <span className="inline-flex items-center gap-1.5 text-xs text-cyan-700 bg-cyan-50 px-2 py-1 rounded">
+              <Database className="w-3.5 h-3.5" />
+              {processor.data_source.name}
+            </span>
           ) : (
-            <span className="text-sm text-gray-400">Sin origen</span>
+            <span className="text-sm text-gray-400">-</span>
           )}
         </td>
         <td className="px-3 py-2">

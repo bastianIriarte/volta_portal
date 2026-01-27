@@ -94,17 +94,20 @@ export const APP_ROUTES = [
   { path: "/dashboard/fuentes-datos", element: <DataSourcesView />, permission: null, label: "Fuentes de Datos", id: "fuentes-datos", isMenu: true, section: "administracion", icon: Database, roles: ["admin", "root"] },
   { path: "/dashboard/certificate-builder", element: <CertificateBuilderView />, permission: null, label: "Gestión de Certificados", id: "certificados", isMenu: true, section: "administracion", icon: Award, roles: ["admin", "root"] },
   { path: "/dashboard/certificate-builder/:templateId", element: <CertificateBuilderView />, permission: null, roles: ["admin", "root"] },
-  { path: "/dashboard/procesadores", element: <TableProcessorsView />, permission: null, label: "Procesadores", id: "procesadores", isMenu: true, section: "administracion", icon: Table2, roles: ["admin", "root"] },
+  { path: "/dashboard/procesadores", element: <TableProcessorsView />, permission: null, label: "Procesadores", id: "procesadores", isMenu: true, section: "administracion", icon: Table2, roles: ["root"] },
   { path: "/dashboard/reports", element: <ReportTemplatesView />, permission: null, label: "Gestión de Reportes", id: "reports", isMenu: true, section: "administracion", icon: FileText, roles: ["admin", "root"] },
-  { path: "/dashboard/report-exports", element: <ReportExportsView />, permission: null, label: "Exportaciones Reportes", id: "report-exports", isMenu: true, section: "administracion", icon: FileSpreadsheet },
-  { path: "/dashboard/certificate-exports", element: <CertificateExportsView />, permission: null, label: "Historial Certificados", id: "certificate-exports", isMenu: true, section: "administracion", icon: History },
   { path: "/dashboard/ticket-images", element: <TicketImagesView />, permission: null, label: "Imágenes de Tickets", id: "ticket-images", isMenu: true, section: "administracion", icon: Image, roles: ["admin", "root"] },
+
+
+  { path: "/dashboard/report-exports", element: <ReportExportsView />, permission: null, label: "Exportaciones Reportes", id: "report-exports", isMenu: true, section: "reportes", icon: FileSpreadsheet },
+
 
   // ========================================
   // MÓDULO DE CLIENTE (Basado en permisos específicos del usuario)
   // ========================================
   { path: "/dashboard/reporte-sharepoint", element: <SharePointListView />, permission: "my.reports", label: "Reporte SharePoint", id: "reporte-sharepoint", isMenu: true, section: "reportes", icon: FileSpreadsheet, roles: ["admin", "root"] },
   { path: "/dashboard/mis-certificados", element: <ClientCertificatesView />, label: "Mis Certificados", id: "mis-certificados", isMenu: true, section: "certificados", icon: Award, roles: ["customer", "admin", "root"] },
+  { path: "/dashboard/certificate-exports", element: <CertificateExportsView />, permission: null, label: "Historial Certificados", id: "certificate-exports", isMenu: true, section: "certificados", icon: History },
   { path: "/dashboard/mis-documentos", element: <ClientDocumentsView />, permission: "my.documents", label: "Mis Documentos", id: "mis-documentos", isMenu: true, section: "documentos", icon: FolderOpen, roles: ["customer"] },
 
   // ========================================

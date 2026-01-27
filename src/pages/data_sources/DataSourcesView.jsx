@@ -325,11 +325,14 @@ export default function DataSourcesView() {
 
       if (response.success) {
         setTestResult({ success: true, data: response.data });
+        handleSnackbar(`Consulta ejecutada: ${response.data?.total || 0} registros`, "success");
       } else {
         setTestResult({ success: false, error: response.message });
+        handleSnackbar(response.message || "Error al ejecutar la consulta", "error");
       }
     } catch (error) {
       setTestResult({ success: false, error: error.message || "Error al ejecutar" });
+      handleSnackbar(error.message || "Error al ejecutar la consulta", "error");
     } finally {
       setTesting(false);
     }

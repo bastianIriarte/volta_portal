@@ -13,7 +13,7 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { highlightSQL, formatSQL } from "../utils/sqlHighlighter";
 
 /**
@@ -179,6 +179,17 @@ export default function DataSourceTestModal({
   onTestParamsChange,
   onRunTest,
 }) {
+  const resultsRef = useRef(null);
+
+  // Scroll automático hacia los resultados cuando hay testResult
+  useEffect(() => {
+    if (testResult && resultsRef.current) {
+      setTimeout(() => {
+        resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [testResult]);
+
   return (
     <Modal
       open={open}
@@ -271,7 +282,7 @@ export default function DataSourceTestModal({
 
         {/* Resultados */}
         {testResult && (
-          <div className="rounded-lg border overflow-hidden">
+          <div ref={resultsRef} className="rounded-lg border overflow-hidden">
             <div
               className={`px-4 py-3 flex items-center justify-between ${
                 testResult.success

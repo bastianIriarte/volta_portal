@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FileText } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import { handleSnackbar } from "../../utils/messageHelpers";
 import { getCertificateTemplates } from "../../services/certificateTemplateService";
 import { getDataSources } from "../../services/dataSourceService";
@@ -9,6 +9,8 @@ import { getDataSources } from "../../services/dataSourceService";
 import GenericFilters from "../../components/common/GenericFilters";
 import GenericTable from "../../components/common/GenericTable";
 import { Modal } from "../../components/ui/Modal";
+import { Button } from "../../components/ui/Button";
+import { Can } from "../../components/permissions/Can";
 import { useTableLogic } from "../../hooks/useTableLogic";
 import { useModals } from "../../hooks/useModals";
 
@@ -163,10 +165,13 @@ export default function CertificateBuilderView() {
         searchValue={q}
         onSearchChange={setQ}
         resultsCount={filteredData.length}
-        showAddButton={true}
-        onAdd={handleCreate}
-        addButtonLabel="Nueva Plantilla"
-      />
+      >
+        <Can permission="certificates.create">
+          <Button icon={Plus} onClick={handleCreate}>
+            Nueva Plantilla
+          </Button>
+        </Can>
+      </GenericFilters>
 
       {/* Tabla */}
       <GenericTable

@@ -3,7 +3,6 @@ import { Input } from "../../../components/ui/Input.jsx";
 import { Textarea } from "../../../components/ui/Textarea.jsx";
 import { XCircle, Code2 } from "lucide-react";
 import { useRef, useEffect, forwardRef, useImperativeHandle } from "react";
-import { highlightSQL } from "../utils/sqlHighlighter";
 
 /**
  * Extrae los parametros de una query SQL (formato :param)
@@ -20,11 +19,10 @@ export const extractQueryParams = (query) => {
 
 
 /**
- * Editor SQL con syntax highlighting
+ * Editor SQL simplificado sin overlay (mejor selección de texto)
  */
 const SqlEditor = forwardRef(({ value, onChange, error, placeholder }, ref) => {
   const textareaRef = useRef(null);
-  const highlightRef = useRef(null);
   const lineNumbersRef = useRef(null);
 
   const lines = (value || "").split("\n");
@@ -42,7 +40,6 @@ const SqlEditor = forwardRef(({ value, onChange, error, placeholder }, ref) => {
       const newValue = currentValue.substring(0, start) + text + currentValue.substring(end);
 
       // Actualizar el DOM directamente para evitar race condition en clics rapidos
-      // (React actualizara el valor en el siguiente render de todas formas)
       textarea.value = newValue;
       onChange(newValue);
 
@@ -55,7 +52,6 @@ const SqlEditor = forwardRef(({ value, onChange, error, placeholder }, ref) => {
 
       return true;
     },
-    // Obtener el valor actual del textarea (no del state)
     getCurrentValue: () => {
       return textareaRef.current?.value || "";
     },
@@ -64,20 +60,12 @@ const SqlEditor = forwardRef(({ value, onChange, error, placeholder }, ref) => {
     }
   }));
 
-  // Sincronizar scroll entre textarea y highlight
+  // Sincronizar scroll de números de línea con textarea
   const handleScroll = () => {
-    if (highlightRef.current && textareaRef.current) {
-      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
-      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
-    }
     if (lineNumbersRef.current && textareaRef.current) {
       lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
     }
   };
-
-  useEffect(() => {
-    handleScroll();
-  }, [value]);
 
   return (
     <div className={`rounded-lg overflow-hidden border shadow-sm ${error ? "border-red-500" : "border-gray-300"}`}>
@@ -103,15 +91,16 @@ const SqlEditor = forwardRef(({ value, onChange, error, placeholder }, ref) => {
       {/* Editor */}
       <div className="relative bg-white min-h-[200px] max-h-[300px]">
         <div className="flex h-full">
-          {/* Números de línea */}
+          {/* Números de línea - sincronizado con scroll del textarea */}
           <div
             ref={lineNumbersRef}
-            className="flex-shrink-0 py-4 px-3 bg-gray-50 border-r border-gray-200 select-none overflow-hidden"
+            className="flex-shrink-0 py-4 px-3 bg-gray-50 border-r border-gray-200 select-none overflow-hidden min-h-[200px] max-h-[300px]"
           >
             {Array.from({ length: lineCount }, (_, i) => (
               <div
                 key={i}
-                className="text-right text-xs font-mono text-gray-400 leading-6 pr-2"
+                className="text-right text-xs font-mono text-gray-400 pr-2"
+                style={{ lineHeight: '1.5rem', height: '1.5rem' }}
               >
                 {i + 1}
               </div>
@@ -119,54 +108,31 @@ const SqlEditor = forwardRef(({ value, onChange, error, placeholder }, ref) => {
           </div>
 
           {/* Container del editor */}
-          <div className="relative flex-1 overflow-hidden">
-            {/* Capa de highlighting (detrás) */}
-            <div
-              ref={highlightRef}
-              className="absolute inset-0 overflow-auto pointer-events-none"
-              aria-hidden="true"
-            >
-              <pre
-              style={{
-                margin: 0,
-                padding: '1rem',
-                background: 'transparent',
-                fontSize: '0.875rem',
-                lineHeight: '1.5rem',
-                fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                overflow: 'visible',
-              }}
-            >
-              {value ? (
-                <code dangerouslySetInnerHTML={{ __html: highlightSQL(value, { theme: "light" }) }} />
-              ) : (
-                <span className="text-gray-400">{placeholder || ""}</span>
-              )}
-            </pre>
-            </div>
-
-            {/* Textarea transparente (encima) */}
+          <div className="relative flex-1">
             <textarea
               ref={textareaRef}
               value={value || ""}
               onChange={(e) => onChange(e.target.value)}
               onScroll={handleScroll}
-              className="relative w-full h-full min-h-[200px] max-h-[300px] bg-transparent text-transparent caret-gray-800 resize-none outline-none focus:outline-none focus:ring-0 focus:border-0 border-0"
+              className="w-full h-full min-h-[200px] max-h-[300px] bg-transparent resize-none outline-none focus:outline-none focus:ring-0 border-0"
               style={{
                 padding: '1rem',
                 fontSize: '0.875rem',
                 lineHeight: '1.5rem',
                 fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
+                whiteSpace: 'pre',
+                overflowWrap: 'normal',
+                overflowX: 'auto',
+                color: '#1e293b',
               }}
-              placeholder=""
+              placeholder={placeholder || "SELECT * FROM tabla WHERE ..."}
               spellCheck="false"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
+              data-gramm="false"
+              data-gramm_editor="false"
+              data-enable-grammarly="false"
             />
           </div>
         </div>

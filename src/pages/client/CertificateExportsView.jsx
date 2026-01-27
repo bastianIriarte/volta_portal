@@ -231,30 +231,6 @@ export default function CertificateExportsView() {
     handleSnackbar(`${type} copiado al portapapeles`, "success");
   };
 
-  // Verificar certificado
-  const handleVerifyCertificate = async () => {
-    if (!verifyCode.trim()) {
-      handleSnackbar("Ingrese un código para verificar", "error");
-      return;
-    }
-
-    setVerifyLoading(true);
-    setVerifyResult(null);
-
-    try {
-      const response = await verifyCertificate(verifyCode.trim());
-      if (response.success && response.data) {
-        setVerifyResult(response.data);
-      } else {
-        setVerifyResult({ valid: false, message: response.message || "Código no válido" });
-      }
-    } catch (error) {
-      setVerifyResult({ valid: false, message: "Error al verificar el código" });
-    } finally {
-      setVerifyLoading(false);
-    }
-  };
-
   // Eliminar exportación
   const handleDelete = (record) => {
     openConfirm({
@@ -349,29 +325,15 @@ export default function CertificateExportsView() {
         title: "Descargar certificado",
         className: "text-amber-600 hover:text-amber-900 hover:bg-amber-50",
       },
-      {
-        icon: Copy,
-        onClick: () => handleCopyCode(record.automatic_code, "Código automático"),
-        title: "Copiar código",
-        className: "text-blue-600 hover:text-blue-900 hover:bg-blue-50",
-      },
     ];
 
-    if (record.validation_code) {
-      actions.push({
-        icon: ShieldCheck,
-        onClick: () => handleCopyCode(record.validation_code, "Código de validación"),
-        title: "Copiar código de validación",
-        className: "text-green-600 hover:text-green-900 hover:bg-green-50",
-      });
-    }
 
     // Mostrar versiones si hay más de una
     if (record.versions_count > 0) {
       actions.push({
         icon: Layers,
         onClick: () => handleOpenVersions(record),
-        title: `Ver ${record.versions_count} versiones`,
+        title: `Historial de versiones`,
         className: "text-purple-600 hover:text-purple-900 hover:bg-purple-50",
       });
     }
@@ -550,81 +512,6 @@ export default function CertificateExportsView() {
         )}
       </div>
 
-      {/* Card de verificación */}
-      <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
-        <div className="flex items-center gap-2 mb-3">
-          <ShieldCheck className="w-5 h-5 text-green-600" />
-          <h3 className="font-medium text-green-800">Verificar Certificado</h3>
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Ingrese código automático o de validación..."
-            value={verifyCode}
-            onChange={(e) => setVerifyCode(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleVerifyCertificate()}
-            className="flex-1 px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-          />
-          <button
-            onClick={handleVerifyCertificate}
-            disabled={verifyLoading}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-          >
-            {verifyLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Search className="w-4 h-4" />
-            )}
-            Verificar
-          </button>
-        </div>
-
-        {/* Resultado de verificación */}
-        {verifyResult && (
-          <div
-            className={`mt-3 p-3 rounded-lg ${
-              verifyResult.valid
-                ? "bg-green-100 border border-green-300"
-                : "bg-red-100 border border-red-300"
-            }`}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              {verifyResult.valid ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <XCircle className="w-5 h-5 text-red-600" />
-              )}
-              <span
-                className={`font-medium ${
-                  verifyResult.valid ? "text-green-800" : "text-red-800"
-                }`}
-              >
-                {verifyResult.message}
-              </span>
-            </div>
-            {verifyResult.valid && verifyResult.data && (
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-gray-600">Certificado:</span>{" "}
-                  <span className="font-medium">{verifyResult.data.certificate_name}</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Empresa:</span>{" "}
-                  <span className="font-medium">{verifyResult.data.company_name}</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">RUT:</span>{" "}
-                  <span className="font-medium">{verifyResult.data.company_rut}</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Generado:</span>{" "}
-                  <span className="font-medium">{verifyResult.data.generated_at}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Filtros */}
       <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
@@ -794,9 +681,6 @@ export default function CertificateExportsView() {
                       Código de Validación
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Registros
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Generado
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -836,9 +720,6 @@ export default function CertificateExportsView() {
                             <ShieldCheck className="w-3.5 h-3.5" />
                             {version.validation_code}
                           </button>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                          {version.records_count || 0} registros
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                           {version.generated_at || "-"}

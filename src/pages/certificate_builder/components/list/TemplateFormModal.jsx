@@ -1,7 +1,7 @@
 import { Modal } from "../../../../components/ui/Modal";
 import { Input } from "../../../../components/ui/Input";
 import { Select } from "../../../../components/ui/Select";
-import { Building2, Calendar, XCircle } from "lucide-react";
+import { Building2, Calendar, XCircle, Database } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function TemplateFormModal({
@@ -87,7 +87,12 @@ export default function TemplateFormModal({
         <input
           type="checkbox"
           checked={formData.query_branches || false}
-          onChange={(e) => setFormData({ ...formData, query_branches: e.target.checked })}
+          onChange={(e) => setFormData({
+            ...formData,
+            query_branches: e.target.checked,
+            // Limpiar el data source si se desactiva el filtro
+            branch_data_source_id: e.target.checked ? formData.branch_data_source_id : null
+          })}
           className="w-4 h-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
         />
         <Building2 className="h-4 w-4 text-gray-400" />
@@ -96,6 +101,36 @@ export default function TemplateFormModal({
           <p className="text-xs text-gray-500">Permite seleccionar una sucursal al generar el certificado</p>
         </div>
       </label>
+
+      {/* Selector de origen de datos de sucursales (solo si query_branches está activo) */}
+      {formData.query_branches && (
+        <div className="ml-6 pl-3 border-l-2 border-sky-200">
+          <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1">
+            <div className="flex items-center gap-1.5">
+              <Database className="h-3.5 w-3.5" />
+              Origen de datos de sucursales
+            </div>
+          </label>
+          <select
+            value={formData.branch_data_source_id || ""}
+            onChange={(e) => {
+              const value = e.target.value;
+              setFormData({ ...formData, branch_data_source_id: value ? parseInt(value) : null });
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+          >
+            <option value="">Seleccionar origen de datos...</option>
+            {dataSources.map((ds) => (
+              <option key={ds.id} value={ds.id}>
+                {ds.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Selecciona el origen de datos que contiene la lista de sucursales disponibles
+          </p>
+        </div>
+      )}
 
       {/* Select: Tipo de búsqueda */}
       <div>
@@ -204,14 +239,25 @@ export default function TemplateFormModal({
           </>
         ) : (
           <>
-            <Input
-              label="Nombre"
-              required
-              value={formData.name}
-              onChange={(e) => handleFieldChange("name", e.target.value)}
-              placeholder="Ej: Certificado de Transporte"
-              error={errors.name}
-            />
+            {/* Grid de 2 columnas: Nombre y Estado */}
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Nombre"
+                required
+                value={formData.name}
+                onChange={(e) => handleFieldChange("name", e.target.value)}
+                placeholder="Ej: Certificado de Transporte"
+                error={errors.name}
+              />
+              <Select
+                label="Estado"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: parseInt(e.target.value) })}
+              >
+                <option value={1}>Activo</option>
+                <option value={0}>Inactivo</option>
+              </Select>
+            </div>
             <Input
               label="Descripción"
               value={formData.description}
@@ -229,19 +275,11 @@ export default function TemplateFormModal({
               <option value="">Sin origen de datos</option>
               {dataSources.map((ds) => (
                 <option key={ds.id} value={ds.id}>
-                  {ds.name} ({ds.code})
+                  {ds.name}
                 </option>
               ))}
             </Select>
             <SearchConfigFields />
-            <Select
-              label="Estado"
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: parseInt(e.target.value) })}
-            >
-              <option value={1}>Activo</option>
-              <option value={0}>Inactivo</option>
-            </Select>
           </>
         )}
       </div>

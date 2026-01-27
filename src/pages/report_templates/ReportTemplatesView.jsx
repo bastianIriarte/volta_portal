@@ -4,6 +4,7 @@ import { Button } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
 import { handleSnackbar } from "../../utils/messageHelpers";
 import { useModals } from "../../hooks/useModals";
+import { Can } from "../../components/permissions/Can";
 import ReportTemplateFormModal from "./components/ReportTemplateFormModal";
 import ReportTemplatesTable from "./components/ReportTemplatesTable";
 import ColumnsConfigModal from "./components/ColumnsConfigModal";
@@ -290,9 +291,11 @@ export default function ReportTemplatesView() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
-          <Button onClick={handleOpenCreate} icon={Plus}>
-            Nueva Plantilla
-          </Button>
+          <Can permission="reports.create">
+            <Button onClick={handleOpenCreate} icon={Plus}>
+              Nueva Plantilla
+            </Button>
+          </Can>
         </div>
         <div className="mt-2 text-sm text-gray-500">
           {filteredTemplates.length} resultado{filteredTemplates.length !== 1 ? "s" : ""}

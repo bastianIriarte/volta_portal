@@ -45,7 +45,7 @@ export default function ClientCertificatesView() {
 
   // Sucursales
   const [branches, setBranches] = useState([]);
-  const [selectedBranch, setSelectedBranch] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState({ code: "", name: "", address: "" });
   const [loadingBranches, setLoadingBranches] = useState(false);
 
   // Selector de empresa (para admin/root)
@@ -108,7 +108,7 @@ export default function ClientCertificatesView() {
     }
   };
 
-  const loadBranches = async (rut) => {
+  const loadBranches = async (rut, templateId = null) => {
     if (!rut) {
       setBranches([]);
       return;
@@ -116,7 +116,8 @@ export default function ClientCertificatesView() {
 
     setLoadingBranches(true);
     try {
-      const response = await getBranches(rut);
+      // Pasar el templateId para usar el data source configurado
+      const response = await getBranches(rut, templateId);
       if (response.success && response.data) {
         setBranches(response.data);
       } else {
@@ -134,7 +135,7 @@ export default function ClientCertificatesView() {
     setSelectedCert(cert);
 
     // Reiniciar estados
-    setSelectedBranch("");
+    setSelectedBranch({ code: "", name: "", address: "" });
     setBranches([]);
 
     // Establecer fechas por defecto según tipo de búsqueda
@@ -156,7 +157,8 @@ export default function ClientCertificatesView() {
         ? companies.find(c => c.id === parseInt(selectedCompanyId))?.rut
         : companyRut;
       if (rutToUse) {
-        loadBranches(rutToUse);
+        // Pasar el ID de la plantilla para usar el data source de sucursales configurado
+        loadBranches(rutToUse, cert.id);
       }
     }
   };
@@ -165,7 +167,7 @@ export default function ClientCertificatesView() {
     setSelectedCert(null);
     setDateFrom("");
     setDateTo("");
-    setSelectedBranch("");
+    setSelectedBranch({ code: "", name: "", address: "" });
     setBranches([]);
     setErrors({});
   };
@@ -185,7 +187,7 @@ export default function ClientCertificatesView() {
 
     // Validar sucursal si el certificado requiere sucursal
     if (selectedCert?.query_branches) {
-      const branchValidation = validateField(selectedBranch, "select", true, "Seleccione una sucursal");
+      const branchValidation = validateField(selectedBranch.code, "select", true, "Seleccione una sucursal");
       if (!branchValidation.validate) {
         newErrors.branch = branchValidation.msg;
       }
@@ -218,13 +220,14 @@ export default function ClientCertificatesView() {
   const handleCompanyChange = (e) => {
     const newCompanyId = e.target.value;
     setSelectedCompanyId(newCompanyId);
-    setSelectedBranch("");
+    setSelectedBranch({ code: "", name: "", address: "" });
 
     // Si hay un certificado seleccionado y requiere sucursales, recargarlas
     if (selectedCert?.query_branches && newCompanyId) {
       const company = companies.find(c => c.id === parseInt(newCompanyId));
       if (company?.rut) {
-        loadBranches(company.rut);
+        // Pasar el ID de la plantilla para usar el data source de sucursales configurado
+        loadBranches(company.rut, selectedCert.id);
       }
     }
   };
@@ -261,9 +264,11 @@ export default function ClientCertificatesView() {
         options.companyId = selectedCompanyId;
       }
 
-      // branch_code: solo enviar si hay sucursal seleccionada
-      if (selectedBranch) {
-        options.branchCode = selectedBranch;
+      // branch_code y branch_address: solo enviar si hay sucursal seleccionada
+      if (selectedBranch.code) {
+        options.branchCode = selectedBranch.code;
+        options.branchName = selectedBranch.name;
+        options.branchAddress = selectedBranch.address;
       }
 
       // month y year: solo enviar si el certificado es tipo mes
@@ -286,7 +291,7 @@ export default function ClientCertificatesView() {
         setSelectedCert(null);
         setDateFrom("");
         setDateTo("");
-        setSelectedBranch("");
+        setSelectedBranch({ code: "", name: "", address: "" });
       } else {
         handleSnackbar(result.error || "Error al generar certificado", "error");
       }
@@ -313,8 +318,10 @@ export default function ClientCertificatesView() {
       options.companyId = selectedCompanyId;
     }
 
-    if (selectedBranch) {
-      options.branchCode = selectedBranch;
+    if (selectedBranch.code) {
+      options.branchCode = selectedBranch.code;
+      options.branchName = selectedBranch.name;
+      options.branchAddress = selectedBranch.address;
     }
 
     if (selectedCert?.search_type === "month") {
@@ -355,6 +362,8 @@ export default function ClientCertificatesView() {
       params.append("date_to", to);
       if (options.companyId) params.append("company_id", options.companyId);
       if (options.branchCode) params.append("branch_code", options.branchCode);
+      if (options.branchName) params.append("branch_name", options.branchName);
+      if (options.branchAddress) params.append("branch_address", options.branchAddress);
       if (options.month) params.append("month", options.month);
       if (options.year) params.append("year", options.year);
 
@@ -423,6 +432,8 @@ export default function ClientCertificatesView() {
     params.append("date_to", to);
     if (options?.companyId) params.append("company_id", options.companyId);
     if (options?.branchCode) params.append("branch_code", options.branchCode);
+    if (options?.branchName) params.append("branch_name", options.branchName);
+    if (options?.branchAddress) params.append("branch_address", options.branchAddress);
     if (options?.month) params.append("month", options.month);
     if (options?.year) params.append("year", options.year);
 
@@ -668,9 +679,11 @@ export default function ClientCertificatesView() {
                 id="branch"
                 label="Sucursal"
                 required
-                value={selectedBranch}
+                value={selectedBranch.code}
                 onChange={(e) => {
-                  setSelectedBranch(e.target.value);
+                  const branchCode = e.target.value;
+                  const branch = branches.find(b => b.code === branchCode);
+                  setSelectedBranch(branch ? { code: branch.code, name: branch.name, address: branch.address } : { code: "", name: "", address: "" });
                   if (errors.branch) setErrors(prev => ({ ...prev, branch: null }));
                 }}
                 error={errors.branch}

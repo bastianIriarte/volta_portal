@@ -181,6 +181,8 @@ export const generateCertificatePdfWithDates = async (templateId, dateFrom, date
     if (options.preview) params.append("preview", "true");
     if (options.companyId) params.append("company_id", options.companyId);
     if (options.branchCode) params.append("branch_code", options.branchCode);
+    if (options.branchName) params.append("branch_name", options.branchName);
+    if (options.branchAddress) params.append("branch_address", options.branchAddress);
     if (options.month) params.append("month", options.month);
     if (options.year) params.append("year", options.year);
 
@@ -435,13 +437,21 @@ export const buildTableFromSource = async (sourceId, params = {}, options = {}) 
 };
 
 /**
- * Obtiene las sucursales de una empresa desde SAP (OCRD)
+ * Obtiene las sucursales de una empresa
  * @param {string} companyRut - RUT de la empresa
+ * @param {number} [templateId] - ID de la plantilla (opcional, para usar data source configurado)
  * @returns {Promise<{success: boolean, data: Array}>}
  */
-export const getBranches = async (companyRut) => {
+export const getBranches = async (companyRut, templateId = null) => {
   try {
-    const response = await api.get(`/api/certificate-builder/branches/${encodeURIComponent(companyRut)}`);
+    let url = `/api/certificate-builder/branches/${encodeURIComponent(companyRut)}`;
+
+    // Si se proporciona templateId, agregarlo como query param
+    if (templateId) {
+      url += `?template_id=${templateId}`;
+    }
+
+    const response = await api.get(url);
     let success = response.status === 200 && !response.error;
     return returnResponse(
       success,
