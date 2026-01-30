@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import DashboardAdminView from "./admin/DashboardAdminView";
 import DashboardParentView from "./parent/DashboardParentView";
 import CustomerDashboardView from "./customer/CustomerDashboardView";
+import DashboardComercialView from "./comercial/DashboardComercialView";
+import DashboardLogisticaView from "./logistica/DashboardLogisticaView";
 import { useAuth } from "../../context/auth";
 import { getDataDashboard } from "../../services/dashboardService";
 import Loading from "../../components/ui/Loading";
@@ -63,6 +65,14 @@ export default function DashboardView() {
 
   if (role === "parent") {
     return <DashboardParentView dataDashboard={dataDashboard} />;
+  }
+
+  if (role === "commercial") {
+    return <DashboardComercialView dataDashboard={dataDashboard} />;
+  }
+
+  if (role === "logistic") {
+    return <DashboardLogisticaView dataDashboard={dataDashboard} />;
   }
 
   return <DashboardAdminView dataDashboard={dataDashboard} />;

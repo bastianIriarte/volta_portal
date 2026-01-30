@@ -90,9 +90,9 @@ export default function AppShell() {
     if (allowedReports.length === 0) return null;
 
     // Para clientes: verificar que tenga el permiso base 'my.reports'
-    if (!isAdmin && !userPermissions.includes('my.reports')) {
-      return null;
-    }
+    // if (!isAdmin && !userPermissions.includes('my.reports')) {
+    //   return null;
+    // }
 
     // Para clientes: campos son report_code, report_name
     // Para admins: campos son code, name
@@ -114,7 +114,7 @@ export default function AppShell() {
 
     return {
       to: "#",
-      label: "Mis Reportes",
+      label: "Listado de Reportes",
       id: "reportes-dropdown",
       section: "reportes",
       icon: BarChart3,

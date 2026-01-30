@@ -15,14 +15,22 @@ export default function TableActions({
           return null;
         }
 
-        if(action.disabled?.(item)){
-          return null;
+        // hidden oculta el botón, disabled solo lo deshabilita
+        if (action.hidden) {
+          const isHidden = typeof action.hidden === "function" ? action.hidden(item) : action.hidden;
+          if (isHidden) return null;
         }
 
         // Soportar iconos y títulos dinámicos (funciones que reciben el item)
         const icon = typeof action.icon === "function" ? action.icon(item) : action.icon;
         const title = typeof action.title === "function" ? action.title(item) : action.title;
         const actionClassName = typeof action.className === "function" ? action.className(item) : action.className;
+        const iconClassName = typeof action.iconClassName === "function" ? action.iconClassName(item) : action.iconClassName;
+
+        // Soportar disabled como función o booleano
+        const isDisabled = typeof action.disabled === "function"
+          ? action.disabled(item)
+          : action.disabled;
 
         return (
           <Button
@@ -30,9 +38,10 @@ export default function TableActions({
             size={size}
             variant={action.variant || "outline"}
             icon={icon}
-            onClick={() => action.onClick(item)}
+            iconClassName={iconClassName}
+            onClick={() => !isDisabled && action.onClick(item)}
             title={title}
-            disabled={action.disabled?.(item)}
+            disabled={isDisabled}
             className={actionClassName}
           >
             {action.label}

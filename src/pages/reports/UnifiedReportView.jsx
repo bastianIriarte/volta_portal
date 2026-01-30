@@ -54,10 +54,21 @@ export default function UnifiedReportView() {
   const [hasMore, setHasMore] = useState(false);
   const [tableColumns, setTableColumns] = useState([]); // Columnas dinamicas para SQL
   const [sharePointListId, setSharePointListId] = useState(null); // ID resuelto de lista SharePoint
+  const [nextPageToken, setNextPageToken] = useState(null); // Token para paginación SharePoint (skiptoken)
 
-  // Estados para filtros
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  // Estados para filtros - Por defecto el mes actual para no sobrecargar el servidor
+  const getDefaultDates = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+      from: firstDay.toISOString().split('T')[0],
+      to: lastDay.toISOString().split('T')[0]
+    };
+  };
+  const defaultDates = getDefaultDates();
+  const [dateFrom, setDateFrom] = useState(defaultDates.from);
+  const [dateTo, setDateTo] = useState(defaultDates.to);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Estados para selector de empresa (solo admin/super usuario)
@@ -98,7 +109,17 @@ export default function UnifiedReportView() {
     setCompanyReport(null);
     setImageStatus({});
     setSharePointListId(null); // Resetear ID de lista SharePoint
+    setNextPageToken(null); // Resetear token de paginación
     setHasMore(false);
+    // Resetear fechas al mes actual cuando cambia de reporte
+    const dates = getDefaultDates();
+    setDateFrom(dates.from);
+    setDateTo(dates.to);
+    setSearchTerm("");
+    // Deseleccionar empresa para admin/root al cambiar de reporte (evita errores de render)
+    if (!isClientUser) {
+      setSelectedCompanyId("");
+    }
 
     loadTemplate();
     // Cargar lista de empresas para usuarios no-cliente
@@ -118,17 +139,25 @@ export default function UnifiedReportView() {
 
   // Efecto para recargar companyReport y datos cuando admin cambia la empresa seleccionada
   useEffect(() => {
+    console.log('[useEffect selectedCompanyId] Changed to:', selectedCompanyId, 'template:', template?.code, 'isClientUser:', isClientUser);
     if (!isClientUser && selectedCompanyId && template && templateType === "report") {
+      console.log('[useEffect selectedCompanyId] Conditions met, loading data for company:', selectedCompanyId);
       // Activar loader global
       setGlobalLoading(true);
       // Resetear datos e iframe cuando cambia la empresa
       setItems([]);
       setCompanyReport(null);
       setIframeLoading(true);
+      setNextPageToken(null); // Resetear token de paginación
+      // Resetear filtros al mes actual al cambiar de empresa
+      const dates = getDefaultDates();
+      setDateFrom(dates.from);
+      setDateTo(dates.to);
+      setSearchTerm("");
       // Cargar el companyReport para la nueva empresa
       loadCompanyReport(template.id, selectedCompanyId);
-      // Cargar datos automáticamente cuando admin selecciona empresa
-      loadData();
+      // Cargar datos automáticamente cuando admin selecciona empresa (pasar companyId y filtros vacíos)
+      loadData(false, selectedCompanyId, { dateFrom: "", dateTo: "" });
     }
   }, [selectedCompanyId]);
 
@@ -235,11 +264,16 @@ export default function UnifiedReportView() {
           // Si tiene report_url configurado, activar el tab de iframe primero
           if (assignment.report_url) {
             setActiveTab("iframe");
+          } else {
+            // No tiene reporte visual, ir a tab de detalle
+            setActiveTab("data");
           }
         } else {
           // No hay asignación para esta empresa, limpiar companyReport
           console.log('[UnifiedReportView] No company report assignment for company:', effectiveCompanyId);
           setCompanyReport(null);
+          // Sin asignación, ir a tab de detalle
+          setActiveTab("data");
         }
       } else {
         setCompanyReport(null);
@@ -253,7 +287,7 @@ export default function UnifiedReportView() {
     }
   };
 
-  const loadData = async (isLoadMore = false) => {
+  const loadData = async (isLoadMore = false, targetCompanyId = null, filters = null) => {
     if (!template) return;
 
     if (isLoadMore) {
@@ -277,13 +311,13 @@ export default function UnifiedReportView() {
 
       if (originType === "sql" || template.query_id) {
         // Cargar datos desde SQL
-        await loadSQLData();
+        await loadSQLData(targetCompanyId, filters);
       } else if (originType === "sharepoint" || template.sharepoint_list_id) {
         // Cargar datos desde SharePoint
-        await loadSharePointData(isLoadMore);
+        await loadSharePointData(isLoadMore, targetCompanyId);
       } else if (originType === "mixed") {
         // Cargar ambos tipos de datos
-        await loadSharePointData(isLoadMore);
+        await loadSharePointData(isLoadMore, targetCompanyId);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -294,19 +328,27 @@ export default function UnifiedReportView() {
     }
   };
 
-  const loadSQLData = async () => {
-    // Usar empresa seleccionada para admin, o empresa del usuario para clientes
-    const effectiveCompanyId = isClientUser ? companyId : selectedCompanyId;
+  const loadSQLData = async (targetCompanyId = null, filters = null) => {
+    // Usar empresa pasada como parámetro, o empresa seleccionada, o empresa del usuario
+    const rawCompanyId = targetCompanyId || (isClientUser ? companyId : selectedCompanyId);
+    // Asegurar que company_id sea un número
+    const effectiveCompanyId = rawCompanyId ? Number(rawCompanyId) : null;
+    // Usar filtros pasados como parámetro, o los del estado
+    const effectiveDateFrom = filters?.dateFrom !== undefined ? filters.dateFrom : dateFrom;
+    const effectiveDateTo = filters?.dateTo !== undefined ? filters.dateTo : dateTo;
 
     if (!effectiveCompanyId) {
+      console.warn('[loadSQLData] No company ID available');
       return; // No cargar si no hay empresa
     }
+
+    console.log('[loadSQLData] Loading data for company:', effectiveCompanyId, 'dateFrom:', effectiveDateFrom, 'dateTo:', effectiveDateTo);
 
     try {
       const response = await executeReportByCode(template.code, {
         company_id: effectiveCompanyId,
-        date_from: dateFrom,
-        date_to: dateTo,
+        date_from: effectiveDateFrom,
+        date_to: effectiveDateTo,
       });
 
       if (response.success && response.data) {
@@ -339,14 +381,13 @@ export default function UnifiedReportView() {
     }
   };
 
-  const loadSharePointData = async (loadMore = false) => {
+  const loadSharePointData = async (loadMore = false, targetCompanyId = null) => {
     try {
       const listName = template.sharepoint_list_id || "09_TBL_OnSite";
       const dateField = "FechaProgramada"; // Campo de fecha por defecto para SharePoint
-      const PAGE_SIZE = 100;
 
-      // Si es la primera carga, obtener configuración de columnas
-      if (!loadMore && tableColumns.length === 0) {
+      // Obtener configuración de columnas si es necesario
+      if (tableColumns.length === 0) {
         try {
           const configResponse = await getSharepointListConfig(listName);
           if (configResponse.success && configResponse.data?.columns) {
@@ -360,38 +401,42 @@ export default function UnifiedReportView() {
         }
       }
 
-      // Determinar el listId a usar
-      let listId;
-
-      if (loadMore && sharePointListId) {
-        // Para paginación, usar el ID guardado
-        listId = sharePointListId;
-      } else {
-        // Primera carga: buscar el ID real de la lista en SharePoint
-        listId = listName;
-        try {
-          const listsResponse = await getLists();
-          if (listsResponse.success && listsResponse.data?.value) {
-            const sharePointList = listsResponse.data.value.find(
-              list => list.displayName === listName || list.name === listName
-            );
-            if (sharePointList) {
-              listId = sharePointList.id;
-              setSharePointListId(listId); // Guardar para paginación
-            }
+      // Buscar el ID real de la lista en SharePoint
+      let listId = listName;
+      try {
+        const listsResponse = await getLists();
+        if (listsResponse.success && listsResponse.data?.value) {
+          const sharePointList = listsResponse.data.value.find(
+            list => list.displayName === listName || list.name === listName
+          );
+          if (sharePointList) {
+            listId = sharePointList.id;
+            setSharePointListId(listId);
           }
-        } catch (listError) {
-          console.warn("No se pudo obtener ID de lista, usando nombre directamente");
         }
+      } catch (listError) {
+        console.warn("No se pudo obtener ID de lista, usando nombre directamente");
       }
 
-      // Construir filtro OData - SIEMPRE incluir filtro en cada petición
+      // Construir filtro OData
       const filters = [];
 
-      // Filtro por nombre de cliente (razon social) para usuarios cliente
+      // Filtro por nombre de cliente (razon social)
       if (isClientUser && companyName) {
+        // Usuario cliente: usar su nombre de empresa
         const clientName = companyName.replace(/'/g, "''");
         filters.push(`startswith(fields/NombreCliente,'${clientName}')`);
+      } else if (!isClientUser && targetCompanyId) {
+        // Admin: buscar el nombre de la empresa seleccionada
+        console.log('[loadSharePointData] Looking for company:', targetCompanyId, 'in companies list of', companies.length, 'items');
+        const selectedCompany = companies.find(c => String(c.id) === String(targetCompanyId));
+        if (selectedCompany?.business_name) {
+          const clientName = selectedCompany.business_name.replace(/'/g, "''");
+          console.log('[loadSharePointData] Filtering by company:', clientName);
+          filters.push(`startswith(fields/NombreCliente,'${clientName}')`);
+        } else {
+          console.warn('[loadSharePointData] Company not found or no business_name:', selectedCompany);
+        }
       }
 
       // Filtro por fechas
@@ -404,15 +449,13 @@ export default function UnifiedReportView() {
 
       const odataFilter = filters.length > 0 ? filters.join(" and ") : null;
 
-      // Calcular skip basado en items actuales
-      const skipCount = loadMore ? items.length : 0;
+      console.log('[loadSharePointData] Fetching ALL items with filter:', odataFilter);
 
-      // Usar servicio para obtener items
+      // Usar servicio para obtener TODOS los items (el backend hace la paginación)
       const response = await getListItems(listId, {
         expand: true,
-        top: PAGE_SIZE,
-        skip: skipCount > 0 ? skipCount : undefined,
         filter: odataFilter,
+        all: true, // El backend devolverá todos los items con paginación automática
       });
 
       if (response.success && response.data) {
@@ -424,11 +467,11 @@ export default function UnifiedReportView() {
           _webUrl: item.webUrl,
         }));
 
-        // Determinar si hay más: si recibimos PAGE_SIZE items, probablemente hay más
-        const hasMoreItems = newItems.length >= PAGE_SIZE;
+        console.log('[loadSharePointData] Received ALL items:', newItems.length);
 
-        setItems(prev => loadMore ? [...prev, ...newItems] : newItems);
-        setHasMore(hasMoreItems);
+        setItems(newItems);
+        setNextPageToken(null);
+        setHasMore(false); // No hay más páginas, ya tenemos todos los datos
       }
     } catch (error) {
       console.error("Error loading SharePoint data:", error);
@@ -437,10 +480,12 @@ export default function UnifiedReportView() {
   };
 
   const loadMore = useCallback(() => {
-    if (!loadingMore && hasMore) {
-      loadData(true);
+    if (!loadingMore && hasMore && nextPageToken) {
+      // Pasar el company ID para admin users al cargar más
+      const targetCompanyId = isClientUser ? null : selectedCompanyId;
+      loadData(true, targetCompanyId);
     }
-  }, [loadingMore, hasMore, template]);
+  }, [loadingMore, hasMore, nextPageToken, template, isClientUser, selectedCompanyId]);
 
   // Handler para scroll infinito
   const handleScroll = useCallback(() => {
@@ -468,13 +513,18 @@ export default function UnifiedReportView() {
       handleSnackbar("Debe seleccionar una empresa", "error");
       return;
     }
-    loadData();
+    // Pasar el company ID para admin users
+    const targetCompanyId = isClientUser ? null : selectedCompanyId;
+    loadData(false, targetCompanyId);
   };
 
   const handleClearFilters = () => {
-    setDateFrom("");
-    setDateTo("");
+    // Resetear fechas al mes actual
+    const dates = getDefaultDates();
+    setDateFrom(dates.from);
+    setDateTo(dates.to);
     setSearchTerm("");
+    setNextPageToken(null); // Resetear token de paginación
     if (!isClientUser) {
       setSelectedCompanyId("");
       setItems([]);

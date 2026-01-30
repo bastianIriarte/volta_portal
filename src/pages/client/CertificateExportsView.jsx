@@ -48,15 +48,11 @@ export default function CertificateExportsView() {
   const [globalLoading, setGlobalLoading] = useState(false);
   const [trigger, setTrigger] = useState(0);
 
-  // Estado para verificación de certificado
-  const [verifyCode, setVerifyCode] = useState("");
-  const [verifyLoading, setVerifyLoading] = useState(false);
-  const [verifyResult, setVerifyResult] = useState(null);
-
   // Estado para modal de versiones
   const [versionsModalOpen, setVersionsModalOpen] = useState(false);
   const [selectedExport, setSelectedExport] = useState(null);
   const [downloadingVersionId, setDownloadingVersionId] = useState(null);
+  const [downloadingExportId, setDownloadingExportId] = useState(null);
 
   const { modals, openConfirm, closeModal, openModal } = useModals();
 
@@ -170,10 +166,11 @@ export default function CertificateExportsView() {
 
   // Configuración de columnas
   const columns = [
+    { key: "id", label: "N°" },
     { key: "certificate_name", label: "Certificado" },
     { key: "automatic_code", label: "Código", sortable: false },
-    ...(isAdmin ? [{ key: "company", label: "Empresa" }] : []),
-    { key: "filters", label: "Periodo", sortable: false },
+    { key: "company", label: "Empresa" },
+    { key: "filters", label: "Filtros", sortable: false },
     { key: "versions", label: "Versiones", sortable: false },
     { key: "status", label: "Estado" },
     ...(isAdmin ? [{ key: "user", label: "Usuario" }] : []),
@@ -225,12 +222,6 @@ export default function CertificateExportsView() {
     );
   };
 
-  // Copiar código al portapapeles
-  const handleCopyCode = (code, type = "código") => {
-    navigator.clipboard.writeText(code);
-    handleSnackbar(`${type} copiado al portapapeles`, "success");
-  };
-
   // Eliminar exportación
   const handleDelete = (record) => {
     openConfirm({
@@ -263,6 +254,7 @@ export default function CertificateExportsView() {
   // Descargar certificado
   const handleDownload = async (record) => {
     try {
+      setDownloadingExportId(record.id);
       handleSnackbar("Generando certificado...", "info");
       const response = await downloadCertificateExport(record.id);
 
@@ -279,11 +271,13 @@ export default function CertificateExportsView() {
         window.URL.revokeObjectURL(url);
         handleSnackbar("Certificado descargado correctamente", "success");
       } else {
-        handleSnackbar("Error al descargar el certificado", "error");
+        handleSnackbar(response.message, "error");
       }
     } catch (error) {
       console.error("Error downloading certificate:", error);
       handleSnackbar("Error al descargar el certificado", "error");
+    } finally {
+      setDownloadingExportId(null);
     }
   };
 
@@ -306,7 +300,7 @@ export default function CertificateExportsView() {
         window.URL.revokeObjectURL(url);
         handleSnackbar("Certificado descargado correctamente", "success");
       } else {
-        handleSnackbar("Error al descargar el certificado", "error");
+        handleSnackbar(response.message, "error");
       }
     } catch (error) {
       console.error("Error downloading version:", error);
@@ -318,25 +312,30 @@ export default function CertificateExportsView() {
 
   // Configuración de acciones por fila
   const getRowActions = (record) => {
+    const isDownloading = downloadingExportId === record.id;
     const actions = [
       {
-        icon: Download,
+        icon: isDownloading ? Loader2 : Download,
         onClick: () => handleDownload(record),
-        title: "Descargar certificado",
-        className: "text-amber-600 hover:text-amber-900 hover:bg-amber-50",
+        title: isDownloading ? "Descargando..." : "Descargar certificado",
+        className: isDownloading
+          ? "text-amber-600 cursor-not-allowed opacity-70"
+          : "text-amber-600 hover:text-amber-900 hover:bg-amber-50",
+        iconClassName: isDownloading ? "animate-spin" : "",
+        disabled: isDownloading,
       },
     ];
 
 
     // Mostrar versiones si hay más de una
-    if (record.versions_count > 0) {
-      actions.push({
-        icon: Layers,
-        onClick: () => handleOpenVersions(record),
-        title: `Historial de versiones`,
-        className: "text-purple-600 hover:text-purple-900 hover:bg-purple-50",
-      });
-    }
+    // if (record.versions_count > 0) {
+    //   actions.push({
+    //     icon: Layers,
+    //     onClick: () => handleOpenVersions(record),
+    //     title: `Historial de versiones`,
+    //     className: "text-purple-600 hover:text-purple-900 hover:bg-purple-50",
+    //   });
+    // }
 
     if (isAdmin) {
       actions.push({
@@ -384,51 +383,50 @@ export default function CertificateExportsView() {
   const renderRow = (record) => {
     return (
       <tr key={record.id} className="border-t hover:bg-gray-50">
-        <td className="px-3 py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded flex items-center justify-center bg-amber-50">
-              <Award className="h-4 w-4 text-amber-600" />
-            </div>
-            <div>
-              <div className="font-medium text-gray-900">{record.certificate_name}</div>
-              <div className="text-xs text-gray-500">{record.certificate_code}</div>
-            </div>
-          </div>
-        </td>
+
         <td className="px-3 py-2">
           <div className="space-y-1">
             <div className="flex items-center gap-1">
-              <Hash className="w-3 h-3 text-gray-400" />
               <code className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded">
                 {record.automatic_code}
               </code>
             </div>
-            {record.validation_code && (
-              <div className="flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-green-500" />
-                <code className="text-xs font-mono text-green-600">
-                  {record.validation_code}
-                </code>
-              </div>
-            )}
           </div>
         </td>
-        {isAdmin && (
-          <td className="px-3 py-2">
-            <div className="font-medium text-gray-900">
-              {record.company?.business_name || "-"}
-            </div>
-            <div className="text-xs text-gray-500">{record.company?.rut || ""}</div>
-          </td>
-        )}
         <td className="px-3 py-2">
-          <div className="flex items-center gap-1 text-sm text-gray-600">
+          <div className="flex items-center gap-3">
+            <div className="max-w-[180px]">
+              <div className="font-medium text-xs text-gray-900 uppercase" title={record.certificate_name}>
+                {record.certificate_name}
+              </div>
+            </div>
+          </div>
+        </td>
+        <td className="px-3 py-2 whitespace-nowrap">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3 text-green-500" />
+              <code className="text-xs font-mono text-green-600">
+                {record.validation_code}
+              </code>
+            </div>
+          </div>
+        </td>
+        <td className="px-3 py-2 whitespace-nowrap">
+          <div className="font-medium text-gray-900 text-xs uppercase">
+            {record.company?.business_name || "-"}
+          </div>
+          <div className="text-xs text-gray-500">{record.company?.rut || ""}</div>
+
+        </td>
+        <td className="px-3 py-2">
+          <div className="flex items-center gap-1 text-xs text-gray-600">
             <Calendar className="w-3.5 h-3.5" />
             <span>{formatFilters(record.filters)}</span>
           </div>
           {record.filters?.branch_code && (
             <div className="text-xs text-gray-500 mt-0.5">
-              Sucursal: {record.filters.branch_code}
+              Cod. sucursal: {record.filters.branch_code}
             </div>
           )}
         </td>
@@ -452,14 +450,13 @@ export default function CertificateExportsView() {
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-gray-400" />
               <div>
-                <div className="text-sm text-gray-900">{record.user?.name || "-"}</div>
-                <div className="text-xs text-gray-500">{record.user?.email || ""}</div>
+                <div className="text-xs text-gray-900">{record.user?.name || "-"}</div>
               </div>
             </div>
           </td>
         )}
         <td className="px-3 py-2">
-          <span className="text-sm text-gray-500">{record.created_at || "-"}</span>
+          <span className="text-xs text-gray-500">{record.created_at || "-"}</span>
         </td>
         <td className="px-3 py-2">
           <TableActions actions={getRowActions(record)} className="justify-center" />
@@ -482,24 +479,24 @@ export default function CertificateExportsView() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-bradford-navy mb-2">
-            Historial de Certificados
+            Certificados Descargados
           </h2>
           <p className="text-bradford-navy/70">
-            Consulta el historial de certificados generados
+            Consulta el historial de certificados descargados
           </p>
         </div>
 
         {/* Selector de empresa para admin */}
         {isAdmin && (
           <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-amber-600" />
+            <Building2 className="w-5 h-5 text-blue-600" />
             <select
               value={selectedCompanyId}
               onChange={(e) => {
                 setSelectedCompanyId(e.target.value);
                 setPage(1);
               }}
-              className="min-w-[250px] px-3 py-2 text-sm border border-amber-200 rounded-lg bg-amber-50 text-amber-800 font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              className="min-w-[250px] px-3 py-2 text-sm border border-blue-200 rounded-lg bg-blue-50 text-blue-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Todas las empresas</option>
               {companies.map((company) => (
@@ -583,12 +580,12 @@ export default function CertificateExportsView() {
 
       {/* Tabla */}
       <GenericTable
-        title="Certificados generados"
+        title="Certificados descargados"
         loading={loading}
         columns={columns}
         data={filteredData}
         pageData={pageData}
-        emptyMessage="No hay certificados generados"
+        emptyMessage="No hay certificados descargados"
         emptyIcon={Award}
         searchQuery={q}
         onClearSearch={() => setQ("")}
@@ -656,16 +653,21 @@ export default function CertificateExportsView() {
               <div className="flex items-center gap-3 mb-2">
                 <Award className="w-5 h-5 text-amber-600" />
                 <div>
-                  <div className="font-medium text-gray-900">
+                  <div className="font-medium text-gray-900 uppercase">
                     {selectedExport.certificate_name}
                   </div>
                   <code className="text-sm font-mono text-gray-600">
-                    {selectedExport.automatic_code}
+                    <b>N° CERTIFICADO: {selectedExport.automatic_code}</b>
                   </code>
                 </div>
               </div>
               <div className="text-sm text-gray-500">
                 Periodo: {formatFilters(selectedExport.filters)}
+                {selectedExport.filters?.branch_code && (
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    Cod. sucursal: {selectedExport.filters.branch_code}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -675,7 +677,7 @@ export default function CertificateExportsView() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Versión
+                      #
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Código de Validación
@@ -701,7 +703,7 @@ export default function CertificateExportsView() {
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-medium">
-                              v{version.version_number}
+                              {selectedExport.versions.length - index}
                             </span>
                             {index === 0 && (
                               <span className="px-2 py-0.5 text-xs bg-purple-200 text-purple-800 rounded-full">
@@ -711,15 +713,12 @@ export default function CertificateExportsView() {
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <button
-                            onClick={() =>
-                              handleCopyCode(version.validation_code, "Código de validación")
-                            }
+                          <p
                             className="flex items-center gap-1 font-mono text-sm text-green-600 hover:text-green-800"
                           >
                             <ShieldCheck className="w-3.5 h-3.5" />
                             {version.validation_code}
-                          </button>
+                          </p>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                           {version.generated_at || "-"}
@@ -755,8 +754,8 @@ export default function CertificateExportsView() {
               </table>
             </div>
 
-            <div className="text-xs text-gray-500 p-2 bg-blue-50 border border-blue-200 rounded">
-              <strong>💡 Tip:</strong> Haz clic en el botón PDF para descargar cada versión con los datos exactos de ese momento.
+            <div className="text-xs text-gray-500 p-2 text-center bg-blue-50 border border-blue-200 rounded">
+              <strong></strong> Haz clic en el botón PDF para descargar cada versión con los datos exactos de ese momento.
             </div>
           </div>
         )}

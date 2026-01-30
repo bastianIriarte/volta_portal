@@ -73,14 +73,25 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
     console.error(
       `[RESPONSE] Error en la API (${error.response?.status || "Desconocido"}):`,
       error.response?.data
     );
 
     // Extraer mensaje de error (soporta mayúsculas y minúsculas del backend)
-    const data = error.response?.data;
+    let data = error.response?.data;
+
+    // Si la respuesta es un Blob (ej: responseType: "blob"), parsearlo como JSON
+    if (data instanceof Blob) {
+      try {
+        const text = await data.text();
+        data = JSON.parse(text);
+      } catch {
+        // Si no se puede parsear, mantener data como está
+      }
+    }
+
     let errorMessage =
       data?.message ||
       data?.Message ||

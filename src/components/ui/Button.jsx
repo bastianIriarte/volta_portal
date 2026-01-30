@@ -5,6 +5,7 @@ export const Button = ({
   size = "md",
   className,
   icon: Icon,
+  iconClassName = "",
   loading = false,
   disabled,
   children,
@@ -38,7 +39,7 @@ export const Button = ({
       {loading ? (
         <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-white" />
       ) : Icon ? (
-        <Icon className="w-3 h-3" />
+        <Icon className={`w-3 h-3 ${iconClassName}`} />
       ) : null}
       {children}
     </button>

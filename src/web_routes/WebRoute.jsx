@@ -19,6 +19,8 @@ import {
   Shield,
   Image,
   History,
+  Upload,
+  Download,
 } from "lucide-react";
 
 
@@ -59,66 +61,64 @@ import ProfileView from "../pages/profile/ProfileView";
 
 
 export const APP_ROUTES = [
-  // Dashboard principal - visible para todos
-  { path: "/dashboard", element: <DashboardView />, permission: null, label: "Inicio", id: "inicio", isMenu: true, section: "inicio", icon: Home, roles: null },
-  { path: "/dashboard/mi-perfil", element: <ProfileView />, permission: null, label: "Mi Perfil", id: "mi-perfil", isMenu: false, roles: null },
-  { path: "/dashboard/solicitudes", element: <RegistrationRequestsView />, permission: null, label: "Solicitudes", id: "solicitudes", isMenu: true, section: "inicio", icon: ClipboardList, roles: ["admin", "root"] },
+  // ========================================
+  // DASHBOARD Y PERFIL (visible para todos los autenticados)
+  // ========================================
+  { path: "/dashboard", element: <DashboardView />, permission: "dashboard.view", label: "Inicio", id: "inicio", isMenu: true, section: "inicio", icon: Home },
+  { path: "/dashboard/mi-perfil", element: <ProfileView />, permission: null, label: "Mi Perfil", id: "mi-perfil", isMenu: false },
 
   // ========================================
-  // MÓDULO DE GESTIÓN (Solo Admin/Root)
+  // MÓDULO DE SOLICITUDES
   // ========================================
-  { path: "/dashboard/empresas", element: <CompaniesView />, permission: null, label: "Empresas", id: "empresas", isMenu: true, section: "administracion", icon: Building2, roles: ["admin", "root"] },
-  { path: "/dashboard/empresas/:id/editar", element: <CompanyDetailView />, permission: null, roles: ["admin", "root"] },
-
-  { path: "/dashboard/solicitudes/:id/gestionar", element: <RegistrationRequestDetailView />, permission: null, roles: ["admin", "root"] },
-  { path: "/dashboard/usuarios", element: <UsersView />, permission: null, label: "Usuarios", id: "usuarios", isMenu: true, section: "administracion", icon: User, roles: ["admin", "root"] },
-  { path: "/dashboard/clientes", element: <CustomersView />, permission: null, label: "Clientes", id: "clientes", isMenu: true, section: "administracion", icon: Users, roles: ["admin", "root"] },
-
-  {
-    path: "/dashboard/profiles-managment",
-    element: <ProfilesManagement />,
-    permission: "profiles.list",
-    label: "Perfiles",
-    id: "profiles",
-    icon: Shield,
-    isMenu: true,
-    section: "administracion",
-    roles: ["admin", "root"],
-  },
-  {
-    path: "/dashboard/profiles-managment/permissions-matrix",
-    element: <ProfilePermissionsMatrix />,
-    permission: "profiles.edit",
-    roles: ["admin", "root"],
-  },
-  { path: "/dashboard/fuentes-datos", element: <DataSourcesView />, permission: null, label: "Fuentes de Datos", id: "fuentes-datos", isMenu: true, section: "administracion", icon: Database, roles: ["admin", "root"] },
-  { path: "/dashboard/certificate-builder", element: <CertificateBuilderView />, permission: null, label: "Gestión de Certificados", id: "certificados", isMenu: true, section: "administracion", icon: Award, roles: ["admin", "root"] },
-  { path: "/dashboard/certificate-builder/:templateId", element: <CertificateBuilderView />, permission: null, roles: ["admin", "root"] },
-  { path: "/dashboard/procesadores", element: <TableProcessorsView />, permission: null, label: "Procesadores", id: "procesadores", isMenu: true, section: "administracion", icon: Table2, roles: ["root"] },
-  { path: "/dashboard/reports", element: <ReportTemplatesView />, permission: null, label: "Gestión de Reportes", id: "reports", isMenu: true, section: "administracion", icon: FileText, roles: ["admin", "root"] },
-  { path: "/dashboard/ticket-images", element: <TicketImagesView />, permission: null, label: "Imágenes de Tickets", id: "ticket-images", isMenu: true, section: "administracion", icon: Image, roles: ["admin", "root"] },
-
-
-  { path: "/dashboard/report-exports", element: <ReportExportsView />, permission: null, label: "Exportaciones Reportes", id: "report-exports", isMenu: true, section: "reportes", icon: FileSpreadsheet },
-
+  { path: "/dashboard/solicitudes", element: <RegistrationRequestsView />, permission: "requests.list", label: "Solicitudes", id: "solicitudes", isMenu: true, section: "inicio", icon: ClipboardList },
+  { path: "/dashboard/solicitudes/:id/gestionar", element: <RegistrationRequestDetailView />, permission: "requests.approve" },
 
   // ========================================
   // MÓDULO DE CLIENTE (Basado en permisos específicos del usuario)
   // ========================================
-  { path: "/dashboard/reporte-sharepoint", element: <SharePointListView />, permission: "my.reports", label: "Reporte SharePoint", id: "reporte-sharepoint", isMenu: true, section: "reportes", icon: FileSpreadsheet, roles: ["admin", "root"] },
-  { path: "/dashboard/mis-certificados", element: <ClientCertificatesView />, label: "Mis Certificados", id: "mis-certificados", isMenu: true, section: "certificados", icon: Award, roles: ["customer", "admin", "root"] },
-  { path: "/dashboard/certificate-exports", element: <CertificateExportsView />, permission: null, label: "Historial Certificados", id: "certificate-exports", isMenu: true, section: "certificados", icon: History },
-  { path: "/dashboard/mis-documentos", element: <ClientDocumentsView />, permission: "my.documents", label: "Mis Documentos", id: "mis-documentos", isMenu: true, section: "documentos", icon: FolderOpen, roles: ["customer"] },
+  { path: "/dashboard/report-exports", element: <ReportExportsView />, permission: "exports.reports", label: "Reportes Descargados", id: "report-exports", isMenu: true, section: "reportes", icon: Download },
+  { path: "/dashboard/mis-certificados", element: <ClientCertificatesView />, permission: "my.certificates", label: "Listado de Certificados", id: "mis-certificados", isMenu: true, section: "certificados", icon: Award },
+  { path: "/dashboard/certificate-exports", element: <CertificateExportsView />, permission: "exports.certificates", label: "Certificados Descargados", id: "certificate-exports", isMenu: true, section: "certificados", icon: Download },
+  { path: "/dashboard/mis-documentos", element: <ClientDocumentsView />, permission: "my.documents", label: "Listado de Documentos", id: "mis-documentos", isMenu: true, section: "documentos", icon: FolderOpen },
+
+  // ========================================
+  // MÓDULO DE GESTIÓN EMPRESAS Y CLIENTES
+  // ========================================
+  { path: "/dashboard/empresas", element: <CompaniesView />, permission: "companies.list", label: "Empresas", id: "empresas", isMenu: true, section: "administracion", icon: Building2 },
+  { path: "/dashboard/empresas/:id/gestionar", element: <CompanyDetailView />, permission: "companies.edit" },
+  { path: "/dashboard/clientes", element: <CustomersView />, permission: "customers.list", label: "Clientes", id: "clientes", isMenu: true, section: "administracion", icon: Users },
+
+  // ========================================
+  // MÓDULO DE PERFILES Y USUARIOS
+  // ========================================
+  { path: "/dashboard/profiles-managment", element: <ProfilesManagement />, permission: "profiles.list", label: "Perfiles", id: "profiles", icon: Shield, isMenu: true, section: "administracion" },
+  { path: "/dashboard/profiles-managment/permissions-matrix", element: <ProfilePermissionsMatrix />, permission: "profiles.assign" },
+  { path: "/dashboard/usuarios", element: <UsersView />, permission: "users.list", label: "Usuarios", id: "usuarios", isMenu: true, section: "administracion", icon: User },
+
+  // ========================================
+  // MÓDULO DE CERTIFICADOS Y REPORTES (Gestión)
+  // ========================================
+  { path: "/dashboard/certificate-builder", element: <CertificateBuilderView />, permission: "certificates.list", label: "Gestión de Certificados", id: "certificados", isMenu: true, section: "administracion", icon: Award },
+  { path: "/dashboard/certificate-builder/:templateId", element: <CertificateBuilderView />, permission: "certificates.edit" },
+  { path: "/dashboard/reports", element: <ReportTemplatesView />, permission: "reports.list", label: "Gestión de Reportes", id: "reports", isMenu: true, section: "administracion", icon: FileText },
+
+  // ========================================
+  // MÓDULO DE TICKETS/IMÁGENES (Logística)
+  // ========================================
+  { path: "/dashboard/ticket-images", element: <TicketImagesView />, permission: "tickets.list", label: "Carga de Tickets", id: "ticket-images", isMenu: true, section: "administracion", icon: Upload },
 
   // ========================================
   // MÓDULO DE SISTEMA (Solo Admin/Root)
   // ========================================
-  { path: "/dashboard/integraciones", element: <LogsView />, permission: null, label: "Integraciones", id: "integraciones", isMenu: true, section: "sistema", icon: Webhook, roles: ["admin", "root"] },
-  { path: "/dashboard/sharepoint", element: <SharePointListView />, permission: null, label: "SharePoint", id: "sharepoint", isMenu: true, section: "sistema", icon: Database, roles: ["admin", "root"] },
-  { path: "/dashboard/settings", element: <SettingsPanel />, permission: null, label: "Configuracion", id: "config", isMenu: true, section: "sistema", icon: Settings, roles: ["admin", "root"] },
-  { path: "/dashboard/settings/connection-service-layer", element: <ConnectionServiceLayer />, permission: null, roles: ["admin", "root"] },
-  { path: "/dashboard/settings/connection-agent", element: <ConnectionAgent />, permission: null, roles: ["admin", "root"] },
-  { path: "/dashboard/settings/connection-microsoft-graph", element: <ConnectionMicrosoftGraph />, permission: null, roles: ["admin", "root"] },
+  { path: "/dashboard/fuentes-datos", element: <DataSourcesView />, permission: "datasources.list", label: "Fuentes de Datos", id: "fuentes-datos", isMenu: true, section: "sistema", icon: Database },
+  { path: "/dashboard/procesadores", element: <TableProcessorsView />, permission: "processors.list", label: "Procesadores", id: "procesadores", isMenu: true, section: "sistema", icon: Table2 },
+  { path: "/dashboard/settings", element: <SettingsPanel />, permission: "settings.view", label: "Configuracion", id: "config", isMenu: true, section: "sistema", icon: Settings },
+  { path: "/dashboard/settings/connection-service-layer", element: <ConnectionServiceLayer />, permission: "settings.view" },
+  { path: "/dashboard/settings/connection-agent", element: <ConnectionAgent />, permission: "settings.view" },
+  { path: "/dashboard/settings/connection-microsoft-graph", element: <ConnectionMicrosoftGraph />, permission: "settings.view" },
 
+  // ========================================
+  // ERROR 404
+  // ========================================
   { path: "*", element: <Error404 /> },
 ];

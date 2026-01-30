@@ -40,7 +40,7 @@ export default function FetchSapModal({
     <Modal
       open={open}
       onClose={handleClose}
-      title="Obtener Imágenes desde SharePoint"
+      title="Obtener Imágenes desde SAP"
       size="default"
       actions={[
         { label: "Cancelar", variant: "outline", onClick: handleClose },

@@ -228,14 +228,14 @@ export default function TicketImagesView() {
     return [
       ...(hasImage
         ? [
-            {
-              icon: Eye,
-              variant: "outline",
-              onClick: () => handlePreview(record),
-              title: "Ver imagen",
-              className: "text-blue-600 hover:text-blue-900 hover:bg-blue-50",
-            },
-          ]
+          {
+            icon: Eye,
+            variant: "outline",
+            onClick: () => handlePreview(record),
+            title: "Ver imagen",
+            className: "text-blue-600 hover:text-blue-900 hover:bg-blue-50",
+          },
+        ]
         : []),
       {
         icon: Upload,
@@ -383,9 +383,9 @@ export default function TicketImagesView() {
           Obtener desde SAP
         </Button>
 
-        <Button onClick={() => setShowCreateModal(true)} icon={Plus}>
+        {/* <Button onClick={() => setShowCreateModal(true)} icon={Plus}>
           Crear Manual
-        </Button>
+        </Button> */}
       </GenericFilters>
 
       {/* Tabla */}

@@ -197,10 +197,15 @@ export const generateCertificatePdfWithDates = async (templateId, dateFrom, date
       const url = window.URL.createObjectURL(blob);
 
       if (download) {
+        // Extraer nombre del archivo del header Content-Disposition del backend
+        const contentDisposition = response.headers["content-disposition"] || "";
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=["']?([^"';\n]*)["']?/);
+        const filename = filenameMatch ? filenameMatch[1] : `certificado_${templateId}.pdf`;
+
         // Descargar archivo
         const link = document.createElement("a");
         link.href = url;
-        link.download = `certificado_${templateId}_${dateFrom}_${dateTo}.pdf`;
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -216,9 +221,25 @@ export const generateCertificatePdfWithDates = async (templateId, dateFrom, date
     return { success: false, error: "Error al generar PDF" };
   } catch (error) {
     console.error("Error generando PDF:", error);
+
+    // Cuando responseType es "blob", el error también viene como blob
+    // Necesitamos leerlo y parsearlo como JSON
+    let errorMessage = "Error al generar PDF";
+    if (error.response?.data instanceof Blob) {
+      try {
+        const text = await error.response.data.text();
+        const errorData = JSON.parse(text);
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        // Si no se puede parsear, usar mensaje por defecto
+      }
+    } else {
+      errorMessage = error.response?.data?.error || error.message || errorMessage;
+    }
+
     return {
       success: false,
-      error: error.response?.data?.error || error.message || "Error al generar PDF",
+      error: errorMessage,
     };
   }
 };

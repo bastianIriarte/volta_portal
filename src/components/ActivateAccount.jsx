@@ -1,5 +1,5 @@
 // File: src/components/ActivateAccount.jsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 import {
@@ -17,8 +17,9 @@ import {
   Barcode,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { formatearRut, normalizarRut, validarRut } from "../utils/rut";
+import { normalizarRut } from "../utils/rut";
 import { handleSnackbar } from "../utils/messageHelpers";
+import { validateField } from "../utils/validators";
 import { validateSapCompany, submitRegistrationRequest } from "../services/authService";
 import FooterNoLogin from "./common/FooterNoLogin";
 
@@ -39,78 +40,92 @@ export default function ActivateAccount() {
   const [position, setPosition] = useState("");
 
   const [errors, setErrors] = useState({});
-  const [touched, setTouched] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   // ==================== VALIDACIONES ====================
-  const validateCompanyRut = (val) => {
-    if (!val) return "Ingresa el RUT de la empresa";
-    if (!validarRut(val)) return "RUT de empresa inválido";
-    return "";
+  // Validar un campo individual usando el validador unificado
+  const validateSingleField = (field, value) => {
+    let validationType = "text";
+    let isRequired = true;
+    let customMessage = "Campo requerido";
+
+    switch (field) {
+      case "companyRut":
+        validationType = "rut";
+        customMessage = "RUT de empresa inválido";
+        break;
+      case "sapCode":
+        validationType = "text_min";
+        customMessage = "El código SAP debe tener al menos 3 caracteres";
+        break;
+      case "requesterRut":
+        validationType = "rut";
+        customMessage = "RUT inválido";
+        break;
+      case "requesterName":
+        validationType = "names";
+        customMessage = "El nombre debe tener al menos 3 caracteres";
+        break;
+      case "requesterEmail":
+        validationType = "email";
+        customMessage = "Correo electrónico inválido";
+        break;
+      case "requesterPhone":
+        validationType = "mobile";
+        customMessage = "N° Incorrecto. Ej: +56912345678";
+        isRequired = false;
+        break;
+      case "position":
+        isRequired = false;
+        break;
+      default:
+        break;
+    }
+
+    const result = validateField(value, validationType, isRequired, customMessage);
+
+    return {
+      isValid: result.validate,
+      message: result.msg,
+      cleanValue: result.value_data !== undefined ? result.value_data : value
+    };
   };
 
-  const validateSapCode = (val) => {
-    if (!val) return "Ingresa el código SAP";
-    if (val.length < 3) return "El código SAP debe tener al menos 3 caracteres";
-    return "";
-  };
+  // Manejar cambios en campos con validación y limpieza
+  const handleFieldChange = (field, value, setter) => {
+    const validation = validateSingleField(field, value);
+    const cleanValue = validation.cleanValue;
 
-  const validateRequesterRut = (val) => {
-    if (!val) return "Ingresa tu RUT";
-    if (!validarRut(val)) return "RUT inválido";
-    return "";
-  };
+    setter(cleanValue);
 
-  const validateRequesterName = (val) => {
-    if (!val) return "Ingresa tu nombre completo";
-    if (val.length < 3) return "El nombre debe tener al menos 3 caracteres";
-    return "";
-  };
-
-  const validateRequesterEmail = (val) => {
-    if (!val) return "Ingresa tu correo electrónico";
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(val)) return "Correo electrónico inválido";
-    return "";
+    // Actualizar errores solo si el campo tiene valor o ya fue validado
+    if (value || errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: validation.isValid ? undefined : validation.message
+      }));
+    }
   };
 
   // ==================== HANDLERS STEP 1 ====================
   const onCompanyRutChange = (e) => {
-    let v = e.target.value;
-    v = v.replace(/[^0-9kK.-]/g, "");
-
-    const normalized = normalizarRut(v);
-    if (normalized && normalized.length >= 2) {
-      v = formatearRut(normalized);
-    }
-
-    setCompanyRut(v);
-    if (touched.companyRut) {
-      const msg = validateCompanyRut(v);
-      setErrors((p) => ({ ...p, companyRut: msg || undefined }));
-    }
+    handleFieldChange("companyRut", e.target.value, setCompanyRut);
   };
 
   const onSapCodeChange = (e) => {
-    const v = e.target.value;
-    setSapCode(v);
-    if (touched.sapCode) {
-      const msg = validateSapCode(v);
-      setErrors((p) => ({ ...p, sapCode: msg || undefined }));
-    }
+    handleFieldChange("sapCode", e.target.value, setSapCode);
   };
 
   const handleValidarEmpresa = async () => {
-    const companyRutMsg = validateCompanyRut(companyRut);
-    const sapCodeMsg = validateSapCode(sapCode);
+    const companyRutValidation = validateSingleField("companyRut", companyRut);
+    const sapCodeValidation = validateSingleField("sapCode", sapCode);
 
     setErrors({
-      companyRut: companyRutMsg || undefined,
-      sapCode: sapCodeMsg || undefined,
+      companyRut: companyRutValidation.isValid ? undefined : companyRutValidation.message,
+      sapCode: sapCodeValidation.isValid ? undefined : sapCodeValidation.message,
     });
-    setTouched({ companyRut: true, sapCode: true });
 
-    if (companyRutMsg || sapCodeMsg) return;
+    if (!companyRutValidation.isValid || !sapCodeValidation.isValid) return;
 
     try {
       setSubmitting(true);
@@ -125,7 +140,6 @@ export default function ActivateAccount() {
         setCompanyData(response.data);
         setStep(2);
         setErrors({});
-        setTouched({});
         handleSnackbar("Empresa validada correctamente", "success");
         return;
       }
@@ -144,56 +158,33 @@ export default function ActivateAccount() {
 
   // ==================== HANDLERS STEP 2 ====================
   const onRequesterRutChange = (e) => {
-    let v = e.target.value;
-    v = v.replace(/[^0-9kK.-]/g, "");
-
-    const normalized = normalizarRut(v);
-    if (normalized && normalized.length >= 2) {
-      v = formatearRut(normalized);
-    }
-
-    setRequesterRut(v);
-    if (touched.requesterRut) {
-      const msg = validateRequesterRut(v);
-      setErrors((p) => ({ ...p, requesterRut: msg || undefined }));
-    }
+    handleFieldChange("requesterRut", e.target.value, setRequesterRut);
   };
 
   const onRequesterNameChange = (e) => {
-    const v = e.target.value;
-    setRequesterName(v);
-    if (touched.requesterName) {
-      const msg = validateRequesterName(v);
-      setErrors((p) => ({ ...p, requesterName: msg || undefined }));
-    }
+    handleFieldChange("requesterName", e.target.value, setRequesterName);
   };
 
   const onRequesterEmailChange = (e) => {
-    const v = e.target.value;
-    setRequesterEmail(v);
-    if (touched.requesterEmail) {
-      const msg = validateRequesterEmail(v);
-      setErrors((p) => ({ ...p, requesterEmail: msg || undefined }));
-    }
+    handleFieldChange("requesterEmail", e.target.value, setRequesterEmail);
+  };
+
+  const onRequesterPhoneChange = (e) => {
+    handleFieldChange("requesterPhone", e.target.value, setRequesterPhone);
   };
 
   const handleEnviarSolicitud = async () => {
-    const requesterRutMsg = validateRequesterRut(requesterRut);
-    const requesterNameMsg = validateRequesterName(requesterName);
-    const requesterEmailMsg = validateRequesterEmail(requesterEmail);
+    const requesterRutValidation = validateSingleField("requesterRut", requesterRut);
+    const requesterNameValidation = validateSingleField("requesterName", requesterName);
+    const requesterEmailValidation = validateSingleField("requesterEmail", requesterEmail);
 
     setErrors({
-      requesterRut: requesterRutMsg || undefined,
-      requesterName: requesterNameMsg || undefined,
-      requesterEmail: requesterEmailMsg || undefined,
-    });
-    setTouched({
-      requesterRut: true,
-      requesterName: true,
-      requesterEmail: true,
+      requesterRut: requesterRutValidation.isValid ? undefined : requesterRutValidation.message,
+      requesterName: requesterNameValidation.isValid ? undefined : requesterNameValidation.message,
+      requesterEmail: requesterEmailValidation.isValid ? undefined : requesterEmailValidation.message,
     });
 
-    if (requesterRutMsg || requesterNameMsg || requesterEmailMsg) return;
+    if (!requesterRutValidation.isValid || !requesterNameValidation.isValid || !requesterEmailValidation.isValid) return;
 
     try {
       setSubmitting(true);
@@ -335,20 +326,11 @@ export default function ActivateAccount() {
                     placeholder="12.345.678-9"
                     value={requesterRut}
                     onChange={onRequesterRutChange}
-                    onBlur={() =>
-                      setTouched((p) => ({ ...p, requesterRut: true }))
-                    }
-                    className={`pl-10 ${errors.requesterRut
-                      ? "border-red-400 focus:ring-red-200"
-                      : ""
-                      }`}
+                    error={errors.requesterRut}
+                    maxLength={12}
+                    className="pl-10"
                   />
                 </div>
-                {errors.requesterRut && (
-                  <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                    {errors.requesterRut}
-                  </p>
-                )}
               </div>
 
               {/* Nombre Completo */}
@@ -362,20 +344,10 @@ export default function ActivateAccount() {
                     placeholder="Juan Pérez González"
                     value={requesterName}
                     onChange={onRequesterNameChange}
-                    onBlur={() =>
-                      setTouched((p) => ({ ...p, requesterName: true }))
-                    }
-                    className={`pl-10 ${errors.requesterName
-                      ? "border-red-400 focus:ring-red-200"
-                      : ""
-                      }`}
+                    error={errors.requesterName}
+                    className="pl-10"
                   />
                 </div>
-                {errors.requesterName && (
-                  <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                    {errors.requesterName}
-                  </p>
-                )}
               </div>
 
               {/* Correo Electrónico */}
@@ -389,20 +361,10 @@ export default function ActivateAccount() {
                     placeholder="correo@empresa.cl"
                     value={requesterEmail}
                     onChange={onRequesterEmailChange}
-                    onBlur={() =>
-                      setTouched((p) => ({ ...p, requesterEmail: true }))
-                    }
-                    className={`pl-10 ${errors.requesterEmail
-                      ? "border-red-400 focus:ring-red-200"
-                      : ""
-                      }`}
+                    error={errors.requesterEmail}
+                    className="pl-10"
                   />
                 </div>
-                {errors.requesterEmail && (
-                  <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                    {errors.requesterEmail}
-                  </p>
-                )}
               </div>
 
               {/* Teléfono (opcional) */}
@@ -412,9 +374,11 @@ export default function ActivateAccount() {
                   <Input
                     label={'Teléfono'}
                     type="tel"
-                    placeholder="+56 9 1234 5678"
+                    placeholder="+56912345678"
                     value={requesterPhone}
-                    onChange={(e) => setRequesterPhone(e.target.value)}
+                    onChange={onRequesterPhoneChange}
+                    error={errors.requesterPhone}
+                    maxLength={12}
                     className="pl-10"
                   />
                 </div>
@@ -452,7 +416,6 @@ export default function ActivateAccount() {
                 onClick={() => {
                   setStep(1);
                   setErrors({});
-                  setTouched({});
                 }}
                 disabled={submitting}
                 className="w-full"
@@ -498,30 +461,20 @@ export default function ActivateAccount() {
           <div className="space-y-4">
             {/* RUT Empresa */}
             <div>
-
               <div className="relative">
                 <Building2 className="absolute left-3 z-10 top-10 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
                   required
-                  label={'RUT de la Empresa '}
+                  label={'RUT de la Empresa'}
                   type="text"
                   placeholder="76.123.456-7"
                   value={companyRut}
                   onChange={onCompanyRutChange}
-                  onBlur={() =>
-                    setTouched((p) => ({ ...p, companyRut: true }))
-                  }
-                  className={`pl-10 ${errors.companyRut
-                    ? "border-red-400 focus:ring-red-200"
-                    : ""
-                    }`}
+                  error={errors.companyRut}
+                  maxLength={12}
+                  className="pl-10"
                 />
               </div>
-              {errors.companyRut && (
-                <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                  {errors.companyRut}
-                </p>
-              )}
             </div>
 
             {/* Código SAP */}
@@ -535,16 +488,10 @@ export default function ActivateAccount() {
                   placeholder="SAP001"
                   value={sapCode}
                   onChange={onSapCodeChange}
-                  onBlur={() => setTouched((p) => ({ ...p, sapCode: true }))}
-                  className={`pl-10 ${errors.sapCode ? "border-red-400 focus:ring-red-200" : ""
-                    }`}
+                  error={errors.sapCode}
+                  className="pl-10"
                 />
               </div>
-              {errors.sapCode && (
-                <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                  {errors.sapCode}
-                </p>
-              )}
             </div>
 
             <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3">

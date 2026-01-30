@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Modal } from "../../../components/ui/Modal";
-import { ExternalLink, Image, Loader2, AlertCircle } from "lucide-react";
+import { ExternalLink, Image, Loader2, AlertCircle, Download } from "lucide-react";
 
 export default function ImagePreviewModal({
   open,
@@ -26,9 +26,9 @@ export default function ImagePreviewModal({
       actions={[
         { label: "Cerrar", variant: "outline", onClick: handleClose },
         ...(url && !imageError ? [{
-          label: "Abrir en nueva pestaña",
+          label: "Descargar",
           variant: "primary",
-          icon: ExternalLink,
+          icon: Download,
           onClick: () => window.open(url, "_blank"),
         }] : []),
       ]}

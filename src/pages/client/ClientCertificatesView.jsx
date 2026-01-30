@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Award, Calendar, Loader2, Download, Building2, MapPin, Eye, RefreshCw, X, FileText } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import { Select } from "../../components/ui/Select";
+import { SearchableSelect } from "../../components/ui/SearchableSelect";
 import { Input } from "../../components/ui/Input";
 import { useAuth } from "../../context/auth";
 import { getCertificateTemplates, getCertificatesByCompany, getCompanies } from "../../services/companyService";
@@ -221,6 +222,7 @@ export default function ClientCertificatesView() {
     const newCompanyId = e.target.value;
     setSelectedCompanyId(newCompanyId);
     setSelectedBranch({ code: "", name: "", address: "" });
+    setBranches([]);
 
     // Si hay un certificado seleccionado y requiere sucursales, recargarlas
     if (selectedCert?.query_branches && newCompanyId) {
@@ -293,7 +295,7 @@ export default function ClientCertificatesView() {
         setDateTo("");
         setSelectedBranch({ code: "", name: "", address: "" });
       } else {
-        handleSnackbar(result.error || "Error al generar certificado", "error");
+        handleSnackbar(result.error , "error");
       }
     } catch (error) {
       handleSnackbar("Error al generar certificado", "error");
@@ -353,7 +355,7 @@ export default function ClientCertificatesView() {
     setSelectedCert(null); // Cerrar modal de generación
 
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+      const baseUrl = import.meta.env.VITE_API_BASE_URL;
       const token = getToken();
 
       // Construir URL con parámetros
@@ -405,7 +407,7 @@ export default function ClientCertificatesView() {
       handleSnackbar("Error de conexión al generar vista previa", "error");
       setPdfPreview({ show: false, url: null, loading: false, cert: null, dateFrom: null, dateTo: null, options: null });
     }
-  }, [selectedCert, pdfPreview.url, buildPdfOptions]);
+  }, [selectedCert, pdfPreview.url, buildPdfOptions, dateFrom, dateTo, selectedMonth, selectedYear]);
 
   // Refrescar vista previa
   const handleRefreshPreview = useCallback(async () => {
@@ -420,7 +422,7 @@ export default function ClientCertificatesView() {
     }
     setPdfPreview(prev => ({ ...prev, url: null, loading: true }));
 
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+    const baseUrl = import.meta.env.VITE_API_BASE_URL;
     const token = getToken();
 
     // Usar las fechas y opciones almacenadas
@@ -476,19 +478,6 @@ export default function ClientCertificatesView() {
     }
   }, [pdfPreview]);
 
-  // Descargar PDF desde preview
-  const handleDownloadFromPreview = useCallback(() => {
-    if (!pdfPreview.url) return;
-
-    const link = document.createElement("a");
-    link.href = pdfPreview.url;
-    const { cert, dateFrom, dateTo } = pdfPreview;
-    link.download = `certificado_${cert?.code || cert?.id}_${dateFrom}_${dateTo}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    handleSnackbar("Certificado descargado correctamente", "success");
-  }, [pdfPreview]);
 
   // Cerrar modal de preview
   const handleClosePreview = useCallback(() => {
@@ -622,13 +611,13 @@ export default function ClientCertificatesView() {
             variant: "outline",
             onClick: handleCloseModal,
           },
-          {
-            label: "Vista Previa",
-            variant: "secondary",
-            onClick: handlePreviewPdf,
-            disabled: generating || pdfPreview.loading,
-            icon: Eye,
-          },
+          // {
+          //   label: "Vista Previa",
+          //   variant: "secondary",
+          //   onClick: handlePreviewPdf,
+          //   disabled: generating || pdfPreview.loading,
+          //   icon: Eye,
+          // },
           {
             label: generating ? "Generando..." : "Descargar",
             variant: "primary",
@@ -652,57 +641,53 @@ export default function ClientCertificatesView() {
 
           {/* Selector de empresa (solo admin) */}
           {isAdmin && (
-            <Select
+            <SearchableSelect
               id="company"
               label="Empresa"
               required
               value={selectedCompanyId}
-              onChange={(e) => {
-                handleCompanyChange(e);
+              onChange={(val) => {
+                const syntheticEvent = { target: { value: val } };
+                handleCompanyChange(syntheticEvent);
                 if (errors.company) setErrors(prev => ({ ...prev, company: null }));
               }}
+              options={companies.map((company) => ({
+                value: company.id,
+                label: `${company.business_name} (${company.rut})`,
+              }))}
+              placeholder="Seleccionar empresa..."
               error={errors.company}
-            >
-              <option value="">Seleccionar empresa...</option>
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.business_name} ({company.rut})
-                </option>
-              ))}
-            </Select>
+            />
           )}
 
           {/* Selector de sucursal (si query_branches está activo) */}
           {selectedCert?.query_branches && (
             <div>
-              <Select
+              <SearchableSelect
                 id="branch"
                 label="Sucursal"
                 required
                 value={selectedBranch.code}
-                onChange={(e) => {
-                  const branchCode = e.target.value;
-                  const branch = branches.find(b => b.code === branchCode);
+                onChange={(val) => {
+                  const branch = branches.find(b => b.code === val);
                   setSelectedBranch(branch ? { code: branch.code, name: branch.name, address: branch.address } : { code: "", name: "", address: "" });
                   if (errors.branch) setErrors(prev => ({ ...prev, branch: null }));
                 }}
-                error={errors.branch}
-                disabled={loadingBranches || branches.length === 0}
-                helper={loadingBranches ? "Cargando sucursales..." : undefined}
-              >
-                <option value="">
-                  {loadingBranches
+                options={branches.map((branch) => ({
+                  value: branch.code,
+                  label: `${branch.name}${branch.city ? ` (${branch.city})` : ""}`,
+                }))}
+                placeholder={
+                  loadingBranches
                     ? "Cargando sucursales..."
                     : branches.length === 0
                       ? "Sin sucursales disponibles"
-                      : "Seleccionar sucursal..."}
-                </option>
-                {branches.map((branch) => (
-                  <option key={branch.code} value={branch.code}>
-                    {branch.name} {branch.city ? `(${branch.city})` : ""}
-                  </option>
-                ))}
-              </Select>
+                      : "Seleccionar sucursal..."
+                }
+                error={errors.branch}
+                disabled={loadingBranches || branches.length === 0}
+                helper={loadingBranches ? "Cargando sucursales..." : undefined}
+              />
             </div>
           )}
 
@@ -831,7 +816,6 @@ export default function ClientCertificatesView() {
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-xs text-blue-700">
               El certificado se generará con los datos correspondientes al periodo seleccionado.
-              Puede ver una vista previa antes de descargar.
             </p>
           </div>
         </div>
@@ -857,14 +841,7 @@ export default function ClientCertificatesView() {
                   <RefreshCw className={`h-4 w-4 ${pdfPreview.loading ? "animate-spin" : ""}`} />
                 </button>
                 {/* Botón de descargar */}
-                <button
-                  onClick={handleDownloadFromPreview}
-                  disabled={pdfPreview.loading || !pdfPreview.url}
-                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded disabled:opacity-50"
-                  title="Descargar PDF"
-                >
-                  <Download className="h-4 w-4" />
-                </button>
+              
                 {/* Botón de cerrar */}
                 <button
                   onClick={handleClosePreview}

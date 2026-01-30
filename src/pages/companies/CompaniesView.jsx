@@ -76,7 +76,7 @@ export default function CompaniesView() {
 
   // Handlers
   const handleEditCompany = (companyId) => {
-    navigate(`/dashboard/empresas/${companyId}/editar`);
+    navigate(`/dashboard/empresas/${companyId}/gestionar`);
   };
 
   const handleCreateModalClose = (shouldRefresh = false) => {

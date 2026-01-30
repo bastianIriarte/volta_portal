@@ -27,7 +27,7 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
+            msg: null,
         };
 
       case "text_min_description":
@@ -40,31 +40,35 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
+            msg: null,
         };
 
       case "names":
-        // notNumber y trim
         value_data = value_data != null ? value_data.toString() : "";
-        value_data = notNumber(value_data).trim();
-        if (value_data.length < 3) {
+
+        // Limpia caracteres raros pero mantiene espacios
+        const cleaned = notNumber(value_data).replace(/\s{2,}/g, " "); // colapsa dobles espacios
+
+        // Validación de largo usando TRIM, pero NO le quites el espacio al usuario al tipear
+        const trimmedForLen = cleaned.trim();
+
+        if (trimmedForLen.length < 3) {
           return {
             validate: false,
             msg: "El largo Mínimo de 3 Caracteres",
-            value_data,
+            value_data: cleaned
           };
         }
-        if (value_data.length > 254) {
+        if (trimmedForLen.length > 254) {
           return {
             validate: false,
             msg: "Supera largo máximo permitido",
-            value_data,
+            value_data: cleaned
           };
         }
+
         return {
-          validate: true,
-          msg: null,
-          value_data,
+          validate: true, msg: null, value_data: cleaned
         };
 
       case "money":
@@ -92,8 +96,8 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
-          value_data: formatMoney(value_data_number),
+            msg: null,
+            value_data: formatMoney(value_data_number),
         };
 
       case "money_min":
@@ -121,8 +125,8 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
-          value_data: formatMoney(value_data_number),
+            msg: null,
+            value_data: formatMoney(value_data_number),
         };
 
       case "number":
@@ -135,8 +139,8 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
-          value_data: formatNumber(value_data_number),
+            msg: null,
+            value_data: formatNumber(value_data_number),
         };
 
       case "only_number":
@@ -149,8 +153,8 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
-          value_data: value_data_number,
+            msg: null,
+            value_data: value_data_number,
         };
 
       case "any_number":
@@ -163,8 +167,8 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
-          value_data: value_data_number,
+            msg: null,
+            value_data: value_data_number,
         };
       case "only_number_positive":
         value_data_number = OnlyNumbers(value_data.toString());
@@ -183,8 +187,8 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
-          value_data: value_data_number,
+            msg: null,
+            value_data: value_data_number,
         };
       case "only_number_positive_min":
         value_data_number = OnlyNumbers(value_data.toString());
@@ -203,16 +207,16 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
-          value_data: value_data_number,
+            msg: null,
+            value_data: value_data_number,
         };
 
       case "decimal":
         // Limpieza básica - Asegurarse de que value_data sea una cadena
         value_data =
-          value_data !== null && value_data !== undefined
-            ? String(value_data)
-            : "";
+          value_data !== null && value_data !== undefined ?
+          String(value_data) :
+          "";
         value_data = value_data.trim();
         value_data = formateaDecimal(value_data);
         if (parseFloat(value_data) < 0) {
@@ -229,8 +233,8 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
-          value_data,
+            msg: null,
+            value_data,
         };
 
       case "mobile":
@@ -249,8 +253,8 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
-          value_data: cel,
+            msg: null,
+            value_data: cel,
         };
 
       case "phone":
@@ -263,8 +267,8 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
-          value_data: OnlyNumbers(value_data.toString()),
+            msg: null,
+            value_data: OnlyNumbers(value_data.toString()),
         };
 
       case "rut": {
@@ -316,7 +320,7 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
+            msg: null,
         };
 
       case "select":
@@ -328,7 +332,7 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
+            msg: null,
         };
 
       case "url":
@@ -347,7 +351,7 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
+            msg: null,
         };
 
       case "date": {
@@ -390,7 +394,7 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
+            msg: null,
         };
       case "color":
         if (!IsColor(value_data)) {
@@ -401,7 +405,7 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
+            msg: null,
         };
 
       default:
@@ -413,7 +417,7 @@ export const validateField = (
         }
         return {
           validate: true,
-          msg: null,
+            msg: null,
         };
     }
   }

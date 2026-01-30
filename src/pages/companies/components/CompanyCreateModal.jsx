@@ -59,6 +59,7 @@ export default function CompanyCreateModal({ open, onClose }) {
       cleanValue: result.value_data !== undefined ? result.value_data : value
     };
   };
+  
 
   const validateAll = () => {
     const newErrors = {};

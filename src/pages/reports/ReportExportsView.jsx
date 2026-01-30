@@ -337,7 +337,7 @@ export default function ReportExportsView() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-bradford-navy mb-2">
-            Historial de Exportaciones
+            Reportes Descargados
           </h2>
           <p className="text-bradford-navy/70">
             Consulta y descarga los reportes exportados a Excel
@@ -442,12 +442,12 @@ export default function ReportExportsView() {
 
       {/* Tabla */}
       <GenericTable
-        title="Exportaciones registradas"
+        title="Historial de descargadas"
         loading={loading}
         columns={columns}
         data={filteredData}
         pageData={pageData}
-        emptyMessage="No hay exportaciones registradas"
+        emptyMessage="No hay descargas registradas"
         emptyIcon={FileSpreadsheet}
         searchQuery={q}
         onClearSearch={() => setQ("")}

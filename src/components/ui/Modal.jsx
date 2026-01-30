@@ -77,7 +77,7 @@ export function Modal({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className={`px-5 py-4 text-sm leading-relaxed ${size !== 'default' ? 'max-h-[70vh] overflow-y-auto' : ''}`}>
+        <div className={`px-5 py-4 text-sm leading-relaxed max-h-[70vh] overflow-y-auto`}>
           {isHtml ? (
             <div
               dangerouslySetInnerHTML={{

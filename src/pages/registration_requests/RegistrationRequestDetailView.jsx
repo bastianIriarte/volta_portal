@@ -278,7 +278,7 @@ export default function RegistrationRequestDetailView() {
                     Permisos asignados
                   </p>
                   <p className="text-sm text-blue-700 mt-1">
-                    Los permisos fueron asignados al aprobar la solicitud. Para modificarlos, utilice el mantenedor de usuarios.
+                    Los permisos fueron asignados al aprobar la solicitud. Para modificarlos, utilice el mantenedor de clientes.
                   </p>
                 </div>
               </div>

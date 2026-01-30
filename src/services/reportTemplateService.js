@@ -104,6 +104,7 @@ export const executeReportByCode = async (code, params = {}) => {
     if (params.date_to) queryParams.append("date_to", params.date_to);
 
     const url = `/api/reports/data/${code}?${queryParams.toString()}`;
+    console.log('[executeReportByCode] URL:', url, 'params:', params);
     const response = await api.get(url);
     let success = response.status === 200 && !response.error;
 

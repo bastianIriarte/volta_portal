@@ -17,9 +17,11 @@ export const getConfigurations = async (code) => {
   }
 };
 
-export const storeOrUpdate = async (data) => {
+export const storeOrUpdate = async (code, data) => {
   try {
-    const response = await api.post(`/api/configuration`, data);
+    // El backend espera data codificado en base64
+    const encodedData = btoa(JSON.stringify(data));
+    const response = await api.post(`/api/configuration`, { code, data: encodedData });
     let success = response.status != 200 || response.error ? false : true;
     return returnResponse(
       success,

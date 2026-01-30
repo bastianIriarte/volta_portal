@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { FolderOpen, ExternalLink, FileText } from "lucide-react";
+import { FolderOpen, ExternalLink, FileText, Building2 } from "lucide-react";
 import { useAuth } from "../../context/auth";
 import { handleSnackbar } from "../../utils/messageHelpers";
-import { getCompanyDocuments } from "../../services/companyService";
+import { getCompanyDocuments, getCompaniesList } from "../../services/companyService";
 import GenericFilters from "../../components/common/GenericFilters";
 import GenericTable from "../../components/common/GenericTable";
 import { useTableLogic } from "../../hooks/useTableLogic";
@@ -12,7 +12,14 @@ export default function ClientDocumentsView() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Estados para selector de empresa (solo admin/super usuario)
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+
   const companyId = session?.user?.company_id;
+  const userRole = session?.user?.role;
+  const isClientUser = userRole === "customer";
+  const isAdmin = userRole === "root" || userRole === "admin";
 
   // Configuración de la tabla
   const tableConfig = {
@@ -35,18 +42,48 @@ export default function ClientDocumentsView() {
     handleSort
   } = useTableLogic(documents, tableConfig);
 
+  // Cargar lista de empresas para admin/root
   useEffect(() => {
-    loadDocuments();
-  }, [companyId]);
+    if (!isClientUser) {
+      loadCompanies();
+      setLoading(false); // Admin no muestra loading hasta seleccionar empresa
+    }
+  }, [isClientUser]);
 
-  const loadDocuments = async () => {
-    if (!companyId) {
+  // Para clientes, cargar documentos automáticamente
+  useEffect(() => {
+    if (isClientUser && companyId) {
+      loadDocuments(companyId);
+    }
+  }, [companyId, isClientUser]);
+
+  // Para admin, cargar documentos cuando selecciona empresa
+  useEffect(() => {
+    if (!isClientUser && selectedCompanyId) {
+      loadDocuments(selectedCompanyId);
+    }
+  }, [selectedCompanyId, isClientUser]);
+
+  const loadCompanies = async () => {
+    try {
+      const response = await getCompaniesList();
+      if (response.success && response.data) {
+        setCompanies(response.data);
+      }
+    } catch (error) {
+      console.error("Error loading companies:", error);
+    }
+  };
+
+  const loadDocuments = async (targetCompanyId) => {
+    if (!targetCompanyId) {
       setLoading(false);
+      setDocuments([]);
       return;
     }
     setLoading(true);
     try {
-      const response = await getCompanyDocuments(companyId);
+      const response = await getCompanyDocuments(targetCompanyId);
       if (response.success) {
         setDocuments(response.data || []);
       } else {
@@ -107,14 +144,35 @@ export default function ClientDocumentsView() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-3xl font-bold mb-2 flex items-center gap-2">
-          <FolderOpen className="w-8 h-8 text-blue-600" />
-          Documentos
-        </h2>
-        <p className="text-gray-500">
-          Documentos disponibles para tu empresa
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold mb-2 flex items-center gap-2">
+            <FolderOpen className="w-8 h-8 text-blue-600" />
+            Documentos
+          </h2>
+          <p className="text-gray-500">
+            Documentos disponibles para tu empresa
+          </p>
+        </div>
+
+        {/* Selector de empresa para admin / Nombre de empresa para cliente */}
+        {!isClientUser && (
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-blue-600" />
+            <select
+              value={selectedCompanyId}
+              onChange={(e) => setSelectedCompanyId(e.target.value)}
+              className="min-w-[250px] px-3 py-2 text-sm border border-blue-200 rounded-lg bg-blue-50 text-blue-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Seleccione una empresa</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.business_name} {company.rut ? `(${company.rut})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Filtros */}
