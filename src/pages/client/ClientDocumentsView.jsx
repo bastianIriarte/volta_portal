@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { FolderOpen, ExternalLink, FileText, Building2 } from "lucide-react";
 import { useAuth } from "../../context/auth";
 import { handleSnackbar } from "../../utils/messageHelpers";
-import { getCompanyDocuments, getCompaniesList } from "../../services/companyService";
+import { getCompanyDocuments } from "../../services/companyService";
 import GenericFilters from "../../components/common/GenericFilters";
 import GenericTable from "../../components/common/GenericTable";
 import { useTableLogic } from "../../hooks/useTableLogic";
@@ -12,8 +12,6 @@ export default function ClientDocumentsView() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados para selector de empresa (solo admin/super usuario)
-  const [companies, setCompanies] = useState([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
 
   const companyId = session?.user?.company_id;
@@ -42,38 +40,29 @@ export default function ClientDocumentsView() {
     handleSort
   } = useTableLogic(documents, tableConfig);
 
-  // Cargar lista de empresas para admin/root
-  useEffect(() => {
-    if (!isClientUser) {
-      loadCompanies();
-      setLoading(false); // Admin no muestra loading hasta seleccionar empresa
-    }
-  }, [isClientUser]);
+  const companies = session?.user?.companies || [];
 
-  // Para clientes, cargar documentos automáticamente
+  // Auto-seleccionar empresa: si hay 1 sola, seleccionarla; si hay varias, seleccionar la principal
   useEffect(() => {
-    if (isClientUser && companyId) {
-      loadDocuments(companyId);
+    if (companies.length === 1 && !selectedCompanyId) {
+      setSelectedCompanyId(String(companies[0].id));
+    } else if (companies.length > 1 && !selectedCompanyId && companyId) {
+      setSelectedCompanyId(String(companyId));
     }
-  }, [companyId, isClientUser]);
+    if (companies.length === 0) {
+      setLoading(false);
+    }
+  }, [companies]);
 
-  // Para admin, cargar documentos cuando selecciona empresa
+  // Cargar documentos cuando se selecciona empresa
   useEffect(() => {
-    if (!isClientUser && selectedCompanyId) {
+    if (selectedCompanyId) {
       loadDocuments(selectedCompanyId);
+    } else {
+      setDocuments([]);
+      setLoading(false);
     }
-  }, [selectedCompanyId, isClientUser]);
-
-  const loadCompanies = async () => {
-    try {
-      const response = await getCompaniesList();
-      if (response.success && response.data) {
-        setCompanies(response.data);
-      }
-    } catch (error) {
-      console.error("Error loading companies:", error);
-    }
-  };
+  }, [selectedCompanyId]);
 
   const loadDocuments = async (targetCompanyId) => {
     if (!targetCompanyId) {
@@ -155,8 +144,8 @@ export default function ClientDocumentsView() {
           </p>
         </div>
 
-        {/* Selector de empresa para admin / Nombre de empresa para cliente */}
-        {!isClientUser && (
+        {/* Selector de empresa (multi-empresa) */}
+        {companies.length > 1 && (
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-blue-600" />
             <select

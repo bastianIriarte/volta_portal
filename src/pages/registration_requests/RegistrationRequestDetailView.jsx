@@ -8,12 +8,14 @@ import {
 import {
   getRegistrationRequestById,
   approveRequest,
-  rejectRequest
+  rejectRequest,
+  getRequestCompanies
 } from "../../services/registrationRequestService";
 import {
   getCertificateTemplates,
   getReportTemplates,
-  getDocumentTypes
+  getDocumentTypes,
+  getSapCompaniesList
 } from "../../services/companyService";
 import { handleSnackbar } from "../../utils/messageHelpers";
 
@@ -25,6 +27,7 @@ import {
   RejectModal,
   ApproveModal,
   PermissionSection,
+  CompanyAssignmentSection,
   statusConfig
 } from "./components";
 
@@ -49,6 +52,11 @@ export default function RegistrationRequestDetailView() {
   const [documents, setDocuments] = useState([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
 
+  const [userCompanies, setUserCompanies] = useState([]);
+  const [sapCompanies, setSapCompanies] = useState([]);
+  const [selectedCompanies, setSelectedCompanies] = useState([]);
+  const [loadingSap, setLoadingSap] = useState(false);
+
   useEffect(() => {
     loadRequest();
     loadReports();
@@ -67,6 +75,10 @@ export default function RegistrationRequestDetailView() {
         // Cargar permisos asignados desde la solicitud
         if (response.data.assigned_permissions?.length > 0) {
           setSelectedPermissions(response.data.assigned_permissions);
+        }
+        // Cargar empresas asignadas si el usuario ya fue creado
+        if (response.data.user_created_id) {
+          loadUserCompanies(response.data.id);
         }
       } else {
         handleSnackbar(response.message || "Error al cargar solicitud", "error");
@@ -135,6 +147,40 @@ export default function RegistrationRequestDetailView() {
     }
   };
 
+  const loadUserCompanies = async (requestId) => {
+    try {
+      const response = await getRequestCompanies(requestId);
+      if (response.success && response.data) {
+        setUserCompanies(response.data);
+      }
+    } catch (error) {
+      console.error("Error loading user companies:", error);
+    }
+  };
+
+  const loadSapCompanies = async () => {
+    setLoadingSap(true);
+    try {
+      const response = await getSapCompaniesList();
+      if (response.success && response.data) {
+        setSapCompanies(response.data);
+      }
+    } catch (error) {
+      console.error("Error loading SAP companies:", error);
+      handleSnackbar("Error al cargar empresas desde SAP", "error");
+    } finally {
+      setLoadingSap(false);
+    }
+  };
+
+  const handleAddCompanies = (companies) => {
+    setSelectedCompanies((prev) => [...prev, ...companies]);
+  };
+
+  const handleRemoveCompany = (index) => {
+    setSelectedCompanies((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleTogglePermission = (permId) => {
     setSelectedPermissions(prev =>
       prev.includes(permId)
@@ -157,7 +203,7 @@ export default function RegistrationRequestDetailView() {
   const handleApprove = async () => {
     setProcessing(true);
     try {
-      const response = await approveRequest(id, selectedPermissions);
+      const response = await approveRequest(id, selectedPermissions, selectedCompanies);
       if (response.success) {
         handleSnackbar("Solicitud aprobada y permisos asignados exitosamente.", "success");
         setRequest(response.data);
@@ -248,6 +294,25 @@ export default function RegistrationRequestDetailView() {
         <CompanyInfoSection request={request} />
         <ApplicantInfoSection request={request} />
         <RequestStatusBanner request={request} />
+
+        {/* Sección de Empresas Asignadas */}
+        {request.request_status !== "rejected" && (
+          <CompanyAssignmentSection
+            requestCompany={request.company_id ? {
+              id: request.company_id,
+              business_name: request.company_name,
+              rut: request.company_rut_formatted || request.company_rut,
+            } : null}
+            userCompanies={userCompanies}
+            selectedCompanies={selectedCompanies}
+            onAddCompanies={handleAddCompanies}
+            onRemoveCompany={handleRemoveCompany}
+            isReadOnly={isReadOnly}
+            sapCompanies={sapCompanies}
+            loadingSap={loadingSap}
+            onOpenModal={loadSapCompanies}
+          />
+        )}
 
         {/* Sección de Permisos */}
         {request.request_status !== "rejected" && (

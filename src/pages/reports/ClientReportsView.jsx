@@ -23,26 +23,40 @@ export default function ClientReportsView() {
   const [dateTo, setDateTo] = useState("");
   const [generating, setGenerating] = useState(false);
 
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+
   const baseURL = import.meta.env.VITE_API_BASE_URL;
   const userRole = session?.user?.role;
   const isAdmin = userRole === "root" || userRole === "admin";
   const companyId = session?.user?.company_id;
-  const companyName = session?.user?.company?.business_name || "";
+  const companies = session?.user?.companies || [];
+
+  // Auto-seleccionar empresa: si hay 1 sola, seleccionarla; si hay varias, seleccionar la principal
+  useEffect(() => {
+    if (companies.length === 1 && !selectedCompanyId) {
+      setSelectedCompanyId(String(companies[0].id));
+    } else if (companies.length > 1 && !selectedCompanyId && companyId) {
+      setSelectedCompanyId(String(companyId));
+    }
+  }, [companies]);
 
   useEffect(() => {
     loadReports();
-  }, [companyId, isAdmin]);
+  }, [selectedCompanyId, isAdmin]);
 
   const loadReports = async () => {
     setLoading(true);
     try {
       let response;
-      if (!isAdmin && companyId) {
-        // Para clientes: obtener reportes asignados a su empresa
-        response = await getCompanyReports(companyId);
-      } else {
-        // Para admins: obtener todas las plantillas de reportes
+      if (selectedCompanyId) {
+        // Obtener reportes asignados a la empresa seleccionada
+        response = await getCompanyReports(selectedCompanyId);
+      } else if (isAdmin) {
+        // Para admins sin empresa seleccionada: obtener todas las plantillas
         response = await getReportTemplates();
+      } else {
+        setLoading(false);
+        return;
       }
 
       if (response.success && response.data) {
@@ -91,8 +105,8 @@ export default function ClientReportsView() {
     const params = new URLSearchParams();
     params.append("date_from", dateFrom);
     params.append("date_to", dateTo);
-    if (companyId && !isAdmin) {
-      params.append("company_id", companyId);
+    if (selectedCompanyId) {
+      params.append("company_id", selectedCompanyId);
     }
 
     // Determinar la URL según el tipo de origen
@@ -134,10 +148,21 @@ export default function ClientReportsView() {
           </div>
         </div>
 
-        {companyName && !isAdmin && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
+        {companies.length > 1 && (
+          <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">{companyName}</span>
+            <select
+              value={selectedCompanyId}
+              onChange={(e) => setSelectedCompanyId(e.target.value)}
+              className="min-w-[250px] px-3 py-2 text-sm border border-blue-200 rounded-lg bg-blue-50 text-blue-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Seleccione una empresa</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.business_name} {company.rut ? `(${company.rut})` : ""}
+                </option>
+              ))}
+            </select>
           </div>
         )}
       </div>

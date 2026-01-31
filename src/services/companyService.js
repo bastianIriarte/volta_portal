@@ -32,6 +32,22 @@ export const getCompaniesList = async () => {
   }
 };
 
+// Listar todas las empresas activas desde SAP
+export const getSapCompaniesList = async () => {
+  try {
+    const response = await api.get("/api/companies/sap-list");
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
 // Buscar empresa en SAP por RUT y código SAP
 export const searchCompanyInSap = async (rut, sapCode) => {
   try {

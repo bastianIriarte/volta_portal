@@ -11,7 +11,6 @@ import {
   downloadCertificateExport,
   downloadCertificateVersion,
 } from "../../services/certificateExportService";
-import { getCompaniesList } from "../../services/companyService";
 import { handleSnackbar } from "../../utils/messageHelpers";
 import {
   Award,
@@ -40,7 +39,6 @@ export default function CertificateExportsView() {
   const isAdmin = userRole === "root" || userRole === "admin";
 
   const [exports, setExports] = useState([]);
-  const [companies, setCompanies] = useState([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -56,23 +54,17 @@ export default function CertificateExportsView() {
 
   const { modals, openConfirm, closeModal, openModal } = useModals();
 
-  // Cargar empresas para admin
-  useEffect(() => {
-    if (isAdmin) {
-      loadCompanies();
-    }
-  }, [isAdmin]);
+  const companies = session?.user?.companies || [];
+  const companyId = session?.user?.company_id;
 
-  const loadCompanies = async () => {
-    try {
-      const response = await getCompaniesList();
-      if (response.success && response.data) {
-        setCompanies(response.data);
-      }
-    } catch (error) {
-      console.error("Error loading companies:", error);
+  // Auto-seleccionar empresa: si hay 1 sola, seleccionarla; si hay varias, seleccionar la principal
+  useEffect(() => {
+    if (companies.length === 1 && !selectedCompanyId) {
+      setSelectedCompanyId(String(companies[0].id));
+    } else if (companies.length > 1 && !selectedCompanyId && companyId) {
+      setSelectedCompanyId(String(companyId));
     }
-  };
+  }, [companies]);
 
   // Efecto para mostrar loader cuando cambia la empresa
   useEffect(() => {
@@ -486,8 +478,8 @@ export default function CertificateExportsView() {
           </p>
         </div>
 
-        {/* Selector de empresa para admin */}
-        {isAdmin && (
+        {/* Selector de empresa (multi-empresa) */}
+        {companies.length > 1 && (
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-blue-600" />
             <select

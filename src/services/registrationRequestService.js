@@ -53,11 +53,12 @@ export const getRegistrationRequestById = async (id) => {
   }
 };
 
-// Aprobar solicitud con permisos
-export const approveRequest = async (id, permissions = []) => {
+// Aprobar solicitud con permisos y empresas asignadas
+export const approveRequest = async (id, permissions = [], assignedCompanies = []) => {
   try {
     const response = await api.post(`/api/registration-requests/${id}/approve`, {
       permissions,
+      assigned_companies: assignedCompanies,
     });
     let success = response.status === 200 && !response.error;
     return returnResponse(
@@ -110,6 +111,22 @@ export const saveUserPermissions = async (id, permissions) => {
     const response = await api.post(`/api/registration-requests/${id}/permissions`, {
       permissions,
     });
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Obtener empresas asignadas al usuario de una solicitud
+export const getRequestCompanies = async (id) => {
+  try {
+    const response = await api.get(`/api/registration-requests/${id}/companies`);
     let success = response.status === 200 && !response.error;
     return returnResponse(
       success,

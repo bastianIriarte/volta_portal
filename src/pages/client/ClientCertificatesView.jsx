@@ -5,7 +5,7 @@ import { Select } from "../../components/ui/Select";
 import { SearchableSelect } from "../../components/ui/SearchableSelect";
 import { Input } from "../../components/ui/Input";
 import { useAuth } from "../../context/auth";
-import { getCertificateTemplates, getCertificatesByCompany, getCompanies } from "../../services/companyService";
+import { getCertificateTemplates, getCertificatesByCompany } from "../../services/companyService";
 import { generateCertificatePdfWithDates, getBranches } from "../../services/certificateBuilderService";
 import { getToken } from "../../services/api";
 import { handleSnackbar } from "../../utils/messageHelpers";
@@ -49,10 +49,8 @@ export default function ClientCertificatesView() {
   const [selectedBranch, setSelectedBranch] = useState({ code: "", name: "", address: "" });
   const [loadingBranches, setLoadingBranches] = useState(false);
 
-  // Selector de empresa (para admin/root)
-  const [companies, setCompanies] = useState([]);
+  // Selector de empresa (multi-empresa)
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
-  const [loadingCompanies, setLoadingCompanies] = useState(false);
 
   // Errores de validación
   const [errors, setErrors] = useState({});
@@ -66,12 +64,20 @@ export default function ClientCertificatesView() {
   const companyName = session?.user?.company?.business_name || "";
   const companyRut = session?.user?.company?.rut || "";
 
+  const companies = session?.user?.companies || [];
+
+  // Auto-seleccionar empresa: si hay 1 sola, seleccionarla; si hay varias, seleccionar la principal
+  useEffect(() => {
+    if (companies.length === 1 && !selectedCompanyId) {
+      setSelectedCompanyId(String(companies[0].id));
+    } else if (companies.length > 1 && !selectedCompanyId && companyId) {
+      setSelectedCompanyId(String(companyId));
+    }
+  }, [companies]);
+
   useEffect(() => {
     loadCertificates();
-    if (isAdmin) {
-      loadCompanies();
-    }
-  }, [companyId, isAdmin]);
+  }, [companyId]);
 
   const loadCertificates = async () => {
     setLoading(true);
@@ -92,20 +98,6 @@ export default function ClientCertificatesView() {
       handleSnackbar("Error al cargar certificados", "error");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadCompanies = async () => {
-    setLoadingCompanies(true);
-    try {
-      const response = await getCompanies();
-      if (response.success && response.data) {
-        setCompanies(response.data);
-      }
-    } catch (error) {
-      console.error("Error loading companies:", error);
-    } finally {
-      setLoadingCompanies(false);
     }
   };
 
@@ -261,8 +253,8 @@ export default function ClientCertificatesView() {
       // Construir opciones con todos los parámetros necesarios
       const options = {};
 
-      // company_id: solo enviar si es admin y seleccionó una empresa
-      if (isAdmin && selectedCompanyId) {
+      // company_id: enviar si hay empresa seleccionada
+      if (selectedCompanyId) {
         options.companyId = selectedCompanyId;
       }
 
@@ -639,8 +631,8 @@ export default function ClientCertificatesView() {
             </div>
           </div>
 
-          {/* Selector de empresa (solo admin) */}
-          {isAdmin && (
+          {/* Selector de empresa (multi-empresa) */}
+          {companies.length > 1 && (
             <SearchableSelect
               id="company"
               label="Empresa"

@@ -170,6 +170,41 @@ export const toggleCustomerStatus = async (userId, status) => {
   }
 };
 
+// Obtener empresas asignadas a un usuario
+export const getCustomerCompanies = async (userId) => {
+  try {
+    const response = await api.get(`/api/users/${userId}/companies`);
+    let success = response.status != 200 || response.error ? false : true;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Sincronizar empresas asignadas a un usuario (desde SAP, find-or-create)
+export const saveCustomerCompanies = async (userId, sapCompanies = [], existingCompanyIds = []) => {
+  try {
+    const response = await api.post(`/api/users/${userId}/companies/sync-sap`, {
+      sap_companies: sapCompanies,
+      existing_company_ids: existingCompanyIds
+    });
+    let success = response.status != 200 || response.error ? false : true;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
 // Eliminar un cliente/usuario
 export const deleteCustomerUser = async (userId) => {
   try {

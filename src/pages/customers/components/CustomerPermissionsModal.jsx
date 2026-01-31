@@ -7,14 +7,18 @@ import {
 import {
   getCertificateTemplates,
   getReportTemplates,
-  getDocumentTypes
+  getDocumentTypes,
+  getSapCompaniesList
 } from "../../../services/companyService";
 import {
   getCustomerPermissions,
-  saveCustomerPermissions
+  saveCustomerPermissions,
+  getCustomerCompanies,
+  saveCustomerCompanies
 } from "../../../services/customerService";
 import { handleSnackbar } from "../../../utils/messageHelpers";
 import PermissionSection from "../../registration_requests/components/PermissionSection";
+import CompanyAssignmentSection from "../../registration_requests/components/CompanyAssignmentSection";
 
 export default function CustomerPermissionsModal({ customer, onClose }) {
   const [loading, setLoading] = useState(true);
@@ -30,6 +34,12 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
   const [documents, setDocuments] = useState([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
 
+  // Empresas
+  const [userCompanies, setUserCompanies] = useState([]);
+  const [selectedCompanies, setSelectedCompanies] = useState([]);
+  const [sapCompanies, setSapCompanies] = useState([]);
+  const [loadingSap, setLoadingSap] = useState(false);
+
   useEffect(() => {
     if (customer?.id) {
       loadData();
@@ -43,7 +53,8 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
         loadCurrentPermissions(),
         loadReports(),
         loadCertificates(),
-        loadDocuments()
+        loadDocuments(),
+        loadUserCompanies()
       ]);
     } finally {
       setLoading(false);
@@ -54,11 +65,37 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
     try {
       const response = await getCustomerPermissions(customer.id);
       if (response.success && response.data) {
-        // El endpoint devuelve un array de strings: ["report_1", "cert_2", "doc_3"]
         setSelectedPermissions(response.data);
       }
     } catch (error) {
       console.error("Error loading permissions:", error);
+    }
+  };
+
+  const loadUserCompanies = async () => {
+    try {
+      const response = await getCustomerCompanies(customer.id);
+      if (response.success && response.data) {
+        // Filtrar la empresa principal (se muestra como requestCompany)
+        const filtered = response.data.filter(c => c.id !== customer.company_id);
+        setUserCompanies(filtered);
+      }
+    } catch (error) {
+      console.error("Error loading user companies:", error);
+    }
+  };
+
+  const loadSapCompanies = async () => {
+    setLoadingSap(true);
+    try {
+      const response = await getSapCompaniesList();
+      if (response.success && response.data) {
+        setSapCompanies(response.data);
+      }
+    } catch (error) {
+      console.error("Error loading SAP companies:", error);
+    } finally {
+      setLoadingSap(false);
     }
   };
 
@@ -143,23 +180,55 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
     }
   };
 
+  const handleAddCompanies = (companies) => {
+    setSelectedCompanies(prev => [...prev, ...companies]);
+  };
+
+  const handleRemoveCompany = (idx) => {
+    setSelectedCompanies(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleRemoveUserCompany = (idx) => {
+    setUserCompanies(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      const response = await saveCustomerPermissions(customer.id, selectedPermissions);
-      if (response.success) {
-        handleSnackbar("Permisos guardados correctamente", "success");
+      // Guardar permisos
+      const permResponse = await saveCustomerPermissions(customer.id, selectedPermissions);
+
+      // Guardar empresas: SAP companies nuevas + IDs de empresas existentes
+      const sapCompaniesToSave = selectedCompanies.map(c => ({
+        rut: c.rut,
+        sap_code: c.sap_code,
+        business_name: c.business_name,
+      }));
+      const existingIds = userCompanies.map(c => c.id);
+      const compResponse = await saveCustomerCompanies(customer.id, sapCompaniesToSave, existingIds);
+
+      if (permResponse.success && compResponse.success) {
+        handleSnackbar("Permisos y empresas guardados correctamente", "success");
         onClose(true);
+      } else if (permResponse.success) {
+        handleSnackbar(compResponse.message || "Permisos guardados, pero hubo un error con las empresas", "warning");
       } else {
-        handleSnackbar(response.message || "Error al guardar permisos", "error");
+        handleSnackbar(permResponse.message || "Error al guardar permisos", "error");
       }
     } catch (error) {
-      console.error("Error saving permissions:", error);
-      handleSnackbar("Error al guardar permisos", "error");
+      console.error("Error saving:", error);
+      handleSnackbar("Error al guardar", "error");
     } finally {
       setSaving(false);
     }
   };
+
+  // Empresa principal del cliente
+  const primaryCompany = customer?.company_id ? {
+    id: customer.company_id,
+    business_name: customer.company || "",
+    rut: "",
+  } : null;
 
   const fullName = customer?.name || "";
 
@@ -170,7 +239,7 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
       title={
         <div className="flex items-center gap-2">
           <Shield className="w-5 h-5 text-cyan-600" />
-          Gestionar Permisos
+          Gestionar Permisos y Empresas
         </div>
       }
       size="xl"
@@ -181,9 +250,10 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
           onClick: () => onClose(false)
         },
         {
-          label: saving ? "Guardando..." : "Guardar Permisos",
+          label: saving ? "Guardando..." : "Guardar",
           variant: "primary",
           onClick: handleSave,
+          disabled: saving,
           autofocus: true
         }
       ]}
@@ -202,6 +272,20 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
           </div>
         ) : (
           <>
+            {/* Sección de Empresas Asignadas */}
+            <CompanyAssignmentSection
+              requestCompany={primaryCompany}
+              userCompanies={userCompanies}
+              selectedCompanies={selectedCompanies}
+              onAddCompanies={handleAddCompanies}
+              onRemoveCompany={handleRemoveCompany}
+              onRemoveUserCompany={handleRemoveUserCompany}
+              isReadOnly={false}
+              sapCompanies={sapCompanies}
+              loadingSap={loadingSap}
+              onOpenModal={loadSapCompanies}
+            />
+
             {/* Advertencia */}
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />

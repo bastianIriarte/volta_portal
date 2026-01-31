@@ -12,7 +12,6 @@ import { executeReportByCode, getReportTemplateByCode } from "../../services/rep
 import { getCertificateTemplateByCode } from "../../services/certificateTemplateService";
 import { getCompanyReports } from "../../services/companyReportService";
 import { getLists, getListItems, getSharepointListConfig } from "../../services/microsoftGraphService";
-import { getCompaniesList } from "../../services/companyService";
 import { getTicketImage, checkTicketImages, bulkRegisterTicketImages } from "../../services/ticketImageService";
 import { exportReportToExcel } from "../../services/reportExportService";
 import { handleSnackbar } from "../../utils/messageHelpers";
@@ -71,8 +70,6 @@ export default function UnifiedReportView() {
   const [dateTo, setDateTo] = useState(defaultDates.to);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Estados para selector de empresa (solo admin/super usuario)
-  const [companies, setCompanies] = useState([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
 
   // Estado para loading del iframe
@@ -97,8 +94,18 @@ export default function UnifiedReportView() {
   const userRole = session?.user?.role;
   const isAdmin = userRole === 'root' || userRole === 'admin';
   const userPermissions = session?.user?.permissions_users || [];
+  const companies = session?.user?.companies || [];
 
   const tableContainerRef = useRef(null);
+
+  // Auto-seleccionar empresa: si hay 1 sola, seleccionarla; si hay varias, seleccionar la principal
+  useEffect(() => {
+    if (companies.length === 1 && !selectedCompanyId) {
+      setSelectedCompanyId(String(companies[0].id));
+    } else if (companies.length > 1 && !selectedCompanyId && companyId) {
+      setSelectedCompanyId(String(companyId));
+    }
+  }, [companies]);
 
   useEffect(() => {
     // Resetear estados cuando cambia el reporte
@@ -116,31 +123,25 @@ export default function UnifiedReportView() {
     setDateFrom(dates.from);
     setDateTo(dates.to);
     setSearchTerm("");
-    // Deseleccionar empresa para admin/root al cambiar de reporte (evita errores de render)
-    if (!isClientUser) {
-      setSelectedCompanyId("");
+    // Re-seleccionar empresa principal al cambiar de reporte
+    if (companies.length > 1 && companyId) {
+      setSelectedCompanyId(String(companyId));
     }
 
     loadTemplate();
-    // Cargar lista de empresas para usuarios no-cliente
-    if (!isClientUser) {
-      loadCompanies();
-    }
   }, [certCode, reportCode]);
 
   useEffect(() => {
-    // Para clientes, cargar datos automaticamente al cargar template
-    // Para admin/super, deben usar "Aplicar filtros"
-    // Importante: esperar a que companyId esté disponible de la sesión
-    if (template && isClientUser && companyId) {
+    // Cargar datos automaticamente cuando hay template y empresa seleccionada
+    if (template && selectedCompanyId) {
       loadData();
     }
-  }, [template, companyId]);
+  }, [template, selectedCompanyId]);
 
-  // Efecto para recargar companyReport y datos cuando admin cambia la empresa seleccionada
+  // Efecto para recargar companyReport y datos cuando cambia la empresa seleccionada
   useEffect(() => {
-    console.log('[useEffect selectedCompanyId] Changed to:', selectedCompanyId, 'template:', template?.code, 'isClientUser:', isClientUser);
-    if (!isClientUser && selectedCompanyId && template && templateType === "report") {
+    console.log('[useEffect selectedCompanyId] Changed to:', selectedCompanyId, 'template:', template?.code);
+    if (selectedCompanyId && template && templateType === "report") {
       console.log('[useEffect selectedCompanyId] Conditions met, loading data for company:', selectedCompanyId);
       // Activar loader global
       setGlobalLoading(true);
@@ -160,17 +161,6 @@ export default function UnifiedReportView() {
       loadData(false, selectedCompanyId, { dateFrom: "", dateTo: "" });
     }
   }, [selectedCompanyId]);
-
-  const loadCompanies = async () => {
-    try {
-      const response = await getCompaniesList();
-      if (response.success && response.data) {
-        setCompanies(response.data);
-      }
-    } catch (error) {
-      console.error("Error loading companies:", error);
-    }
-  };
 
   // Verificar si el usuario tiene permiso para acceder al reporte/certificado
   const checkUserPermission = (code, type) => {
@@ -329,8 +319,8 @@ export default function UnifiedReportView() {
   };
 
   const loadSQLData = async (targetCompanyId = null, filters = null) => {
-    // Usar empresa pasada como parámetro, o empresa seleccionada, o empresa del usuario
-    const rawCompanyId = targetCompanyId || (isClientUser ? companyId : selectedCompanyId);
+    // Usar empresa pasada como parámetro, o empresa seleccionada, o empresa del usuario (fallback)
+    const rawCompanyId = targetCompanyId || selectedCompanyId || companyId;
     // Asegurar que company_id sea un número
     const effectiveCompanyId = rawCompanyId ? Number(rawCompanyId) : null;
     // Usar filtros pasados como parámetro, o los del estado
@@ -812,15 +802,8 @@ export default function UnifiedReportView() {
           </div>
         </div>
 
-        {/* Selector de empresa para admin / Nombre de empresa para cliente */}
-        {isClientUser ? (
-          companyName && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
-              <Building2 className="w-5 h-5 text-blue-600" />
-              <span className="text-sm font-medium text-blue-800">{companyName}</span>
-            </div>
-          )
-        ) : (
+        {/* Selector de empresa (multi-empresa) */}
+        {companies.length > 1 ? (
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-blue-600" />
             <select
@@ -835,6 +818,11 @@ export default function UnifiedReportView() {
                 </option>
               ))}
             </select>
+          </div>
+        ) : companies.length === 1 && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
+            <Building2 className="w-5 h-5 text-blue-600" />
+            <span className="text-sm font-medium text-blue-800">{companies[0].business_name}</span>
           </div>
         )}
       </div>

@@ -6,3 +6,4 @@ export { default as RequestStatusBanner, statusConfig } from "./RequestStatusBan
 export { default as RequestManagementSection } from "./RequestManagementSection";
 export { default as RejectModal } from "./RejectModal";
 export { default as ApproveModal } from "./ApproveModal";
+export { default as CompanyAssignmentSection } from "./CompanyAssignmentSection";
