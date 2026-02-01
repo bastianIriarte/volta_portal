@@ -38,6 +38,7 @@ export default function UnifiedReportView() {
   // Obtener parametros de la URL
   const certCode = searchParams.get("cert");
   const reportCode = searchParams.get("report");
+  const urlCompanyId = searchParams.get("company_id");
 
   // Estados generales
   const [loading, setLoading] = useState(true);
@@ -70,7 +71,7 @@ export default function UnifiedReportView() {
   const [dateTo, setDateTo] = useState(defaultDates.to);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [selectedCompanyId, setSelectedCompanyId] = useState(urlCompanyId || "");
 
   // Estado para loading del iframe
   const [iframeLoading, setIframeLoading] = useState(true);
@@ -98,8 +99,9 @@ export default function UnifiedReportView() {
 
   const tableContainerRef = useRef(null);
 
-  // Auto-seleccionar empresa: si hay 1 sola, seleccionarla; si hay varias, seleccionar la principal
+  // Auto-seleccionar empresa solo si no viene en la URL
   useEffect(() => {
+    if (urlCompanyId) return; // Ya viene de la URL, no auto-seleccionar
     if (companies.length === 1 && !selectedCompanyId) {
       setSelectedCompanyId(String(companies[0].id));
     } else if (companies.length > 1 && !selectedCompanyId && companyId) {
@@ -123,8 +125,10 @@ export default function UnifiedReportView() {
     setDateFrom(dates.from);
     setDateTo(dates.to);
     setSearchTerm("");
-    // Re-seleccionar empresa principal al cambiar de reporte
-    if (companies.length > 1 && companyId) {
+    // Re-seleccionar empresa: usar la de URL si existe, o la principal
+    if (urlCompanyId) {
+      setSelectedCompanyId(String(urlCompanyId));
+    } else if (companies.length > 1 && companyId) {
       setSelectedCompanyId(String(companyId));
     }
 
@@ -788,7 +792,19 @@ export default function UnifiedReportView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-      
+          <button
+            onClick={() => {
+              const backPath = templateType === "certificate"
+                ? "/dashboard/mis-certificados"
+                : "/dashboard/mis-reportes";
+              const params = selectedCompanyId ? `?company=${selectedCompanyId}` : "";
+              navigate(`${backPath}${params}`);
+            }}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
+            title="Volver al listado"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               {templateType === "certificate" ? (
@@ -802,29 +818,18 @@ export default function UnifiedReportView() {
           </div>
         </div>
 
-        {/* Selector de empresa (multi-empresa) */}
-        {companies.length > 1 ? (
-          <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-blue-600" />
-            <select
-              value={selectedCompanyId}
-              onChange={(e) => setSelectedCompanyId(e.target.value)}
-              className="min-w-[250px] px-3 py-2 text-sm border border-blue-200 rounded-lg bg-blue-50 text-blue-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Seleccione una empresa</option>
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.business_name} {company.rut ? `(${company.rut})` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : companies.length === 1 && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
-            <Building2 className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">{companies[0].business_name}</span>
-          </div>
-        )}
+        {/* Empresa seleccionada (viene de la URL) */}
+        {selectedCompanyId && (() => {
+          const company = companies.find(c => String(c.id) === selectedCompanyId);
+          return company ? (
+            <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
+              <Building2 className="w-5 h-5 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">
+                {company.business_name} {company.rut ? `(${company.rut})` : ""}
+              </span>
+            </div>
+          ) : null;
+        })()}
       </div>
 
       {/* Tabs - Reporte Visual siempre primero, Detalle solo si no es tipo iframe */}

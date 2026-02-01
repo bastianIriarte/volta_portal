@@ -53,11 +53,11 @@ export const getRegistrationRequestById = async (id) => {
   }
 };
 
-// Aprobar solicitud con permisos y empresas asignadas
-export const approveRequest = async (id, permissions = [], assignedCompanies = []) => {
+// Aprobar solicitud con permisos por empresa y empresas asignadas
+export const approveRequest = async (id, permissionsByCompany = {}, assignedCompanies = []) => {
   try {
     const response = await api.post(`/api/registration-requests/${id}/approve`, {
-      permissions,
+      permissions_by_company: permissionsByCompany,
       assigned_companies: assignedCompanies,
     });
     let success = response.status === 200 && !response.error;
@@ -127,6 +127,26 @@ export const saveUserPermissions = async (id, permissions) => {
 export const getRequestCompanies = async (id) => {
   try {
     const response = await api.get(`/api/registration-requests/${id}/companies`);
+    let success = response.status === 200 && !response.error;
+    return returnResponse(
+      success,
+      success ? response.data.message : response.error,
+      response.status,
+      success ? response.data.data : null
+    );
+  } catch (error) {
+    return error;
+  }
+};
+
+// Guardar progreso del wizard (crea empresas SAP y persiste estado)
+export const saveWizardProgress = async (id, wizardStep, selectedCompanies = [], companyPermissions = {}) => {
+  try {
+    const response = await api.post(`/api/registration-requests/${id}/save-progress`, {
+      wizard_step: wizardStep,
+      selected_companies: selectedCompanies,
+      company_permissions: companyPermissions,
+    });
     let success = response.status === 200 && !response.error;
     return returnResponse(
       success,

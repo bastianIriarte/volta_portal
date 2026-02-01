@@ -345,7 +345,6 @@ export default function CertificateBuilder({ templateId, onClose }) {
         url={pdfPreview.url}
         loading={pdfPreview.loading}
         onRefresh={handleRefreshPdfPreview}
-        onDownload={handleDownloadPdf}
         onClose={handleClosePdfPreview}
         filters={previewFilters}
         onFiltersChange={handleUpdatePreviewFilters}

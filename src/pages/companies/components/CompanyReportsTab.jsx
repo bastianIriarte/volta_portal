@@ -8,9 +8,12 @@ export default function CompanyReportsTab({
   loading,
   toggling,
   onToggle,
+  onToggleAll,
   onOpenConfig
 }) {
   const assignedCount = Object.values(assignedReports).filter(Boolean).length;
+  const allAssigned = templates.length > 0 && assignedCount === templates.length;
+  const isBulkToggling = toggling !== null;
 
   // Helper para verificar si un reporte tiene URL personalizada
   const hasCustomReportUrl = (templateId) => {
@@ -47,6 +50,27 @@ export default function CompanyReportsTab({
             Selecciona los reportes disponibles para esta empresa.
           </p>
         </div>
+        {templates.length > 0 && (
+          <button
+            type="button"
+            disabled={isBulkToggling}
+            onClick={() => onToggleAll(!allAssigned)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+              allAssigned
+                ? "text-red-700 bg-red-50 hover:bg-red-100 border border-red-200"
+                : "text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200"
+            } ${isBulkToggling ? "opacity-50 pointer-events-none" : ""}`}
+          >
+            {isBulkToggling ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : allAssigned ? (
+              <Square className="w-4 h-4" />
+            ) : (
+              <CheckSquare className="w-4 h-4" />
+            )}
+            {allAssigned ? "Quitar todos" : "Asignar todos"}
+          </button>
+        )}
       </div>
 
       {loading ? (

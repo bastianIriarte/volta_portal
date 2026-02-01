@@ -1,15 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Modal } from "../../../components/ui/Modal";
 import {
-  BarChart3, Award, FileText, Loader2,
-  AlertTriangle, Shield
+  Loader2, Shield, Building2, AlertTriangle
 } from "lucide-react";
-import {
-  getCertificateTemplates,
-  getReportTemplates,
-  getDocumentTypes,
-  getSapCompaniesList
-} from "../../../services/companyService";
+import { getSapCompaniesList } from "../../../services/companyService";
 import {
   getCustomerPermissions,
   saveCustomerPermissions,
@@ -17,28 +11,25 @@ import {
   saveCustomerCompanies
 } from "../../../services/customerService";
 import { handleSnackbar } from "../../../utils/messageHelpers";
-import PermissionSection from "../../registration_requests/components/PermissionSection";
 import CompanyAssignmentSection from "../../registration_requests/components/CompanyAssignmentSection";
+import CompanyPermissionCard from "../../registration_requests/components/CompanyPermissionCard";
+import CompanyPermissionModal from "../../registration_requests/components/CompanyPermissionModal";
 
 export default function CustomerPermissionsModal({ customer, onClose }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [selectedPermissions, setSelectedPermissions] = useState([]);
 
-  const [reports, setReports] = useState([]);
-  const [loadingReports, setLoadingReports] = useState(false);
-
-  const [certificates, setCertificates] = useState([]);
-  const [loadingCertificates, setLoadingCertificates] = useState(false);
-
-  const [documents, setDocuments] = useState([]);
-  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  // Permisos por empresa: { companyId: ['report_1', 'cert_2', ...] }
+  const [companyPermissions, setCompanyPermissions] = useState({});
 
   // Empresas
   const [userCompanies, setUserCompanies] = useState([]);
   const [selectedCompanies, setSelectedCompanies] = useState([]);
   const [sapCompanies, setSapCompanies] = useState([]);
   const [loadingSap, setLoadingSap] = useState(false);
+
+  // Modal de permisos por empresa
+  const [permissionModal, setPermissionModal] = useState({ open: false, companyKey: null, company: null });
 
   useEffect(() => {
     if (customer?.id) {
@@ -51,9 +42,6 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
     try {
       await Promise.all([
         loadCurrentPermissions(),
-        loadReports(),
-        loadCertificates(),
-        loadDocuments(),
         loadUserCompanies()
       ]);
     } finally {
@@ -65,7 +53,17 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
     try {
       const response = await getCustomerPermissions(customer.id);
       if (response.success && response.data) {
-        setSelectedPermissions(response.data);
+        // response.data es un mapa { companyId: ['report_1', ...], ... }
+        if (typeof response.data === 'object' && !Array.isArray(response.data)) {
+          setCompanyPermissions(response.data);
+        } else {
+          // Backward compat: si viene como array plano, asignar a empresa principal
+          setCompanyPermissions(
+            Array.isArray(response.data) && response.data.length > 0
+              ? { [String(customer.company_id)]: response.data }
+              : {}
+          );
+        }
       }
     } catch (error) {
       console.error("Error loading permissions:", error);
@@ -76,7 +74,7 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
     try {
       const response = await getCustomerCompanies(customer.id);
       if (response.success && response.data) {
-        // Filtrar la empresa principal (se muestra como requestCompany)
+        // Filtrar la empresa principal
         const filtered = response.data.filter(c => c.id !== customer.company_id);
         setUserCompanies(filtered);
       }
@@ -99,113 +97,142 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
     }
   };
 
-  const loadReports = async () => {
-    setLoadingReports(true);
-    try {
-      const response = await getReportTemplates();
-      if (response.success && response.data) {
-        setReports(response.data.map(report => ({
-          id: `report_${report.id}`,
-          reportId: report.id,
-          code: report.code,
-          name: report.name,
-          description: report.description || `Acceso a ${report.name}`,
-        })));
-      }
-    } catch (error) {
-      console.error("Error loading reports:", error);
-    } finally {
-      setLoadingReports(false);
-    }
-  };
-
-  const loadCertificates = async () => {
-    setLoadingCertificates(true);
-    try {
-      const response = await getCertificateTemplates();
-      if (response.success && response.data) {
-        setCertificates(response.data.map(cert => ({
-          id: `cert_${cert.id}`,
-          certificateId: cert.id,
-          code: cert.code,
-          name: cert.name,
-          description: cert.description || `Acceso a ${cert.name}`,
-        })));
-      }
-    } catch (error) {
-      console.error("Error loading certificates:", error);
-    } finally {
-      setLoadingCertificates(false);
-    }
-  };
-
-  const loadDocuments = async () => {
-    setLoadingDocuments(true);
-    try {
-      const companyId = customer?.company_id;
-      if (companyId) {
-        const response = await getDocumentTypes(companyId);
-        if (response.success && response.data) {
-          setDocuments(response.data.map(doc => ({
-            id: `doc_${doc.id}`,
-            documentId: doc.id,
-            name: doc.name,
-            description: doc.description || `Acceso a ${doc.name}`,
-          })));
-        }
-      }
-    } catch (error) {
-      console.error("Error loading documents:", error);
-    } finally {
-      setLoadingDocuments(false);
-    }
-  };
-
-  const handleTogglePermission = (permId) => {
-    setSelectedPermissions(prev =>
-      prev.includes(permId)
-        ? prev.filter(p => p !== permId)
-        : [...prev, permId]
-    );
-  };
-
-  const handleSelectAll = (items) => {
-    const ids = items.map(item => item.id);
-    const allSelected = ids.every(itemId => selectedPermissions.includes(itemId));
-
-    if (allSelected) {
-      setSelectedPermissions(prev => prev.filter(p => !ids.includes(p)));
-    } else {
-      setSelectedPermissions(prev => [...new Set([...prev, ...ids])]);
-    }
-  };
-
   const handleAddCompanies = (companies) => {
     setSelectedCompanies(prev => [...prev, ...companies]);
   };
 
   const handleRemoveCompany = (idx) => {
+    const removed = selectedCompanies[idx];
     setSelectedCompanies(prev => prev.filter((_, i) => i !== idx));
+    if (removed) {
+      const key = `sap_${removed.sap_code}`;
+      setCompanyPermissions(prev => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
   };
 
   const handleRemoveUserCompany = (idx) => {
+    const removed = userCompanies[idx];
     setUserCompanies(prev => prev.filter((_, i) => i !== idx));
+    if (removed) {
+      const key = String(removed.id);
+      setCompanyPermissions(prev => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  };
+
+  // Permisos por empresa
+  const handleOpenPermissionModal = (companyKey, company) => {
+    setPermissionModal({ open: true, companyKey, company });
+  };
+
+  const handleSavePermissionModal = (companyKey, permissions) => {
+    setCompanyPermissions(prev => ({
+      ...prev,
+      [companyKey]: permissions,
+    }));
+    setPermissionModal({ open: false, companyKey: null, company: null });
+  };
+
+  const handleEditCompany = (companyId) => {
+    window.open(`/dashboard/empresas/${companyId}/gestionar`, "_blank");
+  };
+
+  const handleRemoveCompanyCard = (companyKey) => {
+    if (companyKey.startsWith("sap_")) {
+      const sapCode = companyKey.replace("sap_", "");
+      setSelectedCompanies(prev => prev.filter(c => c.sap_code !== sapCode));
+    } else {
+      setUserCompanies(prev => prev.filter(c => String(c.id) !== companyKey));
+    }
+    setCompanyPermissions(prev => {
+      const next = { ...prev };
+      delete next[companyKey];
+      return next;
+    });
+  };
+
+  // Construir lista de empresas
+  const getAllCompanies = () => {
+    const companies = [];
+
+    if (customer?.company_id) {
+      companies.push({
+        key: String(customer.company_id),
+        company: {
+          id: customer.company_id,
+          business_name: customer.company || "",
+          rut: "",
+        },
+        isPrimary: true,
+      });
+    }
+
+    userCompanies.forEach(c => {
+      companies.push({
+        key: String(c.id),
+        company: c,
+        isPrimary: false,
+      });
+    });
+
+    selectedCompanies.forEach(c => {
+      companies.push({
+        key: `sap_${c.sap_code}`,
+        company: c,
+        isPrimary: false,
+      });
+    });
+
+    return companies;
+  };
+
+  const getTotalPermissionsCount = () => {
+    return Object.values(companyPermissions).reduce((sum, perms) => sum + perms.length, 0);
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Guardar permisos
-      const permResponse = await saveCustomerPermissions(customer.id, selectedPermissions);
+      // Construir mapa final: company_id real → permisos
+      const permsByCompany = {};
 
-      // Guardar empresas: SAP companies nuevas + IDs de empresas existentes
+      // Empresa principal
+      const primaryKey = String(customer.company_id);
+      if (companyPermissions[primaryKey]?.length > 0) {
+        permsByCompany[primaryKey] = companyPermissions[primaryKey];
+      }
+
+      // Empresas existentes
+      userCompanies.forEach(c => {
+        const key = String(c.id);
+        if (companyPermissions[key]?.length > 0) {
+          permsByCompany[key] = companyPermissions[key];
+        }
+      });
+
+      // Empresas nuevas SAP — se guardarán primero via sync, luego permisos
+      // Para SAP companies, no podemos enviar permisos hasta que tengan ID
+      // Primero guardamos empresas, luego permisos
+
+      // 1. Guardar empresas
       const sapCompaniesToSave = selectedCompanies.map(c => ({
         rut: c.rut,
         sap_code: c.sap_code,
         business_name: c.business_name,
       }));
-      const existingIds = userCompanies.map(c => c.id);
+      const existingIds = [customer.company_id, ...userCompanies.map(c => c.id)];
+
       const compResponse = await saveCustomerCompanies(customer.id, sapCompaniesToSave, existingIds);
+
+      // 2. Guardar permisos por empresa
+      const permResponse = await saveCustomerPermissions(customer.id, permsByCompany);
 
       if (permResponse.success && compResponse.success) {
         handleSnackbar("Permisos y empresas guardados correctamente", "success");
@@ -223,7 +250,6 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
     }
   };
 
-  // Empresa principal del cliente
   const primaryCompany = customer?.company_id ? {
     id: customer.company_id,
     business_name: customer.company || "",
@@ -233,117 +259,108 @@ export default function CustomerPermissionsModal({ customer, onClose }) {
   const fullName = customer?.name || "";
 
   return (
-    <Modal
-      open={true}
-      onClose={() => onClose(false)}
-      title={
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-cyan-600" />
-          Gestionar Permisos y Empresas
-        </div>
-      }
-      size="xl"
-      actions={[
-        {
-          label: "Cancelar",
-          variant: "outline",
-          onClick: () => onClose(false)
-        },
-        {
-          label: saving ? "Guardando..." : "Guardar",
-          variant: "primary",
-          onClick: handleSave,
-          disabled: saving,
-          autofocus: true
-        }
-      ]}
-    >
-      <div className="space-y-4">
-        {/* Info del cliente */}
-        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-          <p className="text-sm text-gray-600">Cliente:</p>
-          <p className="font-semibold text-gray-900">{fullName}</p>
-          <p className="text-sm text-gray-500">{customer?.email}</p>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-cyan-600" />
+    <>
+      <Modal
+        open={true}
+        onClose={() => onClose(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-cyan-600" />
+            Gestionar Permisos y Empresas
           </div>
-        ) : (
-          <>
-            {/* Sección de Empresas Asignadas */}
-            <CompanyAssignmentSection
-              requestCompany={primaryCompany}
-              userCompanies={userCompanies}
-              selectedCompanies={selectedCompanies}
-              onAddCompanies={handleAddCompanies}
-              onRemoveCompany={handleRemoveCompany}
-              onRemoveUserCompany={handleRemoveUserCompany}
-              isReadOnly={false}
-              sapCompanies={sapCompanies}
-              loadingSap={loadingSap}
-              onOpenModal={loadSapCompanies}
-            />
+        }
+        size="xl"
+        actions={[
+          {
+            label: "Cancelar",
+            variant: "outline",
+            onClick: () => onClose(false)
+          },
+          {
+            label: saving ? "Guardando..." : "Guardar",
+            variant: "primary",
+            onClick: handleSave,
+            disabled: saving,
+            autofocus: true
+          }
+        ]}
+      >
+        <div className="space-y-4">
+          {/* Info del cliente */}
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <p className="text-sm text-gray-600">Cliente:</p>
+            <p className="font-semibold text-gray-900">{fullName}</p>
+            <p className="text-sm text-gray-500">{customer?.email}</p>
+          </div>
 
-            {/* Advertencia */}
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-amber-800">
-                  Selecciona los permisos de acceso
-                </p>
-                <p className="text-sm text-amber-700 mt-1">
-                  El cliente tendrá acceso a los reportes, certificados y documentos seleccionados.
-                </p>
-              </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-600" />
             </div>
+          ) : (
+            <>
+              {/* Sección de Empresas Asignadas */}
+              <CompanyAssignmentSection
+                requestCompany={primaryCompany}
+                userCompanies={userCompanies}
+                selectedCompanies={selectedCompanies}
+                onAddCompanies={handleAddCompanies}
+                onRemoveCompany={handleRemoveCompany}
+                onRemoveUserCompany={handleRemoveUserCompany}
+                isReadOnly={false}
+                sapCompanies={sapCompanies}
+                loadingSap={loadingSap}
+                onOpenModal={loadSapCompanies}
+              />
 
-            {/* Secciones de permisos */}
-            <PermissionSection
-              title="Reportes"
-              icon={BarChart3}
-              iconColor="text-cyan-600"
-              colorScheme="cyan"
-              items={reports}
-              selectedPermissions={selectedPermissions}
-              loading={loadingReports}
-              isReadOnly={false}
-              onToggle={handleTogglePermission}
-              onSelectAll={() => handleSelectAll(reports)}
-              emptyMessage="No hay reportes disponibles"
-            />
+              {/* Advertencia */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">
+                    Permisos por empresa
+                  </p>
+                  <p className="text-sm text-amber-700 mt-1">
+                    Haga clic en "Permisos" en cada empresa para configurar acceso a reportes, certificados y documentos.
+                  </p>
+                </div>
+              </div>
 
-            <PermissionSection
-              title="Certificados"
-              icon={Award}
-              iconColor="text-amber-600"
-              colorScheme="amber"
-              items={certificates}
-              selectedPermissions={selectedPermissions}
-              loading={loadingCertificates}
-              isReadOnly={false}
-              onToggle={handleTogglePermission}
-              onSelectAll={() => handleSelectAll(certificates)}
-              emptyMessage="No hay certificados disponibles"
-            />
+              {/* Cards de empresas con permisos */}
+              <div className="space-y-3">
+                {getAllCompanies().map(({ key, company, isPrimary }) => (
+                  <CompanyPermissionCard
+                    key={key}
+                    company={company}
+                    companyKey={key}
+                    isPrimary={isPrimary}
+                    permissions={companyPermissions[key] || []}
+                    onManagePermissions={handleOpenPermissionModal}
+                    onEditCompany={company.id ? handleEditCompany : null}
+                    onRemove={!isPrimary ? handleRemoveCompanyCard : null}
+                    isReadOnly={false}
+                  />
+                ))}
+              </div>
 
-            <PermissionSection
-              title="Documentos"
-              icon={FileText}
-              iconColor="text-emerald-600"
-              colorScheme="emerald"
-              items={documents}
-              selectedPermissions={selectedPermissions}
-              loading={loadingDocuments}
-              isReadOnly={false}
-              onToggle={handleTogglePermission}
-              onSelectAll={() => handleSelectAll(documents)}
-              emptyMessage="No hay documentos disponibles"
-            />
-          </>
-        )}
-      </div>
-    </Modal>
+              {/* Resumen */}
+              <div className="text-sm text-gray-500 text-right">
+                {getTotalPermissionsCount()} permiso{getTotalPermissionsCount() !== 1 ? "s" : ""} configurado{getTotalPermissionsCount() !== 1 ? "s" : ""} en {getAllCompanies().length} empresa{getAllCompanies().length !== 1 ? "s" : ""}
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
+
+      {/* Modal de permisos por empresa */}
+      <CompanyPermissionModal
+        open={permissionModal.open}
+        company={permissionModal.company}
+        companyKey={permissionModal.companyKey}
+        currentPermissions={companyPermissions[permissionModal.companyKey] || []}
+        onSave={handleSavePermissionModal}
+        onClose={() => setPermissionModal({ open: false, companyKey: null, company: null })}
+      />
+    </>
   );
 }

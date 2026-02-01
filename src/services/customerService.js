@@ -135,12 +135,12 @@ export const getCustomerPermissions = async (userId) => {
   }
 };
 
-// Asignar permisos masivamente a un cliente/usuario
-export const saveCustomerPermissions = async (userId, permissions) => {
+// Asignar permisos por empresa a un cliente/usuario
+export const saveCustomerPermissions = async (userId, permissionsByCompany) => {
   try {
-    const response = await api.post(`/api/user-permissions/bulk`, {
+    const response = await api.post(`/api/user-permissions/bulk-per-company`, {
       user_id: userId,
-      permissions: permissions
+      permissions_by_company: permissionsByCompany
     });
     let success = response.status != 200 || response.error ? false : true;
     return returnResponse(

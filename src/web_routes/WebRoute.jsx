@@ -21,6 +21,7 @@ import {
   History,
   Upload,
   Download,
+  BarChart3,
 } from "lucide-react";
 
 
@@ -47,6 +48,7 @@ import TableProcessorsView from "../pages/table_processors/TableProcessorsView";
 // Plantillas de Reportes
 import ReportTemplatesView from "../pages/report_templates/ReportTemplatesView";
 import ReportExportsView from "../pages/reports/ReportExportsView";
+import ClientReportsView from "../pages/reports/ClientReportsView";
 
 // Gestión de Imágenes de Tickets
 import TicketImagesView from "../pages/ticket_images/TicketImagesView";
@@ -76,6 +78,7 @@ export const APP_ROUTES = [
   // ========================================
   // MÓDULO DE CLIENTE (Basado en permisos específicos del usuario)
   // ========================================
+  { path: "/dashboard/mis-reportes", element: <ClientReportsView />, permission: "my.reports", label: "Listado de Reportes", id: "mis-reportes", isMenu: true, section: "reportes", icon: BarChart3 },
   { path: "/dashboard/report-exports", element: <ReportExportsView />, permission: "exports.reports", label: "Reportes Descargados", id: "report-exports", isMenu: true, section: "reportes", icon: Download },
   { path: "/dashboard/mis-certificados", element: <ClientCertificatesView />, permission: "my.certificates", label: "Listado de Certificados", id: "mis-certificados", isMenu: true, section: "certificados", icon: Award },
   { path: "/dashboard/certificate-exports", element: <CertificateExportsView />, permission: "exports.certificates", label: "Certificados Descargados", id: "certificate-exports", isMenu: true, section: "certificados", icon: Download },

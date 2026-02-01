@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
-import { Search, FileCheck, FileX, Hash, KeyRound, ArrowLeft, XCircle } from "lucide-react";
+import { Search, FileCheck, FileX, Hash, KeyRound, ArrowLeft, Download, AlertTriangle, RotateCcw } from "lucide-react";
 import { Link } from "react-router-dom";
 import FooterNoLogin from "./common/FooterNoLogin";
 import api from "../services/api";
@@ -12,6 +12,7 @@ export default function ValidateCertificate() {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({ certificateNumber: false, validationCode: false });
   const [submitting, setSubmitting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [result, setResult] = useState(null);
 
   const validateCertificateNumber = (val) => {
@@ -100,6 +101,40 @@ export default function ValidateCertificate() {
     }
   };
 
+  const handleDownload = async () => {
+    try {
+      setDownloading(true);
+      const response = await api.post("/api/certificates/validate/download", {
+        certificate_number: certificateNumber,
+        validation_code: validationCode
+      }, {
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `certificado_${certificateNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error downloading certificate:", err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleReset = () => {
+    setResult(null);
+    setCertificateNumber("");
+    setValidationCode("");
+    setErrors({});
+    setTouched({ certificateNumber: false, validationCode: false });
+  };
+
   const showCertErr = !!errors.certificateNumber;
   const showCodeErr = !!errors.validationCode;
 
@@ -123,131 +158,172 @@ export default function ValidateCertificate() {
             Ingresa los datos del certificado para verificar su autenticidad
           </p>
 
-          {/* Resultado de validación */}
-          {result && (
-            <div className={`mb-4 rounded-lg border px-4 py-3 relative ${
-              result.valid
-                ? "border-green-200 bg-green-50"
-                : "border-red-200 bg-red-50"
-            }`}>
-              <div className="flex items-start gap-3">
-                {result.valid ? (
-                  <FileCheck className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <FileX className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-                )}
-                <button
-                  onClick={() => setResult(null)}
-                  className={`absolute top-2 right-2 transition-colors ${
-                    result.valid
-                      ? "text-green-400 hover:text-green-600"
-                      : "text-red-400 hover:text-red-600"
-                  }`}
-                >
-                  <XCircle className="w-5 h-5" />
-                </button>
-                <div className="flex-1">
+          {result ? (
+            <div className="space-y-4">
+              {/* Resultado de validación */}
+              <div className={`rounded-lg border px-4 py-3 ${
+                result.valid
+                  ? "border-blue-200 bg-blue-50"
+                  : "border-red-200 bg-red-50"
+              }`}>
+                <div className="flex items-start gap-3">
                   {result.valid ? (
-                    <>
-                      <p className="font-semibold text-green-800">Certificado Válido</p>
-                      <div className="mt-2 text-sm text-green-700 space-y-1">
-                        <p><span className="font-medium">Empresa:</span> {result.data.company_name}</p>
-                        <p><span className="font-medium">Certificado:</span> {result.data.certificate_name}</p>
-                        <p><span className="font-medium">Fecha emisión:</span> {result.data.assigned_date}</p>
-                        {result.data.expiration_date && (
-                          <p><span className="font-medium">Fecha expiración:</span> {result.data.expiration_date}</p>
-                        )}
-                        <p><span className="font-medium">Estado:</span> {" "}
-                          <span className={result.data.status === 'active' ? 'text-green-600 font-semibold' : 'text-amber-600 font-semibold'}>
-                            {result.data.status_label}
-                          </span>
-                        </p>
-                      </div>
-                    </>
+                    <FileCheck className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                   ) : (
-                    <>
-                      <p className="font-semibold text-red-800">Certificado No Válido</p>
-                      <p className="text-sm text-red-700 mt-1">{result.message}</p>
-                    </>
+                    <FileX className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    {result.valid ? (
+                      <>
+                        <p className="font-semibold text-blue-800">Certificado Válido</p>
+                        <div className="mt-2 text-sm text-blue-700 space-y-1">
+                          <p><span className="font-medium">Empresa:</span> {result.data.company_name}</p>
+                          {result.data.company_rut && result.data.company_rut !== 'N/A' && (
+                            <p><span className="font-medium">RUT:</span> {result.data.company_rut}</p>
+                          )}
+                          <p><span className="font-medium">Certificado:</span> {result.data.certificate_name}</p>
+                          <p><span className="font-medium">Fecha emisión:</span> {result.data.assigned_date}</p>
+                          {result.data.expiration_date && (
+                            <p><span className="font-medium">Fecha expiración:</span> {result.data.expiration_date}</p>
+                          )}
+                          <p><span className="font-medium">Estado:</span>{" "}
+                            <span className={result.data.status === 'active' ? 'text-blue-600 font-semibold' : 'text-amber-600 font-semibold'}>
+                              {result.data.status_label}
+                            </span>
+                          </p>
+                          {result.data.version_number && (
+                            <p><span className="font-medium">Versión:</span> {result.data.version_number}</p>
+                          )}
+                        </div>
+
+                        {/* Aviso de versión no reciente */}
+                        {result.data.is_latest_version === false && (
+                          <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-amber-700">
+                              Este certificado es válido, pero existe una <strong>versión más reciente (v{result.data.latest_version_number})</strong>. Solicite al emisor la versión actualizada.
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Botón de descarga */}
+                        {result.data.type === 'certificate_export' && result.data.version_id && (
+                          <button
+                            onClick={handleDownload}
+                            disabled={downloading}
+                            className="mt-3 w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            <Download className="w-4 h-4" />
+                            {downloading ? "Descargando..." : "Descargar Certificado PDF"}
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-semibold text-red-800">Certificado No Válido</p>
+                        <p className="text-sm text-red-700 mt-1">{result.message}</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Botón validar otro */}
+              <button
+                onClick={handleReset}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-[var(--brand-primary)] bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Validar otro certificado
+              </button>
+
+              <div className="text-center">
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-600)] transition-colors"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Volver al inicio de sesión
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Campo Número de Certificado */}
+                <div>
+                  <div className="relative">
+                    <Input
+                      required
+                      label="NÚMERO DEL CERTIFICADO"
+                      type="text"
+                      placeholder="Ej: 74"
+                      value={certificateNumber}
+                      onChange={onCertificateNumberChange}
+                      onBlur={() => onBlurField("certificateNumber")}
+                      aria-invalid={showCertErr}
+                      aria-describedby={showCertErr ? "err-cert" : undefined}
+                      className={showCertErr ? "border-red-400 focus:ring-red-200 pr-10" : "pr-10"}
+                    />
+                    <div className="absolute inset-y-0 right-0 top-4 pr-3 flex items-center pointer-events-none">
+                      <Hash className="h-4 w-4 text-gray-400" />
+                    </div>
+                  </div>
+                  {showCertErr && (
+                    <p id="err-cert" className="mt-1 text-xs text-red-600">
+                      {errors.certificateNumber}
+                    </p>
                   )}
                 </div>
+
+                {/* Campo Código de Validación */}
+                <div>
+                  <div className="relative">
+                    <Input
+                      required
+                      label="CÓDIGO DE VALIDACIÓN"
+                      type="text"
+                      placeholder="Ej: 8d30-c751-00e8"
+                      value={validationCode}
+                      onChange={onValidationCodeChange}
+                      onBlur={() => onBlurField("validationCode")}
+                      aria-invalid={showCodeErr}
+                      aria-describedby={showCodeErr ? "err-code" : undefined}
+                      className={showCodeErr ? "border-red-400 focus:ring-red-200 pr-10" : "pr-10"}
+                    />
+                    <div className="absolute inset-y-0 right-0 top-4 pr-3 flex items-center pointer-events-none">
+                      <KeyRound className="h-4 w-4 text-gray-400" />
+                    </div>
+                  </div>
+                  {showCodeErr && (
+                    <p id="err-code" className="mt-1 text-xs text-red-600">
+                      {errors.validationCode}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  icon={Search}
+                  className="w-full text-center justify-center"
+                  disabled={submitting}
+                >
+                  {submitting ? "Validando…" : "Validar"}
+                </Button>
+              </form>
+
+              <div className="pt-4 text-center">
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-600)] transition-colors"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Volver al inicio de sesión
+                </Link>
               </div>
-            </div>
+            </>
           )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Campo Número de Certificado */}
-            <div>
-              <div className="relative">
-                <Input
-                  required
-                  label="NÚMERO DEL CERTIFICADO"
-                  type="text"
-                  placeholder="Ej: 5522"
-                  value={certificateNumber}
-                  onChange={onCertificateNumberChange}
-                  onBlur={() => onBlurField("certificateNumber")}
-                  aria-invalid={showCertErr}
-                  aria-describedby={showCertErr ? "err-cert" : undefined}
-                  className={showCertErr ? "border-red-400 focus:ring-red-200 pr-10" : "pr-10"}
-                />
-                <div className="absolute inset-y-0 right-0 top-4 pr-3 flex items-center pointer-events-none">
-                  <Hash className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-              {showCertErr && (
-                <p id="err-cert" className="mt-1 text-xs text-red-600">
-                  {errors.certificateNumber}
-                </p>
-              )}
-            </div>
-
-            {/* Campo Código de Validación */}
-            <div>
-              <div className="relative">
-                <Input
-                  required
-                  label="CÓDIGO DE VALIDACIÓN"
-                  type="text"
-                  placeholder="Ej: 8d30-c751-00e8"
-                  value={validationCode}
-                  onChange={onValidationCodeChange}
-                  onBlur={() => onBlurField("validationCode")}
-                  aria-invalid={showCodeErr}
-                  aria-describedby={showCodeErr ? "err-code" : undefined}
-                  className={showCodeErr ? "border-red-400 focus:ring-red-200 pr-10" : "pr-10"}
-                />
-                <div className="absolute inset-y-0 right-0 top-4 pr-3 flex items-center pointer-events-none">
-                  <KeyRound className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-              {showCodeErr && (
-                <p id="err-code" className="mt-1 text-xs text-red-600">
-                  {errors.validationCode}
-                </p>
-              )}
-            </div>
-
-            <Button
-              type="submit"
-              size="lg"
-              icon={Search}
-              className="w-full text-center justify-center"
-              disabled={submitting}
-            >
-              {submitting ? "Validando…" : "Validar"}
-            </Button>
-          </form>
-
-          <div className="pt-4 text-center">
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-600)] transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Volver al inicio de sesión
-            </Link>
-          </div>
         </div>
 
         <FooterNoLogin />

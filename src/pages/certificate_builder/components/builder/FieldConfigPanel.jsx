@@ -1020,19 +1020,27 @@ export default function FieldConfigPanel({
             {field.field_type !== "spacer" && field.field_type !== "divider" && field.field_type !== "break_page" && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Ancho campo
+                  Ancho campo (col)
                 </label>
                 <div className="flex gap-1 flex-wrap">
                   {[
-                    { value: "100%", label: "100%" },
-                    { value: "75%", label: "75%" },
-                    { value: "50%", label: "50%" },
-                    { value: "33.33%", label: "33%" },
-                    { value: "25%", label: "25%" },
+                    { value: "100%", label: "12" },
+                    { value: "91.66%", label: "11" },
+                    { value: "83.33%", label: "10" },
+                    { value: "75%", label: "9" },
+                    { value: "66.66%", label: "8" },
+                    { value: "58.33%", label: "7" },
+                    { value: "50%", label: "6" },
+                    { value: "41.66%", label: "5" },
+                    { value: "33.33%", label: "4" },
+                    { value: "25%", label: "3" },
+                    { value: "16.66%", label: "2" },
+                    { value: "8.33%", label: "1" },
                   ].map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => handleStyleChange("width", opt.value)}
+                      title={`col-${opt.label} (${opt.value})`}
                       className={`px-2 py-1 text-xs rounded ${editedField.styles?.width === opt.value ||
                         (!editedField.styles?.width && opt.value === "100%")
                         ? "bg-sky-100 text-sky-700 border border-sky-300"

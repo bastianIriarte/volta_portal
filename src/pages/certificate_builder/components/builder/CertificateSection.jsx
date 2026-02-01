@@ -132,7 +132,7 @@ export default function CertificateSection({
       }
 
       case "paragraph": {
-        let text = field.default_value || value || "Texto de párrafo...";
+        let text = field.default_value || value || "Sin texto (no visible)";
         text = text.replace(
           /\{([^}]+)\}/g,
           (_, key) => resolveValue(key) || `{${key}}`
@@ -209,15 +209,13 @@ export default function CertificateSection({
 
       <div
         className={`px-8 pt-4 ${fields.length === 0 ? "opacity-0" : ""}`}
-        style={{ minHeight: isMain ? "400px" : "80px", fontSize: 0 }}
+        style={{ minHeight: isMain ? "400px" : "80px", display: "flex", flexWrap: "wrap", alignItems: "flex-start" }}
       >
         {fields.map((field, index) => {
           const isHovered = hoveredField === field.id;
 
           const fieldStyles = {
             width: field.styles?.width || "100%",
-            display: "inline-block",
-            verticalAlign: "top",
             fontSize: field.styles?.fontSize || "",
             ...field.styles,
           };

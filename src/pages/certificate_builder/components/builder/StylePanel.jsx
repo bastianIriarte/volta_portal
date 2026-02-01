@@ -27,12 +27,18 @@ const fontSizes = [
 ];
 
 const columnOptions = [
-  { label: "100%", value: "100%" },
-  { label: "75%", value: "75%" },
-  { label: "66%", value: "66.66%" },
-  { label: "50%", value: "50%" },
-  { label: "33%", value: "33.33%" },
-  { label: "25%", value: "25%" },
+  { label: "12", value: "100%" },
+  { label: "11", value: "91.66%" },
+  { label: "10", value: "83.33%" },
+  { label: "9", value: "75%" },
+  { label: "8", value: "66.66%" },
+  { label: "7", value: "58.33%" },
+  { label: "6", value: "50%" },
+  { label: "5", value: "41.66%" },
+  { label: "4", value: "33.33%" },
+  { label: "3", value: "25%" },
+  { label: "2", value: "16.66%" },
+  { label: "1", value: "8.33%" },
 ];
 
 export default function StylePanel({ field, onUpdate, onClose }) {
@@ -235,6 +241,7 @@ export default function StylePanel({ field, onUpdate, onClose }) {
             <button
               key={opt.value}
               onClick={() => handleStyleChange("width", opt.value)}
+              title={`col-${opt.label} (${opt.value})`}
               className={`px-2 py-1 text-xs rounded ${
                 styles.width === opt.value
                   ? "bg-sky-100 text-sky-700 border border-sky-300"

@@ -77,16 +77,19 @@ export default function ClientCertificatesView() {
 
   useEffect(() => {
     loadCertificates();
-  }, [companyId]);
+  }, [selectedCompanyId, isAdmin]);
 
   const loadCertificates = async () => {
     setLoading(true);
     try {
       let response;
-      if (!isAdmin && companyId) {
-        response = await getCertificatesByCompany(companyId);
-      } else {
+      if (selectedCompanyId) {
+        response = await getCertificatesByCompany(selectedCompanyId);
+      } else if (isAdmin) {
         response = await getCertificateTemplates();
+      } else {
+        setLoading(false);
+        return;
       }
 
       if (response.success && response.data) {
@@ -146,11 +149,9 @@ export default function ClientCertificatesView() {
 
     // Cargar sucursales si aplica
     if (cert.query_branches) {
-      const rutToUse = isAdmin && selectedCompanyId
-        ? companies.find(c => c.id === parseInt(selectedCompanyId))?.rut
-        : companyRut;
+      const selectedCompany = companies.find(c => c.id === parseInt(selectedCompanyId));
+      const rutToUse = selectedCompany?.rut || companyRut;
       if (rutToUse) {
-        // Pasar el ID de la plantilla para usar el data source de sucursales configurado
         loadBranches(rutToUse, cert.id);
       }
     }
@@ -169,14 +170,6 @@ export default function ClientCertificatesView() {
   const validateAll = () => {
     const newErrors = {};
     const { dateFrom: from, dateTo: to } = getDateParams();
-
-    // Validar empresa (solo admin)
-    if (isAdmin) {
-      const companyValidation = validateField(selectedCompanyId, "select", true, "Seleccione una empresa");
-      if (!companyValidation.validate) {
-        newErrors.company = companyValidation.msg;
-      }
-    }
 
     // Validar sucursal si el certificado requiere sucursal
     if (selectedCert?.query_branches) {
@@ -207,23 +200,6 @@ export default function ClientCertificatesView() {
     }
 
     return !hasErrors;
-  };
-
-  // Cuando cambia la empresa seleccionada (para admin)
-  const handleCompanyChange = (e) => {
-    const newCompanyId = e.target.value;
-    setSelectedCompanyId(newCompanyId);
-    setSelectedBranch({ code: "", name: "", address: "" });
-    setBranches([]);
-
-    // Si hay un certificado seleccionado y requiere sucursales, recargarlas
-    if (selectedCert?.query_branches && newCompanyId) {
-      const company = companies.find(c => c.id === parseInt(newCompanyId));
-      if (company?.rut) {
-        // Pasar el ID de la plantilla para usar el data source de sucursales configurado
-        loadBranches(company.rut, selectedCert.id);
-      }
-    }
   };
 
   const getDateParams = () => {
@@ -298,7 +274,7 @@ export default function ClientCertificatesView() {
 
   // Obtener empresa activa (la seleccionada o la del usuario)
   const getActiveCompany = () => {
-    if (isAdmin && selectedCompanyId) {
+    if (selectedCompanyId) {
       return companies.find(c => c.id === parseInt(selectedCompanyId));
     }
     return session?.user?.company;
@@ -308,7 +284,7 @@ export default function ClientCertificatesView() {
   const buildPdfOptions = useCallback(() => {
     const options = {};
 
-    if (isAdmin && selectedCompanyId) {
+    if (selectedCompanyId) {
       options.companyId = selectedCompanyId;
     }
 
@@ -324,7 +300,7 @@ export default function ClientCertificatesView() {
     }
 
     return options;
-  }, [isAdmin, selectedCompanyId, selectedBranch, selectedCert, selectedMonth, selectedYear]);
+  }, [selectedCompanyId, selectedBranch, selectedCert, selectedMonth, selectedYear]);
 
   // Generar vista previa del PDF
   const handlePreviewPdf = useCallback(async () => {
@@ -504,10 +480,21 @@ export default function ClientCertificatesView() {
           </div>
         </div>
 
-        {companyName && !isAdmin && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
+        {companies.length > 1 && (
+          <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">{companyName}</span>
+            <select
+              value={selectedCompanyId}
+              onChange={(e) => setSelectedCompanyId(e.target.value)}
+              className="min-w-[250px] px-3 py-2 text-sm border border-blue-200 rounded-lg bg-blue-50 text-blue-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Seleccione una empresa</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.business_name} {company.rut ? `(${company.rut})` : ""}
+                </option>
+              ))}
+            </select>
           </div>
         )}
       </div>
@@ -630,27 +617,6 @@ export default function ClientCertificatesView() {
               </div>
             </div>
           </div>
-
-          {/* Selector de empresa (multi-empresa) */}
-          {companies.length > 1 && (
-            <SearchableSelect
-              id="company"
-              label="Empresa"
-              required
-              value={selectedCompanyId}
-              onChange={(val) => {
-                const syntheticEvent = { target: { value: val } };
-                handleCompanyChange(syntheticEvent);
-                if (errors.company) setErrors(prev => ({ ...prev, company: null }));
-              }}
-              options={companies.map((company) => ({
-                value: company.id,
-                label: `${company.business_name} (${company.rut})`,
-              }))}
-              placeholder="Seleccionar empresa..."
-              error={errors.company}
-            />
-          )}
 
           {/* Selector de sucursal (si query_branches está activo) */}
           {selectedCert?.query_branches && (

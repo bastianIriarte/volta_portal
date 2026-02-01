@@ -283,6 +283,33 @@ export default function CompanyDetailView() {
     });
   };
 
+  // Bulk toggle certificados
+  const handleToggleAllCertificates = async (assignAll) => {
+    const templatesToToggle = certificateTemplates.filter((t) =>
+      assignAll ? !assignedCertificates[t.id] : assignedCertificates[t.id]
+    );
+    if (templatesToToggle.length === 0) return;
+
+    for (const template of templatesToToggle) {
+      setTogglingCertificate(template.id);
+      try {
+        if (assignAll) {
+          await assignCertificateToCompany({ company_id: companyId, certificate_id: template.id });
+        } else {
+          const companyCert = companyCertificates.find(
+            (c) => c.certificate_id === template.id && !['revoked', 'expired'].includes(c.assignment_status)
+          );
+          if (companyCert) await revokeCompanyCertificate(companyCert.id);
+        }
+      } catch (error) {
+        console.error("Error toggling certificate:", error);
+      }
+    }
+    setTogglingCertificate(null);
+    handleSnackbar(assignAll ? "Todos los certificados asignados" : "Todos los certificados removidos", "success");
+    await loadCertificates();
+  };
+
   // Handlers de certificados
   const handleToggleCertificate = async (templateId) => {
     if (togglingCertificate === templateId) return;
@@ -317,6 +344,33 @@ export default function CompanyDetailView() {
     } finally {
       setTogglingCertificate(null);
     }
+  };
+
+  // Bulk toggle reportes
+  const handleToggleAllReports = async (assignAll) => {
+    const templatesToToggle = reportTemplates.filter((t) =>
+      assignAll ? !assignedReports[t.id] : assignedReports[t.id]
+    );
+    if (templatesToToggle.length === 0) return;
+
+    for (const template of templatesToToggle) {
+      setTogglingReport(template.id);
+      try {
+        if (assignAll) {
+          await createCompanyReport({ company_id: companyId, report_id: template.id });
+        } else {
+          const companyRep = companyReports.find(
+            (r) => r.report_id === template.id && !['revoked'].includes(r.assignment_status)
+          );
+          if (companyRep) await revokeCompanyReport(companyRep.id);
+        }
+      } catch (error) {
+        console.error("Error toggling report:", error);
+      }
+    }
+    setTogglingReport(null);
+    handleSnackbar(assignAll ? "Todos los reportes asignados" : "Todos los reportes removidos", "success");
+    await loadReports();
   };
 
   // Handlers de reportes
@@ -487,6 +541,7 @@ export default function CompanyDetailView() {
               loading={loadingCertificates}
               toggling={togglingCertificate}
               onToggle={handleToggleCertificate}
+              onToggleAll={handleToggleAllCertificates}
             />
           )}
 
@@ -498,6 +553,7 @@ export default function CompanyDetailView() {
               loading={loadingReports}
               toggling={togglingReport}
               onToggle={handleToggleReport}
+              onToggleAll={handleToggleAllReports}
               onOpenConfig={handleOpenReportConfigModal}
             />
           )}

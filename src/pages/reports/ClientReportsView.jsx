@@ -1,44 +1,52 @@
 // File: src/pages/reports/ClientReportsView.jsx
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-  BarChart3, Calendar, Building2, Loader2,
-  Download, Search
+  BarChart3, Building2, Loader2,
+  Search, ChevronRight
 } from "lucide-react";
-import { Modal } from "../../components/ui/Modal";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/auth";
 import { getReportTemplates, getCompanyReports } from "../../services/companyService";
 import { handleSnackbar } from "../../utils/messageHelpers";
 
 export default function ClientReportsView() {
-  const navigate = useNavigate();
   const { session } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Modal de generación
-  const [selectedReport, setSelectedReport] = useState(null);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [generating, setGenerating] = useState(false);
+  // Leer company de la URL o usar vacío
+  const [selectedCompanyId, setSelectedCompanyId] = useState(
+    () => searchParams.get("company") || ""
+  );
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState("");
-
-  const baseURL = import.meta.env.VITE_API_BASE_URL;
   const userRole = session?.user?.role;
   const isAdmin = userRole === "root" || userRole === "admin";
   const companyId = session?.user?.company_id;
   const companies = session?.user?.companies || [];
+  const userPermissions = session?.user?.permissions_users || [];
 
-  // Auto-seleccionar empresa: si hay 1 sola, seleccionarla; si hay varias, seleccionar la principal
+  // Auto-seleccionar empresa solo si no viene en la URL
   useEffect(() => {
+    const urlCompany = searchParams.get("company");
+    if (urlCompany) return; // Ya viene de la URL, no auto-seleccionar
     if (companies.length === 1 && !selectedCompanyId) {
       setSelectedCompanyId(String(companies[0].id));
     } else if (companies.length > 1 && !selectedCompanyId && companyId) {
       setSelectedCompanyId(String(companyId));
     }
   }, [companies]);
+
+  // Sincronizar selectedCompanyId con la URL
+  useEffect(() => {
+    if (selectedCompanyId) {
+      setSearchParams({ company: selectedCompanyId }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  }, [selectedCompanyId]);
 
   useEffect(() => {
     loadReports();
@@ -60,8 +68,15 @@ export default function ClientReportsView() {
       }
 
       if (response.success && response.data) {
-        // Filtrar solo reportes activos
-        setReports(response.data.filter(r => r.status === 1 || r.status === undefined));
+        // Normalizar campos (API de empresa usa report_name/report_code, admin usa name/code)
+        const normalized = response.data.map(r => ({
+          ...r,
+          id: r.report_id || r.id,
+          name: r.report_name || r.name,
+          code: r.report_code || r.code,
+        }));
+        // Filtrar solo reportes activos (status puede ser boolean o integer)
+        setReports(normalized.filter(r => r.status === true || r.status === 1 || r.status === undefined));
       }
     } catch (error) {
       console.error("Error loading reports:", error);
@@ -71,55 +86,40 @@ export default function ClientReportsView() {
     }
   };
 
-  const filteredReports = reports.filter(report =>
+  // Filtrar por permisos del usuario (solo para no-admin)
+  const allowedReports = useMemo(() => {
+    if (isAdmin) return reports;
+
+    return reports.filter(report => {
+      const reportId = report.id;
+      const permCodeById = `reports.report_${reportId}`;
+      const code = report.code;
+      const permCodeByCode = code ? `reports.${code.toLowerCase()}` : null;
+
+      return userPermissions.includes(permCodeById) ||
+             (permCodeByCode && userPermissions.includes(permCodeByCode)) ||
+             userPermissions.includes('reports.*');
+    });
+  }, [reports, userPermissions, isAdmin]);
+
+  const selectedCompanyName = useMemo(() => {
+    if (!selectedCompanyId) return null;
+    const company = companies.find(c => String(c.id) === String(selectedCompanyId));
+    return company?.business_name || null;
+  }, [selectedCompanyId, companies]);
+
+  const filteredReports = allowedReports.filter(report =>
     report.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (report.code && report.code.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleOpenModal = (report) => {
-    setSelectedReport(report);
-    // Valores por defecto: mes actual
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    setDateFrom(firstDay.toISOString().split("T")[0]);
-    setDateTo(lastDay.toISOString().split("T")[0]);
-  };
-
-  const handleCloseModal = () => {
-    setSelectedReport(null);
-    setDateFrom("");
-    setDateTo("");
-  };
-
-  const handleGenerateReport = () => {
-    if (!selectedReport) return;
-    if (!dateFrom || !dateTo) {
-      handleSnackbar("Selecciona el rango de fechas", "error");
-      return;
-    }
-
-    setGenerating(true);
-
-    // Construir URL del reporte con parámetros
+  const handleViewReport = (report) => {
     const params = new URLSearchParams();
-    params.append("date_from", dateFrom);
-    params.append("date_to", dateTo);
+    params.append("report", report.code);
     if (selectedCompanyId) {
       params.append("company_id", selectedCompanyId);
     }
-
-    // Determinar la URL según el tipo de origen
-    let reportUrl;
-    if (selectedReport.origin_type === "iframe" && selectedReport.report_url) {
-      reportUrl = selectedReport.report_url;
-    } else {
-      reportUrl = `${baseURL}/api/reports/generate/${selectedReport.id}?${params.toString()}`;
-    }
-
-    window.open(reportUrl, "_blank");
-    setGenerating(false);
-    handleSnackbar("Generando reporte...", "success");
+    navigate(`/dashboard/view?${params.toString()}`);
   };
 
 
@@ -168,7 +168,7 @@ export default function ClientReportsView() {
       </div>
 
       {/* Barra de busqueda */}
-      {reports.length > 0 && (
+      {allowedReports.length > 0 && (
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
@@ -181,185 +181,87 @@ export default function ClientReportsView() {
         </div>
       )}
 
-      {/* Grid de reportes */}
-      {filteredReports.length === 0 ? (
+      {/* Estado: sin empresa seleccionada */}
+      {!selectedCompanyId && companies.length > 1 && !isAdmin ? (
+        <div className="text-center py-16 bg-gray-50 rounded-lg border border-gray-200">
+          <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900">Seleccione una empresa</h3>
+          <p className="text-gray-500 mt-2">
+            Seleccione una empresa para ver los reportes disponibles
+          </p>
+        </div>
+      ) : filteredReports.length === 0 ? (
         <div className="text-center py-16 bg-gray-50 rounded-lg border border-gray-200">
           <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900">No hay reportes disponibles</h3>
+          <h3 className="text-lg font-medium text-gray-900">
+            {searchTerm
+              ? "Sin resultados"
+              : "No hay reportes disponibles"
+            }
+          </h3>
           <p className="text-gray-500 mt-2">
             {searchTerm
               ? "No se encontraron reportes con ese criterio"
-              : isAdmin
-                ? "No se han creado reportes en el sistema"
-                : "Tu empresa no tiene reportes asignados"
+              : selectedCompanyName
+                ? `No existen reportes asociados a la empresa: ${selectedCompanyName}`
+                : "No existen reportes disponibles"
             }
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredReports.map((report) => (
-            <div
-              key={report.id}
-              onClick={() => handleOpenModal(report)}
-              className="relative p-6 rounded-lg border-2 cursor-pointer transition-all duration-200 bg-blue-50 border-blue-200 hover:bg-blue-100 transform hover:scale-105 hover:shadow-lg"
-            >
-              {/* Icono */}
-              <div className="mb-4 text-blue-600">
-                <BarChart3 size={40} />
-              </div>
-
-              {/* Contenido */}
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {report.name}
-                </h3>
-
-                {report.description && (
-                  <p className="text-sm text-gray-600 line-clamp-2">
-                    {report.description}
-                  </p>
-                )}
-
-                {report.code && (
-                  <div className="text-xs text-gray-500">
-                    Código: <span className="font-mono">{report.code}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-4 mt-4 border-t border-blue-200">
-                <span className="text-sm font-medium text-blue-600">
-                  Generar
-                </span>
-                <Calendar size={16} className="text-blue-600" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Modal de generación */}
-      <Modal
-        open={!!selectedReport}
-        onClose={handleCloseModal}
-        title={`Generar: ${selectedReport?.name}`}
-        size="sm"
-        actions={[
-          {
-            label: "Cancelar",
-            variant: "outline",
-            onClick: handleCloseModal,
-          },
-          {
-            label: generating ? "Generando..." : "Generar Reporte",
-            variant: "primary",
-            onClick: handleGenerateReport,
-            disabled: generating || !dateFrom || !dateTo,
-            icon: Download,
-          },
-        ]}
-      >
-        <div className="space-y-4">
-          {/* Info del reporte */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
-              <div>
-                <p className="text-sm font-medium text-blue-800">{selectedReport?.name}</p>
-                {selectedReport?.code && (
-                  <p className="text-xs text-blue-600">Código: {selectedReport?.code}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Rango de fechas */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Periodo del reporte
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Desde</label>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Hasta</label>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Accesos rápidos de periodo */}
-          <div>
-            <label className="block text-xs text-gray-500 mb-2">Accesos rápidos</label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: "Este mes", getValue: () => {
-                  const now = new Date();
-                  return {
-                    from: new Date(now.getFullYear(), now.getMonth(), 1),
-                    to: new Date(now.getFullYear(), now.getMonth() + 1, 0)
-                  };
-                }},
-                { label: "Mes anterior", getValue: () => {
-                  const now = new Date();
-                  return {
-                    from: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-                    to: new Date(now.getFullYear(), now.getMonth(), 0)
-                  };
-                }},
-                { label: "Últimos 3 meses", getValue: () => {
-                  const now = new Date();
-                  return {
-                    from: new Date(now.getFullYear(), now.getMonth() - 2, 1),
-                    to: new Date(now.getFullYear(), now.getMonth() + 1, 0)
-                  };
-                }},
-                { label: "Este año", getValue: () => {
-                  const now = new Date();
-                  return {
-                    from: new Date(now.getFullYear(), 0, 1),
-                    to: new Date(now.getFullYear(), 11, 31)
-                  };
-                }},
-              ].map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => {
-                    const { from, to } = preset.getValue();
-                    setDateFrom(from.toISOString().split("T")[0]);
-                    setDateTo(to.toISOString().split("T")[0]);
-                  }}
-                  className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporte</th>
+                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Código</th>
+                <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Descripción</th>
+                <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-16"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredReports.map((report) => (
+                <tr
+                  key={report.id}
+                  onClick={() => handleViewReport(report)}
+                  className="hover:bg-blue-50 cursor-pointer transition-colors"
                 >
-                  {preset.label}
-                </button>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <BarChart3 className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{report.name}</p>
+                        <p className="text-xs text-gray-500 md:hidden">{report.code}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 hidden md:table-cell">
+                    <span className="inline-flex px-2 py-0.5 text-xs font-mono text-gray-600 bg-gray-100 rounded">
+                      {report.code}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5 hidden lg:table-cell">
+                    <p className="text-sm text-gray-500 truncate max-w-xs">
+                      {report.description || "-"}
+                    </p>
+                  </td>
+                  <td className="px-5 py-3.5 text-right">
+                    <ChevronRight className="w-4 h-4 text-gray-400 inline-block" />
+                  </td>
+                </tr>
               ))}
-            </div>
-          </div>
-
-          {/* Nota */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs text-blue-700">
-              El reporte se generará con los datos correspondientes al periodo seleccionado.
-              Se abrirá en una nueva ventana para su visualización o descarga.
+            </tbody>
+          </table>
+          <div className="px-5 py-3 bg-gray-50 border-t border-gray-200">
+            <p className="text-xs text-gray-500">
+              {filteredReports.length} {filteredReports.length === 1 ? "reporte" : "reportes"} disponibles
             </p>
           </div>
         </div>
-      </Modal>
+      )}
+
     </div>
   );
 }

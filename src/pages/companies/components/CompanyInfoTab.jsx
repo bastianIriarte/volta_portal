@@ -28,13 +28,14 @@ export default function CompanyInfoTab({
           onChange={(e) => onFormChange("sap_code", e.target.value)}
           disabled
         />
-          <Input
-            id="business_name"
-            label="Razon Social"
-            value={formData.business_name || ""}
-            onChange={(e) => onFormChange("business_name", e.target.value)}
-            disabled
-          />
+        <Input
+          id="business_name"
+          label="Razon Social"
+          value={formData.business_name || ""}
+          onChange={(e) => onFormChange("business_name", e.target.value)}
+          disabled
+        />
+
         <Input
           id="email"
           label="Email de Contacto"
@@ -62,6 +63,13 @@ export default function CompanyInfoTab({
           label="Fecha de Registro"
           value={formData.created_at || ""}
           disabled
+        />
+        <Input
+          id="sharepoint_name"
+          label="Nombre SharePoint"
+          value={formData.sharepoint_name || ""}
+          onChange={(e) => onFormChange("sharepoint_name", e.target.value)}
+          placeholder={"Nombre para SharePoint"}
         />
         <div>
           <label className="block text-[11px] font-bold text-neutral-600 uppercase mb-1.5">Estado</label>

@@ -41,7 +41,7 @@ export const Select = ({
     variant === "elegant" && elegant,
     error ? bad : success ? ok : norm,
     className,
-    props.disabled && "bg-gray-600/10 text-gray-500 cursor-not-allowed",
+    props.disabled && "bg-gray-600/15 text-gray-500 cursor-not-allowed",
   );
 
   return (

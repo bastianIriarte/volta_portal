@@ -46,8 +46,8 @@ export const Input = forwardRef(function Input(
     base,
     variant === "elegant" && elegant,
     error ? bad : success ? ok : norm,
-    props.disabled && "bg-neutral-300/30 text-gray-600 cursor-not-allowed border-gray-200",
-    props.readOnly && "bg-neutral-300/30 text-gray-600 cursor-not-allowed border-gray-200",
+    props.disabled && "bg-gray-600/15 text-gray-600 cursor-not-allowed border-gray-200",
+    props.readOnly && "bg-gray-600/15 text-gray-600 cursor-not-allowed border-gray-200",
     className
   );
 

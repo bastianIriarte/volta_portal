@@ -7,3 +7,5 @@ export { default as RequestManagementSection } from "./RequestManagementSection"
 export { default as RejectModal } from "./RejectModal";
 export { default as ApproveModal } from "./ApproveModal";
 export { default as CompanyAssignmentSection } from "./CompanyAssignmentSection";
+export { default as CompanyPermissionCard } from "./CompanyPermissionCard";
+export { default as CompanyPermissionModal } from "./CompanyPermissionModal";

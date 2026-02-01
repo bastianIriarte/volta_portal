@@ -1,7 +1,7 @@
 // File: src/pages/registration_requests/RegistrationRequestsView.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardList, Clock, CheckCircle, XCircle, Settings, Trash2, Eye } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle, XCircle, Settings, Trash2, Eye, UserCheck } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import GenericFilters from "../../components/common/GenericFilters";
 import GenericTable from "../../components/common/GenericTable";
@@ -25,7 +25,7 @@ export default function RegistrationRequestsView() {
   const [filterStatus, setFilterStatus] = useState("all");
 
   const tableConfig = {
-    defaultSort: "created_at",
+    defaultSort: "id",
     defaultSortDir: "desc",
     pageSize: 10,
     searchFields: ["company_name", "company_rut_formatted", "sap_code", "name", "email", "rut_formatted", "position"]
@@ -70,6 +70,7 @@ export default function RegistrationRequestsView() {
   };
 
   const columns = [
+    { key: "id", label: "N°" },
     { key: "company_name", label: "Empresa" },
     { key: "name", label: "Solicitante" },
     { key: "position", label: "Cargo" },
@@ -123,6 +124,9 @@ export default function RegistrationRequestsView() {
     return (
       <tr key={request.id} className="border-t hover:bg-gray-50">
         <td className="px-3 py-2">
+          {request.id}
+        </td>
+        <td className="px-3 py-2">
           <div>
             <div className="text-sm font-medium text-gray-900">{request.company_name || "-"}</div>
             <div className="text-xs text-gray-500">{request.company_rut_formatted} | {request.sap_code}</div>
@@ -130,7 +134,9 @@ export default function RegistrationRequestsView() {
         </td>
         <td className="px-3 py-2">
           <div>
-            <div className="text-sm font-medium text-gray-900">{request.name}</div>
+            <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+              {request.name}
+            </div>
             <div className="text-xs text-gray-500">{request.email}</div>
           </div>
         </td>
@@ -186,11 +192,10 @@ export default function RegistrationRequestsView() {
           <button
             key={status.value}
             onClick={() => setFilterStatus(status.value)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filterStatus === status.value
-                ? "bg-[var(--brand-primary)] text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filterStatus === status.value
+              ? "bg-[var(--brand-primary)] text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
           >
             {status.label}
           </button>

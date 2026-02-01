@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Building2, Plus, X, Search, Loader2 } from "lucide-react";
+import { Building2, Plus, X, Search, Loader2, Info } from "lucide-react";
 import { Modal } from "../../../components/ui/Modal";
 
 const MAX_VISIBLE = 50;
@@ -119,6 +119,20 @@ export default function CompanyAssignmentSection({
           </button>
         )}
       </div>
+
+      {!isReadOnly && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3 mb-4">
+          <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-blue-800">
+              Importante: Verifique la configuración de la empresa
+            </p>
+            <p className="text-sm text-blue-700 mt-1">
+              Si la empresa no tiene asociados reportes, certificados o documentos, el usuario <strong>no podrá visualizarlos</strong> aunque tenga los permisos asignados. Puede modificar esta configuración en cualquier momento desde el mantenedor de empresas.
+            </p>
+          </div>
+        </div>
+      )}
 
       {allCompanies.length === 0 ? (
         <div className="text-center py-8 text-gray-400 border border-dashed border-gray-300 rounded-lg">

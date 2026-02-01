@@ -6,9 +6,12 @@ export default function CompanyCertificatesTab({
   assignedCertificates,
   loading,
   toggling,
-  onToggle
+  onToggle,
+  onToggleAll
 }) {
   const assignedCount = Object.values(assignedCertificates).filter(Boolean).length;
+  const allAssigned = templates.length > 0 && assignedCount === templates.length;
+  const isBulkToggling = toggling !== null;
 
   return (
     <div className="space-y-6">
@@ -19,6 +22,27 @@ export default function CompanyCertificatesTab({
             Selecciona los certificados que debe presentar esta empresa.
           </p>
         </div>
+        {templates.length > 0 && (
+          <button
+            type="button"
+            disabled={isBulkToggling}
+            onClick={() => onToggleAll(!allAssigned)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+              allAssigned
+                ? "text-red-700 bg-red-50 hover:bg-red-100 border border-red-200"
+                : "text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200"
+            } ${isBulkToggling ? "opacity-50 pointer-events-none" : ""}`}
+          >
+            {isBulkToggling ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : allAssigned ? (
+              <Square className="w-4 h-4" />
+            ) : (
+              <CheckSquare className="w-4 h-4" />
+            )}
+            {allAssigned ? "Quitar todos" : "Asignar todos"}
+          </button>
+        )}
       </div>
 
       {loading ? (
